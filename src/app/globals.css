@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+:root {
+  /* Warm, Claude-inspired palette */
+  --paper: #faf9f5;
+  --ivory: #f0eee6;
+  --surface: #ffffff;
+  --ink: #262521;
+  --body: #403d36;
+  --muted: #8a8578;
+  --line: #e8e5db;
+  --line-strong: #d8d4c7;
+  --accent: #c96442;
+  --accent-hover: #ae5234;
+  --accent-soft: #f6e9e2;
+  --star: #cf8a3b;
+  --sage: #66805c;
+  --sage-soft: #e9eee3;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ivory: var(--ivory);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-body: var(--body);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-star: var(--star);
+  --color-sage: var(--sage);
+  --color-sage-soft: var(--sage-soft);
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+}
+
+body {
+  background: var(--paper);
+  color: var(--body);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+}
