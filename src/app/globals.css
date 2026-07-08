@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  /* Warm, Claude-inspired palette */
+  color-scheme: light;
+  /* Warm, Claude-inspired palette (light) */
   --paper: #faf9f5;
   --ivory: #f0eee6;
   --surface: #ffffff;
@@ -16,6 +17,25 @@
   --star: #cf8a3b;
   --sage: #66805c;
   --sage-soft: #e9eee3;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  /* Warm charcoal dark palette */
+  --paper: #1b1a18;
+  --ivory: #2a2824;
+  --surface: #242220;
+  --ink: #f4f2ec;
+  --body: #cec9bf;
+  --muted: #948e82;
+  --line: #34322d;
+  --line-strong: #46423a;
+  --accent: #d5795a;
+  --accent-hover: #e58d6c;
+  --accent-soft: #3a2a22;
+  --star: #dc9e52;
+  --sage: #8fa883;
+  --sage-soft: #2b3427;
 }
 
 @theme inline {
@@ -42,6 +62,9 @@ body {
   color: var(--body);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
 }
 
 ::selection {

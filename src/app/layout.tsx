@@ -24,13 +24,25 @@ export const metadata: Metadata = {
     "Your games, movies, series and anime — what's next, what's in progress, what's done.",
 };
 
+// Runs synchronously before first paint: applies the saved theme (or the OS
+// preference) so there's no flash of the wrong palette on load.
+const themeScript = `(function(){try{var t=localStorage.getItem('backlog:theme');if(!t)t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geist.variable} ${serif.variable} h-full`}>
+    <html
+      lang="en"
+      data-theme="light"
+      suppressHydrationWarning
+      className={`${geist.variable} ${serif.variable} h-full`}
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body className="min-h-full">{children}</body>
     </html>
   );

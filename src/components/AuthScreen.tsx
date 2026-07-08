@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { supabase } from "@/lib/supabase";
+import { ThemeToggle } from "./ThemeToggle";
 import { SpinnerIcon } from "./icons";
 
 /** Centered Claude-style login / signup card, shown when signed out. */
@@ -49,6 +50,9 @@ export function AuthScreen() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center px-6 py-16">
+      <div className="fixed right-4 top-4">
+        <ThemeToggle />
+      </div>
       <p className="mb-8 font-serif text-2xl font-semibold tracking-tight text-ink">
         Backlog<span className="text-accent">.</span>
       </p>

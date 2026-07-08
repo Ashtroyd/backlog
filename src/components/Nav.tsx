@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { SECTIONS, SECTION_SLUGS } from "@/lib/sections";
 import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
 import { supabase } from "@/lib/supabase";
+import { ThemeToggle } from "./ThemeToggle";
 import { ArchiveIcon, DownloadIcon, LogoutIcon, UploadIcon } from "./icons";
 
 export default function Nav() {
@@ -76,6 +77,8 @@ export default function Nav() {
             );
           })}
         </nav>
+
+        <ThemeToggle />
 
         <div className="relative">
           <button
