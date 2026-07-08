@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { motion } from "motion/react";
 import { statusLabel, type Section } from "@/lib/sections";
+import { formatDate } from "@/lib/format";
 import type { BacklogItem } from "@/lib/types";
 import { StarRating } from "./StarRating";
 
@@ -66,6 +67,11 @@ export function ItemCard({
             {item.release_year ? ` · ${item.release_year}` : ""}
           </span>
         </p>
+        {item.started_at && (
+          <p className="mt-0.5 truncate text-xs text-muted/80">
+            {section.startedLabel} {formatDate(item.started_at)}
+          </p>
+        )}
         {item.rating != null && (
           <div className="mt-1.5">
             <StarRating value={item.rating} size={13} />

@@ -28,6 +28,7 @@ export type BacklogItem = {
   rating: number | null;
   review: string | null;
   is_private: boolean;
+  started_at: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;

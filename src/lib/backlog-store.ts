@@ -74,6 +74,7 @@ export type UpdatePatch = {
   rating?: number | null;
   review?: string | null;
   is_private?: boolean;
+  started_at?: string | null;
 };
 
 function looksLikeItem(i: unknown): i is BacklogItem {
@@ -189,6 +190,7 @@ export function useBacklog(mediaType: MediaType) {
         rating: null,
         review: null,
         is_private: false,
+        started_at: null,
         created_at: now,
         updated_at: now,
         completed_at: null,
@@ -223,6 +225,7 @@ export function useBacklog(mediaType: MediaType) {
         fields.review = patch.review?.trim() ? patch.review.trim() : null;
       }
       if (patch.is_private !== undefined) fields.is_private = patch.is_private;
+      if (patch.started_at !== undefined) fields.started_at = patch.started_at;
       setItems((prev) =>
         prev.map((i) => (i.id === id ? ({ ...i, ...fields } as BacklogItem) : i)),
       );

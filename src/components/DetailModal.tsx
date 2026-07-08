@@ -8,6 +8,7 @@ import { STATUS_ORDER, statusLabel, statusLabelFor, type Section } from "@/lib/s
 import { useAuth, type UpdatePatch } from "@/lib/backlog-store";
 import { fetchAlsoHave, type AlsoHave } from "@/lib/social";
 import { itemChips } from "@/lib/chips";
+import { todayISODate } from "@/lib/format";
 import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { Modal } from "./Modal";
 import { StarRating } from "./StarRating";
@@ -37,6 +38,7 @@ export function DetailModal({
   const [rating, setRating] = useState<number | null>(null);
   const [review, setReview] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [startedAt, setStartedAt] = useState("");
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
 
   useEffect(() => {
@@ -46,8 +48,18 @@ export function DetailModal({
       setRating(item.rating);
       setReview(item.review ?? "");
       setIsPrivate(item.is_private);
+      setStartedAt(item.started_at ?? "");
     }
   }, [item]);
+
+  // Moving out of the backlog for the first time defaults the start date to
+  // today (still editable). We never overwrite a date that's already set.
+  function chooseStatus(next: ItemStatus) {
+    setStatus(next);
+    if ((next === "in_progress" || next === "completed") && !startedAt) {
+      setStartedAt(todayISODate());
+    }
+  }
 
   // Which friends also have this title?
   useEffect(() => {
@@ -68,7 +80,13 @@ export function DetailModal({
 
   function handleSave() {
     if (!current) return;
-    onUpdate(current.id, { status, rating, review, is_private: isPrivate });
+    onUpdate(current.id, {
+      status,
+      rating,
+      review,
+      is_private: isPrivate,
+      started_at: startedAt || null,
+    });
     onClose();
   }
 
@@ -141,7 +159,7 @@ export function DetailModal({
                       <button
                         key={s}
                         type="button"
-                        onClick={() => setStatus(s)}
+                        onClick={() => chooseStatus(s)}
                         className={`relative rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
                           active ? "text-ink" : "text-muted hover:text-ink"
                         }`}
@@ -163,6 +181,43 @@ export function DetailModal({
                   })}
                 </div>
               </div>
+
+              <AnimatePresence initial={false}>
+                {status !== "backlog" && (
+                  <motion.div
+                    key="started"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-5 pt-1">
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                        {section.startedLabel}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={startedAt}
+                          max={todayISODate()}
+                          onChange={(e) => setStartedAt(e.target.value)}
+                          className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                        />
+                        {startedAt && (
+                          <button
+                            type="button"
+                            onClick={() => setStartedAt("")}
+                            className="rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               <AnimatePresence initial={false}>
                 {status === "completed" && (

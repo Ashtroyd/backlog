@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { STATUS_DOT } from "@/components/ItemCard";
-import { statusLabelFor } from "@/lib/sections";
+import { statusLabelFor, startedLabelFor } from "@/lib/sections";
 import { itemChips } from "@/lib/chips";
+import { formatDate } from "@/lib/format";
 import type { BacklogItem, Profile } from "@/lib/types";
 import { Modal } from "@/components/Modal";
 import { StarRating } from "@/components/StarRating";
@@ -76,6 +77,12 @@ export function FriendItemModal({
                   <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[item.status]}`} />
                   {statusLabelFor(item.status, item.media_type)}
                 </p>
+
+                {item.started_at && (
+                  <p className="mt-1.5 text-sm text-muted">
+                    {startedLabelFor(item.media_type)} {formatDate(item.started_at)}
+                  </p>
+                )}
 
                 {item.rating != null && (
                   <div className="mt-2">

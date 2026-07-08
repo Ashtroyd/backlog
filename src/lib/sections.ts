@@ -9,6 +9,8 @@ export type Section = {
   mediaType: MediaType;
   /** Label for the in_progress status — "Playing" for games, "Watching" otherwise. */
   inProgressLabel: string;
+  /** Label for the "started" date — "Started playing", "First watched", … */
+  startedLabel: string;
   searchPlaceholder: string;
   /** Where search results come from, shown in the add dialog. */
   source: string;
@@ -23,6 +25,7 @@ export const SECTIONS: Record<SectionSlug, Section> = {
     singular: "game",
     mediaType: "game",
     inProgressLabel: "Playing",
+    startedLabel: "Started playing",
     searchPlaceholder: "Search for a game…",
     source: "Steam",
     emptyTitle: "No games yet",
@@ -34,6 +37,7 @@ export const SECTIONS: Record<SectionSlug, Section> = {
     singular: "movie",
     mediaType: "movie",
     inProgressLabel: "Watching",
+    startedLabel: "First watched",
     searchPlaceholder: "Search for a movie…",
     source: "IMDb",
     emptyTitle: "No movies yet",
@@ -45,6 +49,7 @@ export const SECTIONS: Record<SectionSlug, Section> = {
     singular: "series",
     mediaType: "series",
     inProgressLabel: "Watching",
+    startedLabel: "Started watching",
     searchPlaceholder: "Search for a series…",
     source: "TVMaze",
     emptyTitle: "No series yet",
@@ -56,6 +61,7 @@ export const SECTIONS: Record<SectionSlug, Section> = {
     singular: "anime",
     mediaType: "anime",
     inProgressLabel: "Watching",
+    startedLabel: "Started watching",
     searchPlaceholder: "Search for an anime…",
     source: "MyAnimeList",
     emptyTitle: "No anime yet",
@@ -75,6 +81,11 @@ export const STATUS_ORDER: ItemStatus[] = ["backlog", "in_progress", "completed"
 /** Status label from a media_type directly, for cross-section contexts. */
 export function statusLabelFor(status: ItemStatus, mediaType: MediaType): string {
   return statusLabel(status, SECTION_BY_MEDIA[mediaType]);
+}
+
+/** "Started" date label from a media_type, e.g. "First watched" for movies. */
+export function startedLabelFor(mediaType: MediaType): string {
+  return SECTION_BY_MEDIA[mediaType].startedLabel;
 }
 
 export function statusLabel(status: ItemStatus, section: Section): string {
