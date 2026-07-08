@@ -19,7 +19,9 @@ type Filter = "all" | ItemStatus;
 
 export default function Library({ section: slug }: { section: SectionSlug }) {
   const section = SECTIONS[slug];
-  const { items, ready, add, update, remove } = useBacklog(section.mediaType);
+  const { items, ready, loadError, add, update, remove } = useBacklog(
+    section.mediaType,
+  );
   const [filter, setFilter] = useState<Filter>("all");
   const [addOpen, setAddOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -65,6 +67,12 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
           Add {section.singular}
         </button>
       </header>
+
+      {loadError && (
+        <div className="mt-6 rounded-xl bg-accent-soft px-4 py-3 text-sm leading-relaxed text-accent-hover">
+          {loadError}
+        </div>
+      )}
 
       <div className="mt-6 flex flex-wrap gap-1.5">
         {filters.map((f) => {

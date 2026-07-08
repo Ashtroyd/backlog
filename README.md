@@ -11,15 +11,27 @@ automatically. Move it through *Backlog → Playing/Watching → Completed* (or
 
 Built with Next.js 16, Tailwind CSS 4 and Motion.
 
-## Zero setup
+## Setup
 
 ```bash
 npm install
 npm run dev
 ```
 
-That's the whole setup — no accounts, no API keys. Search is powered by free,
-keyless sources, proxied through the app's own `/api/search`:
+Your library lives in Supabase (email/password account) and syncs across
+devices. `.env.local` needs the project's URL and anon key:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ…
+```
+
+On a fresh Supabase project, run
+[`supabase/migrations/0001_items.sql`](supabase/migrations/0001_items.sql) once
+in the SQL Editor to create the table.
+
+Search needs no keys at all — it's powered by free, keyless sources, proxied
+through the app's own `/api/search`:
 
 - **Games** — Steam store search (covers, genres, release year, Metacritic).
   Steam catalogue only, so console exclusives won't appear.
@@ -27,15 +39,15 @@ keyless sources, proxied through the app's own `/api/search`:
 - **Series** — [TVMaze](https://www.tvmaze.com)
 - **Anime** — MyAnimeList via [Jikan](https://jikan.moe)
 
-Your library is stored in your browser (localStorage) — works offline once
-loaded. Use the archive menu in the top-right to **export a JSON backup** or
-**import** one on another machine.
+The archive menu in the top-right can still **export a JSON backup** of your
+library or **import** one. Anything saved during the app's earlier
+localStorage era is uploaded to your account automatically on first login.
 
 ## Deploying to Vercel
 
-Push the repo to GitHub and import it in Vercel — no environment variables
-needed. Your library lives in each browser's localStorage, so the deployed site
-starts empty on every new device; use export/import to carry your data over.
+Push the repo to GitHub and import it in Vercel, setting
+`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` as environment
+variables. Log in on any device and your library is there.
 
 ## Scripts
 

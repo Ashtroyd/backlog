@@ -5,22 +5,33 @@ import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { SECTIONS, SECTION_SLUGS } from "@/lib/sections";
-import { exportBacklog, importBacklog } from "@/lib/backlog-store";
-import { ArchiveIcon, DownloadIcon, UploadIcon } from "./icons";
+import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
+import { supabase } from "@/lib/supabase";
+import { ArchiveIcon, DownloadIcon, LogoutIcon, UploadIcon } from "./icons";
 
 export default function Nav() {
   const pathname = usePathname();
+  const { session } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  async function handleExport() {
+    setMenuOpen(false);
+    try {
+      await exportBacklog();
+    } catch {
+      alert("Export failed — check your connection.");
+    }
+  }
 
   function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
-    if (!file) return;
+    if (!file || !session) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       if (!confirm("Importing replaces your current library. Continue?")) return;
-      const result = importBacklog(String(reader.result));
+      const result = await importBacklog(String(reader.result), session.user.id);
       if ("error" in result) {
         alert(result.error);
       } else {
@@ -94,10 +105,7 @@ export default function Nav() {
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      exportBacklog();
-                      setMenuOpen(false);
-                    }}
+                    onClick={handleExport}
                     className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-body transition-colors hover:bg-ivory hover:text-ink"
                   >
                     <DownloadIcon className="h-4 w-4 text-muted" />
@@ -124,6 +132,15 @@ export default function Nav() {
             onChange={handleImportFile}
           />
         </div>
+
+        <button
+          type="button"
+          title={`Sign out${session ? ` (${session.user.email})` : ""}`}
+          onClick={() => supabase.auth.signOut()}
+          className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+        >
+          <LogoutIcon className="h-[18px] w-[18px]" />
+        </button>
       </div>
     </header>
   );

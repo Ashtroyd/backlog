@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "./supabase";
 import type {
   BacklogItem,
   ItemMeta,
@@ -9,26 +17,40 @@ import type {
 } from "./types";
 
 /**
- * Browser-local persistence. The whole library lives under one localStorage
- * key as a flat array; each section filters by media_type.
+ * Cloud persistence: the library lives in the `items` table in Supabase,
+ * scoped per user by RLS. Reads happen on mount; writes are optimistic.
+ * On first sign-in, anything left over from the old localStorage era is
+ * uploaded once, then kept locally under a `:migrated` key as a backup.
  */
 
-const STORAGE_KEY = "backlog:v1";
+const LEGACY_KEY = "backlog:v1";
 
-function loadAll(): BacklogItem[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+/* ---------- session ---------- */
+
+export function useSession() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setReady(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) =>
+      setSession(s),
+    );
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  return { session, ready };
 }
 
-function saveAll(items: BacklogItem[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
+export const AuthContext = createContext<{ session: Session | null }>({
+  session: null,
+});
+export const useAuth = () => useContext(AuthContext);
+
+/* ---------- items ---------- */
 
 export type AddInput = {
   mediaType: MediaType;
@@ -46,27 +68,95 @@ export type UpdatePatch = {
   review?: string | null;
 };
 
+function looksLikeItem(i: unknown): i is BacklogItem {
+  const x = i as BacklogItem;
+  return (
+    !!x &&
+    typeof x.id === "string" &&
+    typeof x.title === "string" &&
+    typeof x.media_type === "string" &&
+    typeof x.status === "string"
+  );
+}
+
+/** One-time upload of items from the app's localStorage era. */
+async function importLegacyLocalItems(userId: string) {
+  const raw = localStorage.getItem(LEGACY_KEY);
+  if (!raw) return;
+
+  let local: unknown;
+  try {
+    local = JSON.parse(raw);
+  } catch {
+    localStorage.removeItem(LEGACY_KEY);
+    return;
+  }
+  const valid = Array.isArray(local) ? local.filter(looksLikeItem) : [];
+
+  if (valid.length) {
+    // Only seed an empty account — never clobber existing cloud data.
+    const { count, error } = await supabase
+      .from("items")
+      .select("*", { count: "exact", head: true });
+    if (error) throw error;
+    if ((count ?? 0) === 0) {
+      const { error: insertError } = await supabase
+        .from("items")
+        .insert(valid.map((i) => ({ ...i, user_id: userId })));
+      if (insertError) throw insertError;
+    }
+  }
+
+  // Keep a local copy as a safety net, but stop re-importing.
+  localStorage.setItem(`${LEGACY_KEY}:migrated`, raw);
+  localStorage.removeItem(LEGACY_KEY);
+}
+
 export function useBacklog(mediaType: MediaType) {
-  // null = not loaded yet (first client render, before localStorage is read).
-  const [all, setAll] = useState<BacklogItem[] | null>(null);
+  const { session } = useAuth();
+  const userId = session?.user?.id ?? null;
+
+  const [items, setItems] = useState<BacklogItem[]>([]);
+  const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    setAll(loadAll());
-  }, []);
-
-  const items = useMemo(
-    () =>
-      (all ?? [])
-        .filter((i) => i.media_type === mediaType)
-        .sort((a, b) => b.created_at.localeCompare(a.created_at)),
-    [all, mediaType],
-  );
+    if (!userId) return undefined;
+    let alive = true;
+    (async () => {
+      try {
+        await importLegacyLocalItems(userId);
+        const { data, error } = await supabase
+          .from("items")
+          .select("*")
+          .eq("media_type", mediaType)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        if (alive) {
+          setItems(data as BacklogItem[]);
+          setLoadError(null);
+          setReady(true);
+        }
+      } catch (err) {
+        console.warn("Could not load items from Supabase", err);
+        if (alive) {
+          setLoadError(
+            "Couldn't load your library. If this is a fresh Supabase project, run supabase/migrations/0001_items.sql in the SQL Editor first.",
+          );
+          setReady(true);
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [userId, mediaType]);
 
   const add = useCallback(
-    (input: AddInput): { error: string | null } => {
-      const current = all ?? loadAll();
+    async (input: AddInput): Promise<{ error: string | null }> => {
+      if (!userId) return { error: "Not signed in." };
       if (
-        current.some(
+        items.some(
           (i) =>
             i.media_type === input.mediaType &&
             i.external_id === input.externalId,
@@ -91,54 +181,74 @@ export function useBacklog(mediaType: MediaType) {
         updated_at: now,
         completed_at: null,
       };
-      const next = [item, ...current];
-      saveAll(next);
-      setAll(next);
+      const { error } = await supabase
+        .from("items")
+        .insert({ ...item, user_id: userId });
+      if (error) {
+        if (error.code === "23505") return { error: "duplicate" };
+        return { error: error.message };
+      }
+      setItems((prev) => [item, ...prev]);
       return { error: null };
     },
-    [all],
+    [items, userId],
   );
 
   const update = useCallback(
     (id: string, patch: UpdatePatch) => {
-      const current = all ?? loadAll();
       const now = new Date().toISOString();
-      const next = current.map((i) => {
-        if (i.id !== id) return i;
-        const updated: BacklogItem = { ...i, updated_at: now };
-        if (patch.status !== undefined) {
-          updated.status = patch.status;
-          updated.completed_at =
-            patch.status === "completed" ? (i.completed_at ?? now) : null;
-        }
-        if (patch.rating !== undefined) updated.rating = patch.rating;
-        if (patch.review !== undefined) {
-          updated.review = patch.review?.trim() ? patch.review.trim() : null;
-        }
-        return updated;
+      const fields: Record<string, unknown> = { updated_at: now };
+      if (patch.status !== undefined) {
+        fields.status = patch.status;
+        const existing = items.find((i) => i.id === id);
+        fields.completed_at =
+          patch.status === "completed"
+            ? (existing?.completed_at ?? now)
+            : null;
+      }
+      if (patch.rating !== undefined) fields.rating = patch.rating;
+      if (patch.review !== undefined) {
+        fields.review = patch.review?.trim() ? patch.review.trim() : null;
+      }
+      setItems((prev) =>
+        prev.map((i) => (i.id === id ? ({ ...i, ...fields } as BacklogItem) : i)),
+      );
+      supabase
+        .from("items")
+        .update(fields)
+        .eq("id", id)
+        .then(({ error }) => {
+          if (error) console.warn("Update failed to sync", error);
+        });
+    },
+    [items],
+  );
+
+  const remove = useCallback((id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    supabase
+      .from("items")
+      .delete()
+      .eq("id", id)
+      .then(({ error }) => {
+        if (error) console.warn("Delete failed to sync", error);
       });
-      saveAll(next);
-      setAll(next);
-    },
-    [all],
-  );
+  }, []);
 
-  const remove = useCallback(
-    (id: string) => {
-      const current = all ?? loadAll();
-      const next = current.filter((i) => i.id !== id);
-      saveAll(next);
-      setAll(next);
-    },
-    [all],
-  );
-
-  return { items, ready: all !== null, add, update, remove };
+  return { items, ready, loadError, add, update, remove };
 }
 
-/** Downloads the whole library as a JSON backup file. */
-export function exportBacklog() {
-  const blob = new Blob([JSON.stringify(loadAll(), null, 2)], {
+/* ---------- backup ---------- */
+
+/** Downloads the whole cloud library as a JSON backup file. */
+export async function exportBacklog() {
+  const { data, error } = await supabase
+    .from("items")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  const items = (data ?? []).map(({ user_id: _user, ...rest }) => rest);
+  const blob = new Blob([JSON.stringify(items, null, 2)], {
     type: "application/json",
   });
   const url = URL.createObjectURL(blob);
@@ -149,26 +259,33 @@ export function exportBacklog() {
   URL.revokeObjectURL(url);
 }
 
-/** Replaces the library with the contents of a backup file. */
-export function importBacklog(
+/** Replaces the cloud library with the contents of a backup file. */
+export async function importBacklog(
   text: string,
-): { count: number } | { error: string } {
+  userId: string,
+): Promise<{ count: number } | { error: string }> {
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(text);
-    if (!Array.isArray(parsed)) {
-      return { error: "That file doesn't look like a Backlog backup." };
-    }
-    const valid = parsed.filter(
-      (i) =>
-        i &&
-        typeof i.id === "string" &&
-        typeof i.title === "string" &&
-        typeof i.media_type === "string" &&
-        typeof i.status === "string",
-    );
-    saveAll(valid);
-    return { count: valid.length };
+    parsed = JSON.parse(text);
   } catch {
     return { error: "Couldn't read that file." };
   }
+  if (!Array.isArray(parsed)) {
+    return { error: "That file doesn't look like a Backlog backup." };
+  }
+  const valid = parsed.filter(looksLikeItem);
+
+  const { error: deleteError } = await supabase
+    .from("items")
+    .delete()
+    .eq("user_id", userId);
+  if (deleteError) return { error: deleteError.message };
+
+  if (valid.length) {
+    const { error: insertError } = await supabase
+      .from("items")
+      .insert(valid.map((i) => ({ ...i, user_id: userId })));
+    if (insertError) return { error: insertError.message };
+  }
+  return { count: valid.length };
 }

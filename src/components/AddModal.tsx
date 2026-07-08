@@ -20,7 +20,7 @@ export function AddModal({
   onClose: () => void;
   section: Section;
   existingIds: Set<string>;
-  onAdd: (input: AddInput) => { error: string | null };
+  onAdd: (input: AddInput) => Promise<{ error: string | null }>;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -83,10 +83,10 @@ export function AddModal({
   }, [query, open, section.mediaType]);
 
   async function handleAdd(r: SearchResult) {
+    setAddingId(r.externalId);
     let detail = r;
     // Steam search lacks year/genres/portrait cover — enrich before saving.
     if (section.mediaType === "game") {
-      setAddingId(r.externalId);
       try {
         const res = await fetch(`/api/detail?type=game&id=${r.externalId}`);
         if (res.ok) {
@@ -96,10 +96,9 @@ export function AddModal({
       } catch {
         // Fall back to the bare search result.
       }
-      setAddingId(null);
     }
 
-    const { error } = onAdd({
+    const { error } = await onAdd({
       mediaType: section.mediaType,
       externalId: detail.externalId,
       title: detail.title,
@@ -108,6 +107,7 @@ export function AddModal({
       genres: detail.genres,
       meta: detail.meta,
     });
+    setAddingId(null);
     if (!error || error === "duplicate") {
       setAdded((prev) => new Set(prev).add(r.externalId));
     } else {
