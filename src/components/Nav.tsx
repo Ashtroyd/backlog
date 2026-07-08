@@ -8,11 +8,19 @@ import { SECTIONS, SECTION_SLUGS } from "@/lib/sections";
 import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
 import { supabase } from "@/lib/supabase";
 import { ThemeToggle } from "./ThemeToggle";
-import { ArchiveIcon, DownloadIcon, LogoutIcon, UploadIcon } from "./icons";
+import { NotificationCenter } from "./NotificationCenter";
+import {
+  ArchiveIcon,
+  DownloadIcon,
+  LogoutIcon,
+  UploadIcon,
+  UsersIcon,
+} from "./icons";
 
 export default function Nav() {
   const pathname = usePathname();
   const { session } = useAuth();
+  const friendsActive = pathname === "/friends" || pathname.startsWith("/friends/");
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -77,6 +85,18 @@ export default function Nav() {
             );
           })}
         </nav>
+
+        <Link
+          href="/friends"
+          title="Friends"
+          className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink ${
+            friendsActive ? "bg-ivory text-ink" : "text-muted"
+          }`}
+        >
+          <UsersIcon className="h-[18px] w-[18px]" />
+        </Link>
+
+        <NotificationCenter />
 
         <ThemeToggle />
 

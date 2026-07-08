@@ -91,6 +91,52 @@ export function MoonIcon(props: IconProps) {
   );
 }
 
+export function UsersIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20" />
+      <circle cx="10" cy="8" r="3.2" />
+      <path d="M17 15a3.5 3.5 0 0 1 3 3.5V20M15.5 5.2a3.2 3.2 0 0 1 0 5.6" />
+    </svg>
+  );
+}
+
+export function BellIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14.5 18 8.5Z" />
+      <path d="M10.3 20a2 2 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M9.9 5.1A9.5 9.5 0 0 1 12 5c5 0 9 5 9 7a12 12 0 0 1-2.2 2.9M6.2 6.2C3.6 7.7 2 10.4 2 12c0 2 4 7 10 7a9.3 9.3 0 0 0 4.9-1.3M3 3l18 18M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </svg>
+  );
+}
+
+export function UserPlusIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M15 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-4A3.5 3.5 0 0 0 4 18.5V20" />
+      <circle cx="9.5" cy="8" r="3.2" />
+      <path d="M18 8v5M15.5 10.5h5" />
+    </svg>
+  );
+}
+
+export function ClockIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5V12l3 2" />
+    </svg>
+  );
+}
+
 export function StarIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" {...props}>

@@ -14,6 +14,7 @@ import type {
   ItemMeta,
   ItemStatus,
   MediaType,
+  Profile,
 } from "./types";
 
 /**
@@ -45,8 +46,14 @@ export function useSession() {
   return { session, ready };
 }
 
-export const AuthContext = createContext<{ session: Session | null }>({
+export const AuthContext = createContext<{
+  session: Session | null;
+  profile: Profile | null;
+  setProfile: (p: Profile) => void;
+}>({
   session: null,
+  profile: null,
+  setProfile: () => {},
 });
 export const useAuth = () => useContext(AuthContext);
 
@@ -66,6 +73,7 @@ export type UpdatePatch = {
   status?: ItemStatus;
   rating?: number | null;
   review?: string | null;
+  is_private?: boolean;
 };
 
 function looksLikeItem(i: unknown): i is BacklogItem {
@@ -95,9 +103,11 @@ async function importLegacyLocalItems(userId: string) {
 
   if (valid.length) {
     // Only seed an empty account — never clobber existing cloud data.
+    // Scope to the owner: friends' items are now readable too, via RLS.
     const { count, error } = await supabase
       .from("items")
-      .select("*", { count: "exact", head: true });
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", userId);
     if (error) throw error;
     if ((count ?? 0) === 0) {
       const { error: insertError } = await supabase
@@ -129,6 +139,7 @@ export function useBacklog(mediaType: MediaType) {
         const { data, error } = await supabase
           .from("items")
           .select("*")
+          .eq("user_id", userId)
           .eq("media_type", mediaType)
           .order("created_at", { ascending: false });
         if (error) throw error;
@@ -177,6 +188,7 @@ export function useBacklog(mediaType: MediaType) {
         status: "backlog",
         rating: null,
         review: null,
+        is_private: false,
         created_at: now,
         updated_at: now,
         completed_at: null,
@@ -210,6 +222,7 @@ export function useBacklog(mediaType: MediaType) {
       if (patch.review !== undefined) {
         fields.review = patch.review?.trim() ? patch.review.trim() : null;
       }
+      if (patch.is_private !== undefined) fields.is_private = patch.is_private;
       setItems((prev) =>
         prev.map((i) => (i.id === id ? ({ ...i, ...fields } as BacklogItem) : i)),
       );
@@ -242,9 +255,14 @@ export function useBacklog(mediaType: MediaType) {
 
 /** Downloads the whole cloud library as a JSON backup file. */
 export async function exportBacklog() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not signed in.");
   const { data, error } = await supabase
     .from("items")
     .select("*")
+    .eq("user_id", user.id)
     .order("created_at", { ascending: false });
   if (error) throw error;
   const items = (data ?? []).map(({ user_id: _user, ...rest }) => rest);

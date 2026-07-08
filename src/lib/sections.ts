@@ -65,7 +65,17 @@ export const SECTIONS: Record<SectionSlug, Section> = {
 
 export const SECTION_SLUGS = Object.keys(SECTIONS) as SectionSlug[];
 
+/** Look up a section by an item's media_type (game → games, etc.). */
+export const SECTION_BY_MEDIA = Object.fromEntries(
+  SECTION_SLUGS.map((slug) => [SECTIONS[slug].mediaType, SECTIONS[slug]]),
+) as Record<MediaType, Section>;
+
 export const STATUS_ORDER: ItemStatus[] = ["backlog", "in_progress", "completed", "dropped"];
+
+/** Status label from a media_type directly, for cross-section contexts. */
+export function statusLabelFor(status: ItemStatus, mediaType: MediaType): string {
+  return statusLabel(status, SECTION_BY_MEDIA[mediaType]);
+}
 
 export function statusLabel(status: ItemStatus, section: Section): string {
   switch (status) {

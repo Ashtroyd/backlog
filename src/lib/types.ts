@@ -27,9 +27,17 @@ export type BacklogItem = {
   status: ItemStatus;
   rating: number | null;
   review: string | null;
+  is_private: boolean;
   created_at: string;
   updated_at: string;
   completed_at: string | null;
+};
+
+/** A user's public identity, used across the friend features. */
+export type Profile = {
+  id: string;
+  username: string;
+  display_name: string;
 };
 
 /** A result returned by /api/search, ready to become a BacklogItem. */

@@ -1,14 +1,19 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { STATUS_ORDER, statusLabel, type Section } from "@/lib/sections";
-import type { UpdatePatch } from "@/lib/backlog-store";
+import { STATUS_ORDER, statusLabel, statusLabelFor, type Section } from "@/lib/sections";
+import { useAuth, type UpdatePatch } from "@/lib/backlog-store";
+import { fetchAlsoHave, type AlsoHave } from "@/lib/social";
+import { itemChips } from "@/lib/chips";
 import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { Modal } from "./Modal";
 import { StarRating } from "./StarRating";
-import { TrashIcon, XIcon } from "./icons";
+import { Avatar } from "./Avatar";
+import { STATUS_DOT } from "./ItemCard";
+import { EyeOffIcon, TrashIcon, XIcon } from "./icons";
 
 export function DetailModal({
   item,
@@ -23,11 +28,16 @@ export function DetailModal({
   onUpdate: (id: string, patch: UpdatePatch) => void;
   onRemove: (id: string) => void;
 }) {
+  const { session } = useAuth();
+  const myId = session?.user?.id ?? null;
+
   // Keep the last item around so the close animation still has content.
   const [snapshot, setSnapshot] = useState<BacklogItem | null>(item);
   const [status, setStatus] = useState<ItemStatus>("backlog");
   const [rating, setRating] = useState<number | null>(null);
   const [review, setReview] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
 
   useEffect(() => {
     if (item) {
@@ -35,14 +45,30 @@ export function DetailModal({
       setStatus(item.status);
       setRating(item.rating);
       setReview(item.review ?? "");
+      setIsPrivate(item.is_private);
     }
   }, [item]);
+
+  // Which friends also have this title?
+  useEffect(() => {
+    if (!item || !myId) {
+      setAlsoHave([]);
+      return;
+    }
+    let alive = true;
+    fetchAlsoHave(item.media_type, item.external_id, myId)
+      .then((rows) => alive && setAlsoHave(rows))
+      .catch(() => alive && setAlsoHave([]));
+    return () => {
+      alive = false;
+    };
+  }, [item, myId]);
 
   const current = item ?? snapshot;
 
   function handleSave() {
     if (!current) return;
-    onUpdate(current.id, { status, rating, review });
+    onUpdate(current.id, { status, rating, review, is_private: isPrivate });
     onClose();
   }
 
@@ -53,7 +79,7 @@ export function DetailModal({
     onClose();
   }
 
-  const chips = buildChips(current);
+  const chips = itemChips(current);
 
   return (
     <Modal open={Boolean(item)} onClose={onClose} wide>
@@ -131,9 +157,7 @@ export function DetailModal({
                             }}
                           />
                         )}
-                        <span className="relative">
-                          {statusLabel(s, section)}
-                        </span>
+                        <span className="relative">{statusLabel(s, section)}</span>
                       </button>
                     );
                   })}
@@ -155,11 +179,7 @@ export function DetailModal({
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
                           Your rating
                         </p>
-                        <StarRating
-                          value={rating}
-                          onChange={setRating}
-                          size={26}
-                        />
+                        <StarRating value={rating} onChange={setRating} size={26} />
                       </div>
                       <div>
                         <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
@@ -177,18 +197,76 @@ export function DetailModal({
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Friends who also have this title */}
+              {alsoHave.length > 0 && (
+                <div className="mt-6 border-t border-line pt-4">
+                  <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
+                    {alsoHave.length === 1 ? "A friend also has this" : "Friends also have this"}
+                  </p>
+                  <ul className="space-y-3">
+                    {alsoHave.map(({ profile, item: it }) => (
+                      <li key={profile.id} className="flex items-start gap-2.5">
+                        <Link href={`/friends/${profile.username}`} onClick={onClose}>
+                          <Avatar profile={profile} size={34} />
+                        </Link>
+                        <div className="min-w-0 flex-1">
+                          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+                            <Link
+                              href={`/friends/${profile.username}`}
+                              onClick={onClose}
+                              className="font-medium text-ink hover:text-accent"
+                            >
+                              {profile.display_name}
+                            </Link>
+                            <span className="inline-flex items-center gap-1 text-xs text-muted">
+                              <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[it.status]}`} />
+                              {statusLabelFor(it.status, it.media_type)}
+                            </span>
+                            {it.rating != null && <StarRating value={it.rating} size={12} />}
+                          </p>
+                          {it.review && (
+                            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body">
+                              {it.review}
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="mt-7 flex items-center justify-between border-t border-line pt-5">
-            <button
-              type="button"
-              onClick={handleRemove}
-              className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-accent-soft hover:text-accent-hover"
-            >
-              <TrashIcon className="h-4 w-4" />
-              Remove
-            </button>
+          <div className="mt-7 flex items-center justify-between gap-3 border-t border-line pt-5">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleRemove}
+                className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-accent-soft hover:text-accent-hover"
+              >
+                <TrashIcon className="h-4 w-4" />
+                Remove
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsPrivate((v) => !v)}
+                title={
+                  isPrivate
+                    ? "Hidden from friends — click to make visible"
+                    : "Visible to friends — click to hide"
+                }
+                className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                  isPrivate
+                    ? "bg-ivory text-ink"
+                    : "text-muted hover:bg-ivory hover:text-ink"
+                }`}
+              >
+                <EyeOffIcon className="h-4 w-4" />
+                {isPrivate ? "Private" : "Hide"}
+              </button>
+            </div>
             <button
               type="button"
               onClick={handleSave}
@@ -201,19 +279,4 @@ export function DetailModal({
       )}
     </Modal>
   );
-}
-
-function buildChips(item: BacklogItem | null): string[] {
-  if (!item) return [];
-  const m = item.meta ?? {};
-  const chips: string[] = [];
-  if (m.platforms?.length) chips.push(m.platforms.join(" · "));
-  if (m.metacritic) chips.push(`Metacritic ${m.metacritic}`);
-  if (m.stars) chips.push(m.stars);
-  if (m.tvmazeRating) chips.push(`TVMaze ${m.tvmazeRating}`);
-  if (m.network) chips.push(m.network);
-  if (m.episodes) chips.push(`${m.episodes} episodes`);
-  if (m.malScore) chips.push(`MAL ${m.malScore}`);
-  if (m.studios?.length) chips.push(m.studios.join(", "));
-  return chips;
 }

@@ -6,7 +6,7 @@ import { statusLabel, type Section } from "@/lib/sections";
 import type { BacklogItem } from "@/lib/types";
 import { StarRating } from "./StarRating";
 
-const STATUS_DOT: Record<BacklogItem["status"], string> = {
+export const STATUS_DOT: Record<BacklogItem["status"], string> = {
   backlog: "bg-line-strong",
   in_progress: "bg-accent",
   completed: "bg-sage",
