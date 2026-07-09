@@ -13,6 +13,7 @@ import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { Modal } from "./Modal";
 import { StarRating } from "./StarRating";
 import { Avatar } from "./Avatar";
+import { CommentThread } from "./CommentThread";
 import { STATUS_DOT } from "./ItemCard";
 import { EyeOffIcon, HeartIcon, TrashIcon, XIcon } from "./icons";
 
@@ -292,6 +293,12 @@ export function DetailModal({
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+              {current.status === "completed" && myId && (
+                <div className="mt-6 border-t border-line pt-4">
+                  <CommentThread itemId={current.id} ownerId={myId} onClose={onClose} />
                 </div>
               )}
             </div>

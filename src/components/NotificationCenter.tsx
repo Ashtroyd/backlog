@@ -9,14 +9,18 @@ import {
   activityVerb,
   fetchActivity,
   fetchConnections,
+  fetchNotifications,
+  markNotificationsRead,
   removeFriendship,
   type ActivityEntry,
   type Connection,
+  type Notification,
 } from "@/lib/social";
 import { statusLabelFor } from "@/lib/sections";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "./Avatar";
 import { StarRating } from "./StarRating";
+import { ReviewCommentsModal } from "./ReviewCommentsModal";
 import { BellIcon, CheckIcon, XIcon } from "./icons";
 
 const SEEN_KEY = "backlog:activitySeen";
@@ -32,14 +36,20 @@ export function NotificationCenter() {
   const [incoming, setIncoming] = useState<Connection[]>([]);
   const [friends, setFriends] = useState<Connection[]>([]);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [lastSeen, setLastSeen] = useState<number>(0);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!myId) return;
-    const conns = await fetchConnections(myId);
+    const [conns, notifs] = await Promise.all([
+      fetchConnections(myId),
+      fetchNotifications(myId),
+    ]);
     setIncoming(conns.incoming);
     setFriends(conns.friends);
+    setNotifications(notifs);
     const feed = await fetchActivity(conns.friends);
     setActivity(feed);
   }, [myId]);
@@ -61,7 +71,8 @@ export function NotificationCenter() {
   const newActivity = activity.filter(
     (a) => new Date(a.item.updated_at).getTime() > lastSeen,
   ).length;
-  const badge = incoming.length + newActivity;
+  const unreadNotifs = notifications.filter((n) => !n.read_at).length;
+  const badge = incoming.length + unreadNotifs;
 
   function openTab(next: Tab) {
     setTab(next);
@@ -73,6 +84,13 @@ export function NotificationCenter() {
         // ignore
       }
       setLastSeen(now);
+      const unread = notifications.filter((n) => !n.read_at).map((n) => n.id);
+      if (unread.length) {
+        markNotificationsRead(unread);
+        setNotifications((prev) =>
+          prev.map((n) => (n.read_at ? n : { ...n, read_at: new Date().toISOString() })),
+        );
+      }
     }
   }
 
@@ -138,7 +156,7 @@ export function NotificationCenter() {
                   active={tab === "activity"}
                   onClick={() => openTab("activity")}
                   label="Activity"
-                  count={newActivity}
+                  count={unreadNotifs + newActivity}
                 />
               </div>
 
@@ -190,57 +208,101 @@ export function NotificationCenter() {
                       ))}
                     </ul>
                   )
-                ) : activity.length === 0 ? (
+                ) : notifications.length === 0 && activity.length === 0 ? (
                   <Empty
                     text={
                       friends.length
-                        ? "No friend activity yet."
+                        ? "Nothing new yet."
                         : "Add friends to see their activity here."
                     }
                   />
                 ) : (
-                  <ul className="space-y-0.5">
+                  <div className="space-y-0.5">
+                    {notifications.map((n) => (
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => {
+                          setOpenItemId(n.item?.id ?? null);
+                          setOpen(false);
+                        }}
+                        className="flex w-full items-start gap-2.5 rounded-xl px-2 py-2 text-left transition-colors hover:bg-ivory"
+                      >
+                        <Avatar profile={n.actor} size={32} />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm leading-snug text-body">
+                            <span className="font-medium text-ink">
+                              {n.actor.display_name}
+                            </span>{" "}
+                            commented on your review of{" "}
+                            <span className="font-medium text-ink">
+                              {n.item?.title ?? "an item"}
+                            </span>
+                          </p>
+                          <span className="text-xs text-muted">
+                            {timeAgo(n.created_at)}
+                          </span>
+                        </div>
+                        {!n.read_at && (
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />
+                        )}
+                      </button>
+                    ))}
+
+                    {notifications.length > 0 && activity.length > 0 && (
+                      <p className="px-2 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-muted">
+                        Friends&apos; activity
+                      </p>
+                    )}
+
                     {activity.map((a) => {
                       const { verb, showStars } = activityVerb(a.item);
                       return (
-                        <li key={a.item.id}>
-                          <Link
-                            href={`/friends/${a.profile.username}`}
-                            onClick={() => setOpen(false)}
-                            className="flex items-start gap-2.5 rounded-xl px-2 py-2 transition-colors hover:bg-ivory"
-                          >
-                            <Avatar profile={a.profile} size={32} />
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm leading-snug text-body">
-                                <span className="font-medium text-ink">
-                                  {a.profile.display_name}
-                                </span>{" "}
-                                {verb}{" "}
-                                <span className="font-medium text-ink">
-                                  {a.item.title}
-                                </span>
-                              </p>
-                              <div className="mt-0.5 flex items-center gap-2">
-                                {showStars && a.item.rating != null && (
-                                  <StarRating value={a.item.rating} size={11} />
-                                )}
-                                <span className="text-xs text-muted">
-                                  {statusLabelFor(a.item.status, a.item.media_type)}{" "}
-                                  · {timeAgo(a.item.updated_at)}
-                                </span>
-                              </div>
+                        <Link
+                          key={a.item.id}
+                          href={`/friends/${a.profile.username}`}
+                          onClick={() => setOpen(false)}
+                          className="flex items-start gap-2.5 rounded-xl px-2 py-2 transition-colors hover:bg-ivory"
+                        >
+                          <Avatar profile={a.profile} size={32} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm leading-snug text-body">
+                              <span className="font-medium text-ink">
+                                {a.profile.display_name}
+                              </span>{" "}
+                              {verb}{" "}
+                              <span className="font-medium text-ink">
+                                {a.item.title}
+                              </span>
+                            </p>
+                            <div className="mt-0.5 flex items-center gap-2">
+                              {showStars && a.item.rating != null && (
+                                <StarRating value={a.item.rating} size={11} />
+                              )}
+                              <span className="text-xs text-muted">
+                                {statusLabelFor(a.item.status, a.item.media_type)}{" "}
+                                · {timeAgo(a.item.updated_at)}
+                              </span>
                             </div>
-                          </Link>
-                        </li>
+                          </div>
+                        </Link>
                       );
                     })}
-                  </ul>
+                  </div>
                 )}
               </div>
             </motion.div>
           </>
         )}
       </AnimatePresence>
+
+      <ReviewCommentsModal
+        itemId={openItemId}
+        onClose={() => {
+          setOpenItemId(null);
+          load();
+        }}
+      />
     </div>
   );
 }

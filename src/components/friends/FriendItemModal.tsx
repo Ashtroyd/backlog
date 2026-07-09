@@ -10,6 +10,7 @@ import type { BacklogItem, Profile } from "@/lib/types";
 import { Modal } from "@/components/Modal";
 import { StarRating } from "@/components/StarRating";
 import { Avatar } from "@/components/Avatar";
+import { CommentThread } from "@/components/CommentThread";
 import { XIcon } from "@/components/icons";
 
 /** Read-only view of one of a friend's items: their status, rating, review. */
@@ -109,6 +110,16 @@ export function FriendItemModal({
               )}
             </div>
           </div>
+
+          {item.status === "completed" && (
+            <div className="mt-6 border-t border-line pt-5">
+              <CommentThread
+                itemId={item.id}
+                ownerId={profile.id}
+                onClose={onClose}
+              />
+            </div>
+          )}
 
           <div className="mt-6 border-t border-line pt-4 text-right">
             <Link

@@ -252,6 +252,152 @@ export async function fetchFavorites(userId: string): Promise<BacklogItem[]> {
   return (data as BacklogItem[]) ?? [];
 }
 
+/** One item by id (RLS: yours, or a friend's non-private). */
+export async function fetchItemById(id: string): Promise<BacklogItem | null> {
+  const { data } = await supabase
+    .from("items")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return (data as BacklogItem) ?? null;
+}
+
+/* ---------- review comments ---------- */
+
+export type Comment = {
+  id: string;
+  item_id: string;
+  author: Profile;
+  body: string;
+  created_at: string;
+};
+
+export async function fetchComments(itemId: string): Promise<Comment[]> {
+  const { data } = await supabase
+    .from("review_comments")
+    .select("*")
+    .eq("item_id", itemId)
+    .order("created_at", { ascending: true });
+  const rows =
+    (data as {
+      id: string;
+      item_id: string;
+      author_id: string;
+      body: string;
+      created_at: string;
+    }[]) ?? [];
+  if (!rows.length) return [];
+  const profiles = new Map(
+    (await fetchProfilesByIds(rows.map((r) => r.author_id))).map((p) => [p.id, p]),
+  );
+  return rows
+    .filter((r) => profiles.has(r.author_id))
+    .map((r) => ({
+      id: r.id,
+      item_id: r.item_id,
+      author: profiles.get(r.author_id)!,
+      body: r.body,
+      created_at: r.created_at,
+    }));
+}
+
+export async function addComment(
+  itemId: string,
+  authorId: string,
+  body: string,
+): Promise<{ error: string | null; comment?: Comment }> {
+  const text = body.trim();
+  if (!text) return { error: "Write something first." };
+  const { data, error } = await supabase
+    .from("review_comments")
+    .insert({ item_id: itemId, author_id: authorId, body: text })
+    .select("*")
+    .single();
+  if (error) return { error: error.message };
+  const author = await fetchProfile(authorId);
+  return {
+    error: null,
+    comment: author
+      ? {
+          id: data.id,
+          item_id: data.item_id,
+          author,
+          body: data.body,
+          created_at: data.created_at,
+        }
+      : undefined,
+  };
+}
+
+export async function deleteComment(id: string): Promise<string | null> {
+  const { error } = await supabase.from("review_comments").delete().eq("id", id);
+  return error?.message ?? null;
+}
+
+/* ---------- notifications ---------- */
+
+export type Notification = {
+  id: string;
+  type: string;
+  actor: Profile;
+  item: Pick<BacklogItem, "id" | "title" | "media_type" | "external_id"> | null;
+  created_at: string;
+  read_at: string | null;
+};
+
+export async function fetchNotifications(myId: string): Promise<Notification[]> {
+  const { data } = await supabase
+    .from("notifications")
+    .select("*")
+    .eq("recipient_id", myId)
+    .order("created_at", { ascending: false })
+    .limit(30);
+  const rows =
+    (data as {
+      id: string;
+      type: string;
+      actor_id: string;
+      item_id: string | null;
+      created_at: string;
+      read_at: string | null;
+    }[]) ?? [];
+  if (!rows.length) return [];
+
+  const [profiles, items] = await Promise.all([
+    fetchProfilesByIds(rows.map((r) => r.actor_id)),
+    (async () => {
+      const ids = rows.map((r) => r.item_id).filter(Boolean) as string[];
+      if (!ids.length) return [];
+      const { data: it } = await supabase
+        .from("items")
+        .select("id,title,media_type,external_id")
+        .in("id", ids);
+      return (it as Notification["item"][]) ?? [];
+    })(),
+  ]);
+  const profileMap = new Map(profiles.map((p) => [p.id, p]));
+  const itemMap = new Map((items ?? []).map((i) => [i!.id, i]));
+
+  return rows
+    .filter((r) => profileMap.has(r.actor_id))
+    .map((r) => ({
+      id: r.id,
+      type: r.type,
+      actor: profileMap.get(r.actor_id)!,
+      item: r.item_id ? itemMap.get(r.item_id) ?? null : null,
+      created_at: r.created_at,
+      read_at: r.read_at,
+    }));
+}
+
+export async function markNotificationsRead(ids: string[]): Promise<void> {
+  if (!ids.length) return;
+  await supabase
+    .from("notifications")
+    .update({ read_at: new Date().toISOString() })
+    .in("id", ids);
+}
+
 /* ---------- profile editing ---------- */
 
 export type ProfilePatch = Partial<
