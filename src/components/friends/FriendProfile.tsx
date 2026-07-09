@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/backlog-store";
 import {
   acceptRequest,
   computeTasteMatch,
+  fetchFavorites,
   fetchFriendByUsername,
   fetchUserItems,
   removeFriendship,
@@ -14,10 +15,11 @@ import {
   type FriendView,
 } from "@/lib/social";
 import type { BacklogItem } from "@/lib/types";
-import { Avatar } from "@/components/Avatar";
 import { SpinnerIcon, UserPlusIcon } from "@/components/icons";
 import { FriendLibrary } from "./FriendLibrary";
 import { TasteMatchCard } from "./TasteMatchCard";
+import { ProfileHero } from "./ProfileHero";
+import { FavouritesRow } from "./FavouritesRow";
 
 export default function FriendProfile({ username }: { username: string }) {
   const { session } = useAuth();
@@ -27,6 +29,7 @@ export default function FriendProfile({ username }: { username: string }) {
   const [view, setView] = useState<FriendView | null | "missing">(null);
   const [theirItems, setTheirItems] = useState<BacklogItem[]>([]);
   const [myItems, setMyItems] = useState<BacklogItem[]>([]);
+  const [theirFavorites, setTheirFavorites] = useState<BacklogItem[]>([]);
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -38,12 +41,14 @@ export default function FriendProfile({ username }: { username: string }) {
     }
     setView(v);
     if (v.relation === "friends" || v.relation === "self") {
-      const [theirs, mine] = await Promise.all([
+      const [theirs, mine, favs] = await Promise.all([
         fetchUserItems(v.profile.id),
         v.relation === "friends" ? fetchUserItems(myId) : Promise.resolve([]),
+        fetchFavorites(v.profile.id),
       ]);
       setTheirItems(theirs);
       setMyItems(mine);
+      setTheirFavorites(favs);
     }
   }, [username, myId]);
 
@@ -103,85 +108,87 @@ export default function FriendProfile({ username }: { username: string }) {
         ← Friends
       </Link>
 
-      <header className="mt-4 flex flex-wrap items-center gap-4">
-        <Avatar profile={profile} size={64} />
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate font-serif text-3xl font-semibold tracking-tight text-ink">
-            {profile.display_name}
-          </h1>
-          <p className="truncate text-sm text-muted">@{profile.username}</p>
-        </div>
+      <div className="mt-4">
+        <ProfileHero
+          profile={profile}
+          actions={
+            <>
+              {relation === "none" && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => act(() => sendFriendRequest(myId!, profile.id))}
+                  className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+                >
+                  <UserPlusIcon className="h-4 w-4" /> Add friend
+                </button>
+              )}
+              {relation === "outgoing" && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => act(() => removeFriendship(friendshipId!))}
+                  className="rounded-full border border-line px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink disabled:opacity-60"
+                >
+                  Requested · Cancel
+                </button>
+              )}
+              {relation === "incoming" && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => act(() => acceptRequest(friendshipId!))}
+                  className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+                >
+                  Accept request
+                </button>
+              )}
+              {relation === "friends" && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    if (confirm(`Remove ${profile.display_name} as a friend?`)) {
+                      act(() => removeFriendship(friendshipId!));
+                    }
+                  }}
+                  className="rounded-full border border-line px-4 py-2 text-sm font-medium text-body transition-colors hover:bg-ivory disabled:opacity-60"
+                >
+                  Friends ✓
+                </button>
+              )}
+              {relation === "self" && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/profile")}
+                  className="rounded-full border border-line px-4 py-2 text-sm font-medium text-body transition-colors hover:bg-ivory"
+                >
+                  Edit profile
+                </button>
+              )}
+            </>
+          }
+        />
+      </div>
 
-        {relation === "none" && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => act(() => sendFriendRequest(myId!, profile.id))}
-            className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
-          >
-            <UserPlusIcon className="h-4 w-4" /> Add friend
-          </button>
-        )}
-        {relation === "outgoing" && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => act(() => removeFriendship(friendshipId!))}
-            className="rounded-full border border-line px-4 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink disabled:opacity-60"
-          >
-            Requested · Cancel
-          </button>
-        )}
-        {relation === "incoming" && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => act(() => acceptRequest(friendshipId!))}
-            className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
-          >
-            Accept request
-          </button>
-        )}
-        {relation === "friends" && (
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              if (confirm(`Remove ${profile.display_name} as a friend?`)) {
-                act(() => removeFriendship(friendshipId!));
-              }
-            }}
-            className="rounded-full border border-line px-4 py-2 text-sm font-medium text-body transition-colors hover:bg-ivory disabled:opacity-60"
-          >
-            Friends ✓
-          </button>
-        )}
-      </header>
-
-      {relation === "friends" && (
-        <div className="mt-8 space-y-8">
-          <TasteMatchCard match={taste} friendName={profile.display_name} />
+      {(relation === "friends" || relation === "self") && (
+        <div className="mt-10 space-y-10">
+          {theirFavorites.length > 0 && (
+            <section>
+              <h2 className="mb-4 font-serif text-xl font-semibold text-ink">
+                Favourites
+              </h2>
+              <FavouritesRow favorites={theirFavorites} />
+            </section>
+          )}
+          {relation === "friends" && (
+            <TasteMatchCard match={taste} friendName={profile.display_name} />
+          )}
           <FriendLibrary
             items={theirItems}
             profile={profile}
-            myItemsByKey={myItemsByKey}
+            myItemsByKey={relation === "friends" ? myItemsByKey : new Map()}
           />
-        </div>
-      )}
-
-      {relation === "self" && (
-        <div className="mt-8">
-          <p className="mb-6 rounded-2xl border border-line bg-surface p-4 text-sm text-muted">
-            This is how your profile looks to friends.{" "}
-            <button
-              type="button"
-              onClick={() => router.push("/games")}
-              className="font-medium text-accent hover:text-accent-hover"
-            >
-              Back to your backlog
-            </button>
-          </p>
-          <FriendLibrary items={theirItems} profile={profile} myItemsByKey={new Map()} />
         </div>
       )}
 

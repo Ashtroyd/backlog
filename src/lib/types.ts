@@ -28,6 +28,7 @@ export type BacklogItem = {
   rating: number | null;
   review: string | null;
   is_private: boolean;
+  is_favorite: boolean;
   started_at: string | null;
   created_at: string;
   updated_at: string;
@@ -39,6 +40,9 @@ export type Profile = {
   id: string;
   username: string;
   display_name: string;
+  avatar_url: string | null;
+  banner_url: string | null;
+  bio: string | null;
 };
 
 /** A result returned by /api/search, ready to become a BacklogItem. */

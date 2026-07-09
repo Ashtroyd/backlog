@@ -9,6 +9,7 @@ import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
 import { supabase } from "@/lib/supabase";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationCenter } from "./NotificationCenter";
+import { Avatar } from "./Avatar";
 import {
   ArchiveIcon,
   DownloadIcon,
@@ -19,7 +20,7 @@ import {
 
 export default function Nav() {
   const pathname = usePathname();
-  const { session } = useAuth();
+  const { session, profile } = useAuth();
   const friendsActive = pathname === "/friends" || pathname.startsWith("/friends/");
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -155,6 +156,18 @@ export default function Nav() {
             onChange={handleImportFile}
           />
         </div>
+
+        {profile && (
+          <Link
+            href="/profile"
+            title="Your profile"
+            className={`shrink-0 rounded-full transition-opacity hover:opacity-80 ${
+              pathname === "/profile" ? "ring-2 ring-accent ring-offset-2 ring-offset-paper" : ""
+            }`}
+          >
+            <Avatar profile={profile} size={30} />
+          </Link>
+        )}
 
         <button
           type="button"

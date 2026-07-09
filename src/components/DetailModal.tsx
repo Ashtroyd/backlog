@@ -14,7 +14,7 @@ import { Modal } from "./Modal";
 import { StarRating } from "./StarRating";
 import { Avatar } from "./Avatar";
 import { STATUS_DOT } from "./ItemCard";
-import { EyeOffIcon, TrashIcon, XIcon } from "./icons";
+import { EyeOffIcon, HeartIcon, TrashIcon, XIcon } from "./icons";
 
 export function DetailModal({
   item,
@@ -38,6 +38,7 @@ export function DetailModal({
   const [rating, setRating] = useState<number | null>(null);
   const [review, setReview] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
   const [startedAt, setStartedAt] = useState("");
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
 
@@ -48,6 +49,7 @@ export function DetailModal({
       setRating(item.rating);
       setReview(item.review ?? "");
       setIsPrivate(item.is_private);
+      setIsFavorite(item.is_favorite);
       setStartedAt(item.started_at ?? "");
     }
   }, [item]);
@@ -85,6 +87,7 @@ export function DetailModal({
       rating,
       review,
       is_private: isPrivate,
+      is_favorite: isFavorite,
       started_at: startedAt || null,
     });
     onClose();
@@ -303,6 +306,26 @@ export function DetailModal({
               >
                 <TrashIcon className="h-4 w-4" />
                 Remove
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsFavorite((v) => !v)}
+                title={
+                  isFavorite
+                    ? `Your favourite ${section.singular} — click to unset`
+                    : `Set as your favourite ${section.singular}`
+                }
+                className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                  isFavorite
+                    ? "bg-accent-soft text-accent-hover"
+                    : "text-muted hover:bg-ivory hover:text-ink"
+                }`}
+              >
+                <HeartIcon
+                  className="h-4 w-4"
+                  fill={isFavorite ? "currentColor" : "none"}
+                />
+                {isFavorite ? "Favourite" : "Favourite"}
               </button>
               <button
                 type="button"

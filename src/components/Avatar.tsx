@@ -24,12 +24,28 @@ export function Avatar({
   profile,
   size = 40,
 }: {
-  profile: Pick<Profile, "username" | "display_name">;
+  profile: Pick<Profile, "username" | "display_name"> & {
+    avatar_url?: string | null;
+  };
   size?: number;
 }) {
   const label = profile.display_name || profile.username;
   const initial = label.trim().charAt(0).toUpperCase() || "?";
-  const tint = tintFor(profile.username);
+
+  if (profile.avatar_url) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={profile.avatar_url}
+        alt=""
+        aria-hidden
+        width={size}
+        height={size}
+        className="inline-block shrink-0 rounded-full object-cover"
+        style={{ width: size, height: size }}
+      />
+    );
+  }
 
   return (
     <span
@@ -38,7 +54,7 @@ export function Avatar({
       style={{
         width: size,
         height: size,
-        backgroundColor: tint,
+        backgroundColor: tintFor(profile.username),
         fontSize: size * 0.42,
       }}
     >

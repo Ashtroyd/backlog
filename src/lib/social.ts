@@ -10,6 +10,9 @@ import type { BacklogItem, MediaType, Profile } from "./types";
  * by accepted friends unless marked private.
  */
 
+/** Columns that make up a public Profile. */
+const PROFILE_COLS = "id,username,display_name,avatar_url,banner_url,bio";
+
 /** An items row including its owner id (the domain BacklogItem omits it). */
 export type ItemRow = BacklogItem & { user_id: string };
 
@@ -46,7 +49,7 @@ export type RelationStatus =
 export async function fetchProfile(userId: string): Promise<Profile | null> {
   const { data } = await supabase
     .from("profiles")
-    .select("id,username,display_name")
+    .select(PROFILE_COLS)
     .eq("id", userId)
     .maybeSingle();
   return (data as Profile) ?? null;
@@ -57,7 +60,7 @@ export async function fetchProfilesByIds(ids: string[]): Promise<Profile[]> {
   if (!unique.length) return [];
   const { data } = await supabase
     .from("profiles")
-    .select("id,username,display_name")
+    .select(PROFILE_COLS)
     .in("id", unique);
   return (data as Profile[]) ?? [];
 }
@@ -81,7 +84,7 @@ export async function createProfile(
   const { data, error } = await supabase
     .from("profiles")
     .insert({ id: userId, username: uname, display_name: dn })
-    .select("id,username,display_name")
+    .select(PROFILE_COLS)
     .single();
   if (error) {
     if (error.code === "23505") return { error: "That handle's taken — try another." };
@@ -98,7 +101,7 @@ export async function searchProfiles(
   if (term.length < 2) return [];
   const { data } = await supabase
     .from("profiles")
-    .select("id,username,display_name")
+    .select(PROFILE_COLS)
     .ilike("username", `${term}%`)
     .neq("id", myId)
     .limit(10);
@@ -207,7 +210,7 @@ export async function fetchFriendByUsername(
 ): Promise<FriendView | null> {
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id,username,display_name")
+    .select(PROFILE_COLS)
     .eq("username", normalizeUsername(username))
     .maybeSingle();
   if (!profile) return null;
@@ -237,6 +240,44 @@ export async function fetchUserItems(userId: string): Promise<BacklogItem[]> {
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
   return (data as BacklogItem[]) ?? [];
+}
+
+/** A user's favourites — at most one per media type (RLS-gated for friends). */
+export async function fetchFavorites(userId: string): Promise<BacklogItem[]> {
+  const { data } = await supabase
+    .from("items")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_favorite", true);
+  return (data as BacklogItem[]) ?? [];
+}
+
+/* ---------- profile editing ---------- */
+
+export type ProfilePatch = Partial<
+  Pick<Profile, "display_name" | "bio" | "avatar_url" | "banner_url">
+>;
+
+export async function updateProfile(
+  userId: string,
+  patch: ProfilePatch,
+): Promise<{ error: string | null; profile?: Profile }> {
+  const clean: ProfilePatch = { ...patch };
+  if (clean.display_name !== undefined) {
+    clean.display_name = clean.display_name.trim();
+    if (!clean.display_name) return { error: "Your name can't be empty." };
+  }
+  if (clean.bio !== undefined) {
+    clean.bio = clean.bio && clean.bio.trim() ? clean.bio.trim() : null;
+  }
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(clean)
+    .eq("id", userId)
+    .select(PROFILE_COLS)
+    .single();
+  if (error) return { error: error.message };
+  return { error: null, profile: data as Profile };
 }
 
 export type FriendStat = {

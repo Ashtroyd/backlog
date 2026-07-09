@@ -74,6 +74,7 @@ export type UpdatePatch = {
   rating?: number | null;
   review?: string | null;
   is_private?: boolean;
+  is_favorite?: boolean;
   started_at?: string | null;
 };
 
@@ -190,6 +191,7 @@ export function useBacklog(mediaType: MediaType) {
         rating: null,
         review: null,
         is_private: false,
+        is_favorite: false,
         started_at: null,
         created_at: now,
         updated_at: now,
@@ -226,18 +228,34 @@ export function useBacklog(mediaType: MediaType) {
       }
       if (patch.is_private !== undefined) fields.is_private = patch.is_private;
       if (patch.started_at !== undefined) fields.started_at = patch.started_at;
+      if (patch.is_favorite !== undefined) fields.is_favorite = patch.is_favorite;
+
+      // Only one favourite per section — clear any other before setting this one.
+      const claimingFavorite = patch.is_favorite === true;
+
       setItems((prev) =>
-        prev.map((i) => (i.id === id ? ({ ...i, ...fields } as BacklogItem) : i)),
+        prev.map((i) => {
+          if (i.id === id) return { ...i, ...fields } as BacklogItem;
+          if (claimingFavorite && i.is_favorite) return { ...i, is_favorite: false };
+          return i;
+        }),
       );
-      supabase
-        .from("items")
-        .update(fields)
-        .eq("id", id)
-        .then(({ error }) => {
-          if (error) console.warn("Update failed to sync", error);
-        });
+
+      (async () => {
+        if (claimingFavorite && userId) {
+          await supabase
+            .from("items")
+            .update({ is_favorite: false })
+            .eq("user_id", userId)
+            .eq("media_type", mediaType)
+            .eq("is_favorite", true)
+            .neq("id", id);
+        }
+        const { error } = await supabase.from("items").update(fields).eq("id", id);
+        if (error) console.warn("Update failed to sync", error);
+      })();
     },
-    [items],
+    [items, userId, mediaType],
   );
 
   const remove = useCallback((id: string) => {
