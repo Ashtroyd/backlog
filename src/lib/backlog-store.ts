@@ -254,6 +254,34 @@ export function useBacklog(mediaType: MediaType) {
   return { items, ready, loadError, add, update, remove };
 }
 
+/**
+ * Insert one item into the signed-in user's library, outside any section hook
+ * (used by the recommendations grid). Started/status default in the DB.
+ */
+export async function addItemToLibrary(
+  input: AddInput,
+): Promise<{ error: string | null }> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Not signed in." };
+  const { error } = await supabase.from("items").insert({
+    user_id: user.id,
+    media_type: input.mediaType,
+    external_id: input.externalId,
+    title: input.title,
+    cover_url: input.coverUrl,
+    release_year: input.releaseYear,
+    genres: input.genres,
+    meta: input.meta,
+  });
+  if (error) {
+    if (error.code === "23505") return { error: "duplicate" };
+    return { error: error.message };
+  }
+  return { error: null };
+}
+
 /* ---------- backup ---------- */
 
 /** Downloads the whole cloud library as a JSON backup file. */

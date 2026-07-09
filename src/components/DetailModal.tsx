@@ -266,7 +266,7 @@ export function DetailModal({
                           <Avatar profile={profile} size={34} />
                         </Link>
                         <div className="min-w-0 flex-1">
-                          <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
                             <Link
                               href={`/friends/${profile.username}`}
                               onClick={onClose}
@@ -279,7 +279,7 @@ export function DetailModal({
                               {statusLabelFor(it.status, it.media_type)}
                             </span>
                             {it.rating != null && <StarRating value={it.rating} size={12} />}
-                          </p>
+                          </div>
                           {it.review && (
                             <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body">
                               {it.review}

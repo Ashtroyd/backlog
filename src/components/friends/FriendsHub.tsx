@@ -17,10 +17,10 @@ import {
   type FriendStat,
   type Recommendation,
 } from "@/lib/social";
-import { SECTION_BY_MEDIA } from "@/lib/sections";
 import type { Profile } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { StarRating } from "@/components/StarRating";
+import { RecommendationModal } from "./RecommendationModal";
 import {
   CheckIcon,
   SearchIcon,
@@ -38,6 +38,7 @@ export default function FriendsHub() {
   const [outgoing, setOutgoing] = useState<Connection[]>([]);
   const [stats, setStats] = useState<Map<string, FriendStat>>(new Map());
   const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [openRec, setOpenRec] = useState<Recommendation | null>(null);
   const [loaded, setLoaded] = useState(false);
 
   const load = useCallback(async () => {
@@ -123,11 +124,26 @@ export default function FriendsHub() {
           </p>
           <div className="grid grid-cols-2 gap-x-5 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {recs.map((r) => (
-              <RecommendationCard key={`${r.item.media_type}:${r.item.external_id}`} rec={r} />
+              <RecommendationCard
+                key={`${r.item.media_type}:${r.item.external_id}`}
+                rec={r}
+                onOpen={() => setOpenRec(r)}
+              />
             ))}
           </div>
         </Section>
       )}
+
+      <RecommendationModal
+        rec={openRec}
+        onClose={() => setOpenRec(null)}
+        onAdded={(key) => {
+          setRecs((prev) =>
+            prev.filter((r) => `${r.item.media_type}:${r.item.external_id}` !== key),
+          );
+          setOpenRec(null);
+        }}
+      />
     </div>
   );
 }
@@ -346,7 +362,7 @@ function FriendCard({
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-ink">{conn.profile.display_name}</p>
         <p className="truncate text-xs text-muted">@{conn.profile.username}</p>
-        <p className="mt-1.5 flex items-center gap-2 text-xs text-muted">
+        <div className="mt-1.5 flex items-center gap-2 text-xs text-muted">
           <span>{stat ? `${stat.total} titles` : "…"}</span>
           {stat && stat.total > 0 && <span>· {stat.completed} done</span>}
           {stat?.avgRating != null && (
@@ -354,23 +370,26 @@ function FriendCard({
               · <StarRating value={Math.round(stat.avgRating * 2) / 2} size={11} />
             </span>
           )}
-        </p>
+        </div>
       </div>
     </Link>
   );
 }
 
-function RecommendationCard({ rec }: { rec: Recommendation }) {
+function RecommendationCard({
+  rec,
+  onOpen,
+}: {
+  rec: Recommendation;
+  onOpen: () => void;
+}) {
   const { item } = rec;
   const names = rec.raters.map((r) => r.profile.display_name);
   const label =
-    names.length === 1
-      ? names[0]
-      : `${names[0]} +${names.length - 1}`;
-  const section = SECTION_BY_MEDIA[item.media_type];
+    names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
 
   return (
-    <Link href={`/${section.slug}`} className="group text-left" title={item.title}>
+    <button type="button" onClick={onOpen} className="group text-left" title={item.title}>
       <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-ivory shadow-[0_1px_2px_rgba(38,37,33,0.06)] transition-shadow duration-300 group-hover:shadow-[0_12px_28px_rgba(38,37,33,0.14)]">
         {item.cover_url ? (
           <Image
@@ -387,10 +406,10 @@ function RecommendationCard({ rec }: { rec: Recommendation }) {
         )}
       </div>
       <p className="mt-2.5 truncate px-0.5 text-sm font-medium text-ink">{item.title}</p>
-      <p className="mt-0.5 flex items-center gap-1.5 px-0.5 text-xs text-muted">
+      <div className="mt-0.5 flex items-center gap-1.5 px-0.5 text-xs text-muted">
         <StarRating value={Math.round(rec.avg * 2) / 2} size={11} />
         <span className="truncate">{label}</span>
-      </p>
-    </Link>
+      </div>
+    </button>
   );
 }
