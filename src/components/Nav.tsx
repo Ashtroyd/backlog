@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { SECTIONS, SECTION_SLUGS } from "@/lib/sections";
 import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
+import { fetchUnreadMessageCount } from "@/lib/messages";
 import { supabase } from "@/lib/supabase";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationCenter } from "./NotificationCenter";
 import { Avatar } from "./Avatar";
 import {
   ArchiveIcon,
+  ChatIcon,
   DownloadIcon,
   LogoutIcon,
   UploadIcon,
@@ -22,6 +24,24 @@ export default function Nav() {
   const pathname = usePathname();
   const { session, profile } = useAuth();
   const friendsActive = pathname === "/friends" || pathname.startsWith("/friends/");
+  const messagesActive = pathname === "/messages" || pathname.startsWith("/messages/");
+
+  const [unreadMsgs, setUnreadMsgs] = useState(0);
+  const myId = session?.user?.id ?? null;
+  useEffect(() => {
+    if (!myId) return;
+    let alive = true;
+    const tick = () =>
+      fetchUnreadMessageCount(myId)
+        .then((n) => alive && setUnreadMsgs(n))
+        .catch(() => {});
+    tick();
+    const t = setInterval(tick, 15000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, [myId, pathname]);
   const [menuOpen, setMenuOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -95,6 +115,21 @@ export default function Nav() {
           }`}
         >
           <UsersIcon className="h-[18px] w-[18px]" />
+        </Link>
+
+        <Link
+          href="/messages"
+          title="Messages"
+          className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink ${
+            messagesActive ? "bg-ivory text-ink" : "text-muted"
+          }`}
+        >
+          <ChatIcon className="h-[18px] w-[18px]" />
+          {unreadMsgs > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+              {unreadMsgs > 9 ? "9+" : unreadMsgs}
+            </span>
+          )}
         </Link>
 
         <NotificationCenter />

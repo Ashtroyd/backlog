@@ -14,8 +14,9 @@ import { Modal } from "./Modal";
 import { StarRating } from "./StarRating";
 import { Avatar } from "./Avatar";
 import { CommentThread } from "./CommentThread";
+import { ShareToFriendModal } from "./ShareToFriendModal";
 import { STATUS_DOT } from "./ItemCard";
-import { EyeOffIcon, HeartIcon, TrashIcon, XIcon } from "./icons";
+import { EyeOffIcon, HeartIcon, SendIcon, TrashIcon, XIcon } from "./icons";
 
 export function DetailModal({
   item,
@@ -42,6 +43,7 @@ export function DetailModal({
   const [isFavorite, setIsFavorite] = useState(false);
   const [startedAt, setStartedAt] = useState("");
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
+  const [shareOpen, setShareOpen] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -104,6 +106,7 @@ export function DetailModal({
   const chips = itemChips(current);
 
   return (
+    <>
     <Modal open={Boolean(item)} onClose={onClose} wide>
       {current && (
         <div className="p-6 sm:p-7">
@@ -305,7 +308,7 @@ export function DetailModal({
           </div>
 
           <div className="mt-7 flex items-center justify-between gap-3 border-t border-line pt-5">
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               <button
                 type="button"
                 onClick={handleRemove}
@@ -313,6 +316,15 @@ export function DetailModal({
               >
                 <TrashIcon className="h-4 w-4" />
                 Remove
+              </button>
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                title="Recommend to a friend"
+                className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
+              >
+                <SendIcon className="h-4 w-4" />
+                Recommend
               </button>
               <button
                 type="button"
@@ -363,5 +375,10 @@ export function DetailModal({
         </div>
       )}
     </Modal>
+    <ShareToFriendModal
+      item={shareOpen ? current : null}
+      onClose={() => setShareOpen(false)}
+    />
+    </>
   );
 }
