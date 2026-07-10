@@ -12,7 +12,14 @@ type Theme = "light" | "dark";
  * `data-theme` before React runs; here we read it back on mount, then flip
  * both the attribute and the persisted preference on click.
  */
-export function ThemeToggle() {
+export function ThemeToggle({
+  variant = "icon",
+  onToggled,
+}: {
+  /** "icon" for the nav bar, "row" for a labelled item inside a menu. */
+  variant?: "icon" | "row";
+  onToggled?: () => void;
+} = {}) {
   // Default "light" matches the SSR/first-client render, so no hydration
   // mismatch; the real value is read from the DOM once mounted.
   const [theme, setTheme] = useState<Theme>("light");
@@ -31,9 +38,27 @@ export function ThemeToggle() {
     } catch {
       // ignore — storage may be unavailable
     }
+    onToggled?.();
   }
 
   const isDark = theme === "dark";
+
+  if (variant === "row") {
+    return (
+      <button
+        type="button"
+        onClick={toggle}
+        className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-body transition-colors hover:bg-ivory hover:text-ink"
+      >
+        {isDark ? (
+          <SunIcon className="h-4 w-4 text-muted" />
+        ) : (
+          <MoonIcon className="h-4 w-4 text-muted" />
+        )}
+        {isDark ? "Light mode" : "Dark mode"}
+      </button>
+    );
+  }
 
   return (
     <button

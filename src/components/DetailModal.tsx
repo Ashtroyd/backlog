@@ -159,7 +159,9 @@ export function DetailModal({
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
                   Status
                 </p>
-                <div className="inline-flex flex-wrap gap-1 rounded-full bg-ivory p-1">
+                {/* Pills wrap on narrow screens, so soften the corners rather
+                    than keeping a full pill shape around two rows. */}
+                <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-ivory p-1 sm:rounded-full">
                   {STATUS_ORDER.map((s) => {
                     const active = status === s;
                     return (

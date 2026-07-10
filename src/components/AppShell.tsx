@@ -54,7 +54,9 @@ export default function AppShell({
   return (
     <AuthContext.Provider value={{ session, profile, setProfile }}>
       <Nav />
-      <main className="mx-auto w-full max-w-6xl px-6 pb-24">{children}</main>
+      <main className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 sm:pb-24">
+        {children}
+      </main>
     </AuthContext.Provider>
   );
 }

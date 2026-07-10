@@ -16,18 +16,37 @@ import {
   ChatIcon,
   DownloadIcon,
   LogoutIcon,
+  MenuIcon,
   UploadIcon,
   UsersIcon,
 } from "./icons";
 
+const iconButton =
+  "flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink";
+
+function Badge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
+
 export default function Nav() {
   const pathname = usePathname();
   const { session, profile } = useAuth();
+  const myId = session?.user?.id ?? null;
+
   const friendsActive = pathname === "/friends" || pathname.startsWith("/friends/");
-  const messagesActive = pathname === "/messages" || pathname.startsWith("/messages/");
+  const messagesActive =
+    pathname === "/messages" || pathname.startsWith("/messages/");
 
   const [unreadMsgs, setUnreadMsgs] = useState(0);
-  const myId = session?.user?.id ?? null;
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!myId) return;
     let alive = true;
@@ -42,11 +61,16 @@ export default function Nav() {
       clearInterval(t);
     };
   }, [myId, pathname]);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+
+  // Close the sheet whenever we navigate.
+  useEffect(() => {
+    setMobileOpen(false);
+    setBackupOpen(false);
+  }, [pathname]);
 
   async function handleExport() {
-    setMenuOpen(false);
+    setBackupOpen(false);
+    setMobileOpen(false);
     try {
       await exportBacklog();
     } catch {
@@ -62,27 +86,231 @@ export default function Nav() {
     reader.onload = async () => {
       if (!confirm("Importing replaces your current library. Continue?")) return;
       const result = await importBacklog(String(reader.result), session.user.id);
-      if ("error" in result) {
-        alert(result.error);
-      } else {
-        window.location.reload();
-      }
+      if ("error" in result) alert(result.error);
+      else window.location.reload();
     };
     reader.readAsText(file);
-    setMenuOpen(false);
+    setBackupOpen(false);
+    setMobileOpen(false);
   }
+
+  const menuItem =
+    "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-body transition-colors hover:bg-ivory hover:text-ink";
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur-md">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-4 px-6 sm:gap-6">
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 sm:h-16 sm:flex-nowrap sm:gap-x-4 sm:gap-y-0 sm:px-6 sm:py-0">
         <Link
           href="/games"
-          className="font-serif text-xl font-semibold tracking-tight text-ink"
+          className="order-1 shrink-0 font-serif text-xl font-semibold tracking-tight text-ink"
         >
           Backlog<span className="text-accent">.</span>
         </Link>
 
-        <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
+        {/* Controls: full icon row on desktop, bell + hamburger on mobile. */}
+        <div className="order-2 ml-auto flex items-center gap-1 sm:order-3 sm:ml-0">
+          <Link
+            href="/friends"
+            title="Friends"
+            className={`hidden sm:flex ${iconButton} ${
+              friendsActive ? "bg-ivory text-ink" : "text-muted"
+            }`}
+          >
+            <UsersIcon className="h-[18px] w-[18px]" />
+          </Link>
+
+          <Link
+            href="/messages"
+            title="Messages"
+            className={`relative hidden sm:flex ${iconButton} ${
+              messagesActive ? "bg-ivory text-ink" : "text-muted"
+            }`}
+          >
+            <ChatIcon className="h-[18px] w-[18px]" />
+            <Badge count={unreadMsgs} />
+          </Link>
+
+          <NotificationCenter />
+
+          <span className="hidden sm:block">
+            <ThemeToggle />
+          </span>
+
+          <div className="relative hidden sm:block">
+            <button
+              type="button"
+              title="Backup"
+              onClick={() => setBackupOpen((v) => !v)}
+              className={`${iconButton} ${backupOpen ? "bg-ivory text-ink" : "text-muted"}`}
+            >
+              <ArchiveIcon className="h-[18px] w-[18px]" />
+            </button>
+
+            {/* The backdrop sits outside AnimatePresence: a Fragment child
+                can't be tracked for exit, which strands it (and its
+                pointer-events) over the page after a route change. */}
+            {backupOpen && (
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setBackupOpen(false)}
+              />
+            )}
+            <AnimatePresence>
+              {backupOpen && (
+                <motion.div
+                  key="backup-menu"
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                  className="absolute right-0 top-11 z-50 w-52 rounded-xl border border-line bg-surface p-1.5 shadow-[0_12px_32px_rgba(38,37,33,0.14)]"
+                >
+                  <button type="button" onClick={handleExport} className={menuItem}>
+                    <DownloadIcon className="h-4 w-4 text-muted" />
+                    Export backup
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className={menuItem}
+                  >
+                    <UploadIcon className="h-4 w-4 text-muted" />
+                    Import backup
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {profile && (
+            <Link
+              href="/profile"
+              title="Your profile"
+              className={`hidden shrink-0 rounded-full transition-opacity hover:opacity-80 sm:block ${
+                pathname === "/profile"
+                  ? "ring-2 ring-accent ring-offset-2 ring-offset-paper"
+                  : ""
+              }`}
+            >
+              <Avatar profile={profile} size={30} />
+            </Link>
+          )}
+
+          <button
+            type="button"
+            title={`Sign out${session ? ` (${session.user.email})` : ""}`}
+            onClick={() => supabase.auth.signOut()}
+            className={`hidden sm:flex ${iconButton} text-muted`}
+          >
+            <LogoutIcon className="h-[18px] w-[18px]" />
+          </button>
+
+          {/* Everything above, folded into one menu on small screens. */}
+          <div className="relative sm:hidden">
+            <button
+              type="button"
+              aria-label="Menu"
+              aria-expanded={mobileOpen}
+              onClick={() => setMobileOpen((v) => !v)}
+              className={`relative ${iconButton} ${
+                mobileOpen ? "bg-ivory text-ink" : "text-muted"
+              }`}
+            >
+              <MenuIcon className="h-5 w-5" />
+              {!mobileOpen && unreadMsgs > 0 && (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-accent" />
+              )}
+            </button>
+
+            {mobileOpen && (
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setMobileOpen(false)}
+              />
+            )}
+            <AnimatePresence>
+              {mobileOpen && (
+                  <motion.div
+                    key="mobile-menu"
+                    initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                    transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
+                    className="absolute right-0 top-11 z-50 w-60 rounded-xl border border-line bg-surface p-1.5 shadow-[0_12px_32px_rgba(38,37,33,0.16)]"
+                  >
+                    {profile && (
+                      <>
+                        <Link href="/profile" className={`${menuItem} py-2.5`}>
+                          <Avatar profile={profile} size={32} />
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium text-ink">
+                              {profile.display_name}
+                            </span>
+                            <span className="block truncate text-xs text-muted">
+                              @{profile.username}
+                            </span>
+                          </span>
+                        </Link>
+                        <div className="my-1 h-px bg-line" />
+                      </>
+                    )}
+
+                    <Link href="/friends" className={menuItem}>
+                      <UsersIcon className="h-4 w-4 text-muted" />
+                      Friends
+                    </Link>
+                    <Link href="/messages" className={menuItem}>
+                      <ChatIcon className="h-4 w-4 text-muted" />
+                      Messages
+                      {unreadMsgs > 0 && (
+                        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white">
+                          {unreadMsgs > 9 ? "9+" : unreadMsgs}
+                        </span>
+                      )}
+                    </Link>
+
+                    <div className="my-1 h-px bg-line" />
+
+                    <ThemeToggle variant="row" onToggled={() => setMobileOpen(false)} />
+                    <button type="button" onClick={handleExport} className={menuItem}>
+                      <DownloadIcon className="h-4 w-4 text-muted" />
+                      Export backup
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      className={menuItem}
+                    >
+                      <UploadIcon className="h-4 w-4 text-muted" />
+                      Import backup
+                    </button>
+
+                    <div className="my-1 h-px bg-line" />
+
+                    <button
+                      type="button"
+                      onClick={() => supabase.auth.signOut()}
+                      className={menuItem}
+                    >
+                      <LogoutIcon className="h-4 w-4 text-muted" />
+                      Sign out
+                    </button>
+                  </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+        </div>
+
+        {/* Section tabs: own row on mobile, inline on desktop. */}
+        <nav className="order-3 flex w-full items-center justify-between sm:order-2 sm:w-auto sm:flex-1 sm:justify-start sm:gap-1">
           {SECTION_SLUGS.map((slug) => {
             const active =
               pathname === `/${slug}` || pathname.startsWith(`/${slug}/`);
@@ -90,7 +318,7 @@ export default function Nav() {
               <Link
                 key={slug}
                 href={`/${slug}`}
-                className={`relative shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                className={`relative shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors sm:px-3.5 ${
                   active ? "text-ink" : "text-muted hover:text-ink"
                 }`}
               >
@@ -106,112 +334,6 @@ export default function Nav() {
             );
           })}
         </nav>
-
-        <Link
-          href="/friends"
-          title="Friends"
-          className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink ${
-            friendsActive ? "bg-ivory text-ink" : "text-muted"
-          }`}
-        >
-          <UsersIcon className="h-[18px] w-[18px]" />
-        </Link>
-
-        <Link
-          href="/messages"
-          title="Messages"
-          className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink ${
-            messagesActive ? "bg-ivory text-ink" : "text-muted"
-          }`}
-        >
-          <ChatIcon className="h-[18px] w-[18px]" />
-          {unreadMsgs > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
-              {unreadMsgs > 9 ? "9+" : unreadMsgs}
-            </span>
-          )}
-        </Link>
-
-        <NotificationCenter />
-
-        <ThemeToggle />
-
-        <div className="relative">
-          <button
-            type="button"
-            title="Backup"
-            onClick={() => setMenuOpen((v) => !v)}
-            className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink ${
-              menuOpen ? "bg-ivory text-ink" : "text-muted"
-            }`}
-          >
-            <ArchiveIcon className="h-[18px] w-[18px]" />
-          </button>
-
-          <AnimatePresence>
-            {menuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setMenuOpen(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
-                  transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-                  className="absolute right-0 top-11 z-50 w-52 rounded-xl border border-line bg-surface p-1.5 shadow-[0_12px_32px_rgba(38,37,33,0.14)]"
-                >
-                  <button
-                    type="button"
-                    onClick={handleExport}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-body transition-colors hover:bg-ivory hover:text-ink"
-                  >
-                    <DownloadIcon className="h-4 w-4 text-muted" />
-                    Export backup
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-body transition-colors hover:bg-ivory hover:text-ink"
-                  >
-                    <UploadIcon className="h-4 w-4 text-muted" />
-                    Import backup
-                  </button>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={handleImportFile}
-          />
-        </div>
-
-        {profile && (
-          <Link
-            href="/profile"
-            title="Your profile"
-            className={`shrink-0 rounded-full transition-opacity hover:opacity-80 ${
-              pathname === "/profile" ? "ring-2 ring-accent ring-offset-2 ring-offset-paper" : ""
-            }`}
-          >
-            <Avatar profile={profile} size={30} />
-          </Link>
-        )}
-
-        <button
-          type="button"
-          title={`Sign out${session ? ` (${session.user.email})` : ""}`}
-          onClick={() => supabase.auth.signOut()}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
-        >
-          <LogoutIcon className="h-[18px] w-[18px]" />
-        </button>
       </div>
     </header>
   );

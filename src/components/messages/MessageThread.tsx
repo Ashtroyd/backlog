@@ -63,7 +63,8 @@ export function MessageThread({ friend }: { friend: Profile }) {
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col pt-6">
+    // Header is two rows on mobile, one on desktop — hence the different offsets.
+    <div className="flex h-[calc(100dvh-11rem)] flex-col pt-4 sm:h-[calc(100dvh-10rem)] sm:pt-6">
       <header className="flex items-center gap-3 border-b border-line pb-4">
         <Link
           href="/messages"
