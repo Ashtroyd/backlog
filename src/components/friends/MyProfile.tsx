@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/backlog-store";
 import { fetchFavorites, updateProfile } from "@/lib/social";
-import { uploadProfileImage } from "@/lib/profile-media";
+import { IMAGE_SPEC, uploadProfileImage, type ImageKind } from "@/lib/profile-media";
 import type { BacklogItem } from "@/lib/types";
 import { SpinnerIcon } from "@/components/icons";
+import { ImageCropper } from "@/components/ImageCropper";
 import { ProfileHero } from "./ProfileHero";
 import { FavouritesRow } from "./FavouritesRow";
 
@@ -15,7 +16,10 @@ export default function MyProfile() {
 
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
-  const [uploading, setUploading] = useState<"avatar" | "banner" | null>(null);
+  const [uploading, setUploading] = useState<ImageKind | null>(null);
+  const [cropping, setCropping] = useState<{ kind: ImageKind; file: File } | null>(
+    null,
+  );
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<BacklogItem[]>([]);
@@ -37,11 +41,14 @@ export default function MyProfile() {
     displayName.trim() !== profile.display_name ||
     bio.trim() !== (profile.bio ?? "");
 
-  async function handlePick(kind: "avatar" | "banner", file: File) {
+  /** Upload the framed crop, then point the profile at it. */
+  async function handleCropped(blob: Blob) {
+    const kind = cropping!.kind;
+    setCropping(null);
     setNote(null);
     setUploading(kind);
     try {
-      const url = await uploadProfileImage(myId!, kind, file);
+      const url = await uploadProfileImage(myId!, kind, blob);
       const patch =
         kind === "avatar" ? { avatar_url: url } : { banner_url: url };
       const { profile: updated, error } = await updateProfile(myId!, patch);
@@ -76,9 +83,21 @@ export default function MyProfile() {
         profile={profile}
         editable
         uploading={uploading}
-        onPickAvatar={(f) => handlePick("avatar", f)}
-        onPickBanner={(f) => handlePick("banner", f)}
+        onPickAvatar={(file) => setCropping({ kind: "avatar", file })}
+        onPickBanner={(file) => setCropping({ kind: "banner", file })}
       />
+
+      {cropping && (
+        <ImageCropper
+          file={cropping.file}
+          aspect={IMAGE_SPEC[cropping.kind].aspect}
+          outputWidth={IMAGE_SPEC[cropping.kind].outputWidth}
+          label={IMAGE_SPEC[cropping.kind].label}
+          round={IMAGE_SPEC[cropping.kind].round}
+          onCancel={() => setCropping(null)}
+          onConfirm={handleCropped}
+        />
+      )}
 
       <section className="mt-10">
         <h2 className="mb-4 font-serif text-xl font-semibold text-ink">

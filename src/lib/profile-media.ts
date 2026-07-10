@@ -2,65 +2,24 @@
 
 import { supabase } from "./supabase";
 
-/** Downscale an image file to fit within max dimensions, as a JPEG blob. */
-async function resizeImage(
-  file: File,
-  maxW: number,
-  maxH: number,
-): Promise<Blob> {
-  const img = await loadImage(file);
-  const scale = Math.min(1, maxW / img.width, maxH / img.height);
-  const width = Math.max(1, Math.round(img.width * scale));
-  const height = Math.max(1, Math.round(img.height * scale));
-
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas not supported.");
-  ctx.drawImage(img, 0, 0, width, height);
-
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Could not process image."))),
-      "image/jpeg",
-      0.85,
-    );
-  });
-}
-
-function loadImage(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("That file isn't a readable image."));
-    };
-    img.src = url;
-  });
-}
-
-const LIMITS = {
-  avatar: [512, 512],
-  banner: [1600, 600],
+/** Crop frame + exported size for each kind of profile image. */
+export const IMAGE_SPEC = {
+  avatar: { aspect: 1, outputWidth: 512, label: "profile picture", round: true },
+  banner: { aspect: 3, outputWidth: 1500, label: "banner", round: false },
 } as const;
 
+export type ImageKind = keyof typeof IMAGE_SPEC;
+
 /**
- * Resize + upload an avatar or banner to the public `avatars` bucket, one file
- * per user per kind (overwritten in place), returning a cache-busted URL.
+ * Upload an already-cropped avatar or banner to the public `avatars` bucket.
+ * One file per user per kind (overwritten in place); the returned URL carries a
+ * cache-buster so the new image shows up immediately.
  */
 export async function uploadProfileImage(
   userId: string,
-  kind: "avatar" | "banner",
-  file: File,
+  kind: ImageKind,
+  blob: Blob,
 ): Promise<string> {
-  const [maxW, maxH] = LIMITS[kind];
-  const blob = await resizeImage(file, maxW, maxH);
   const path = `${userId}/${kind}.jpg`;
   const { error } = await supabase.storage
     .from("avatars")
