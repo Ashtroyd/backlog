@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useState } from "react";
 import type { Section } from "@/lib/sections";
 import type { AddInput } from "@/lib/backlog-store";
 import type { SearchResult } from "@/lib/types";
 import { Modal } from "./Modal";
+import { CoverImage } from "./CoverImage";
 import { CheckIcon, PlusIcon, SearchIcon, SpinnerIcon } from "./icons";
 
 /** Search-and-add dialog. Stays open after adding so you can queue up several titles. */
@@ -29,8 +29,6 @@ export function AddModal({
   const [addingId, setAddingId] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
 
-  // Steam search results only carry a tiny landscape capsule image.
-  const gameThumbs = section.mediaType === "game";
 
   // Fresh slate every time the dialog opens.
   useEffect(() => {
@@ -85,13 +83,14 @@ export function AddModal({
   async function handleAdd(r: SearchResult) {
     setAddingId(r.externalId);
     let detail = r;
-    // Steam search lacks year/genres/portrait cover — enrich before saving.
-    if (section.mediaType === "game") {
+    // Steam entries (numeric appids) gain genres, platforms and Metacritic on
+    // add. IMDb-only entries (tt…) are console titles Steam doesn't carry.
+    if (section.mediaType === "game" && /^\d+$/.test(r.externalId)) {
       try {
         const res = await fetch(`/api/detail?type=game&id=${r.externalId}`);
         if (res.ok) {
           const data = await res.json();
-          detail = { ...r, ...data.result };
+          detail = { ...r, ...data.result, externalId: r.externalId };
         }
       } catch {
         // Fall back to the bare search result.
@@ -158,20 +157,8 @@ export function AddModal({
                 key={r.externalId}
                 className="flex items-center gap-3.5 px-3 py-2.5"
               >
-                <div
-                  className={`relative shrink-0 overflow-hidden rounded-md bg-ivory ${
-                    gameThumbs ? "h-10 w-24" : "h-16 w-11"
-                  }`}
-                >
-                  {r.coverUrl && (
-                    <Image
-                      src={r.coverUrl}
-                      alt=""
-                      fill
-                      sizes="96px"
-                      className="object-cover"
-                    />
-                  )}
+                <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md bg-ivory">
+                  <CoverImage src={r.coverUrl} title={r.title} sizes="44px" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[15px] font-medium text-ink">

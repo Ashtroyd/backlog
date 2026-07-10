@@ -27,7 +27,7 @@ export const SECTIONS: Record<SectionSlug, Section> = {
     inProgressLabel: "Playing",
     startedLabel: "Started playing",
     searchPlaceholder: "Search for a game…",
-    source: "Steam",
+    source: "Steam and IMDb",
     emptyTitle: "No games yet",
     emptyBody: "Search for a game and it lands in your backlog with cover art and details filled in.",
   },

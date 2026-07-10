@@ -33,8 +33,10 @@ in the SQL Editor to create the table.
 Search needs no keys at all — it's powered by free, keyless sources, proxied
 through the app's own `/api/search`:
 
-- **Games** — Steam store search (covers, genres, release year, Metacritic).
-  Steam catalogue only, so console exclusives won't appear.
+- **Games** — Steam store search combined with IMDb's video-game catalogue, so
+  PC indies *and* console exclusives (Ghost of Yōtei, Zelda) both turn up.
+  Titles sold on Steam keep their Steam appid and gain genres, platforms and a
+  Metacritic score when added.
 - **Movies** — IMDb's search suggestions (posters, year, top cast)
 - **Series** — [TVMaze](https://www.tvmaze.com)
 - **Anime** — MyAnimeList via [Jikan](https://jikan.moe)

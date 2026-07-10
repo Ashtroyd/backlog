@@ -5,7 +5,8 @@ import type { SearchResult } from "@/lib/types";
  * GET /api/search?type=game|movie|series|anime&q=…
  *
  * Server-side proxy over free, keyless sources:
- *   games  → Steam store search (year/genres enriched on add via /api/detail)
+ *   games  → Steam store search ∪ IMDb video games (Steam data enriched on add
+ *            via /api/detail); covers PC indies and console exclusives alike
  *   movies → IMDb suggestion API (the endpoint behind imdb.com's search box)
  *   series → TVMaze
  *   anime  → Jikan (MyAnimeList)
@@ -54,27 +55,138 @@ function dedupe(results: SearchResult[]): SearchResult[] {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-async function searchGames(q: string): Promise<SearchResult[]> {
-  const url = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(q)}&l=english&cc=GB`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Steam ${res.status}`);
-  const data = await res.json();
+/* ---------- games: Steam ∪ IMDb ----------
+ * Steam is exhaustive for PC but has no console exclusives; IMDb covers every
+ * platform but misses some tiny indies. We search both and merge on title.
+ * A game that exists on Steam keeps its Steam appid as the external id (so
+ * previously-added entries still match); console-only titles use the IMDb id.
+ */
 
-  return (data.items ?? [])
-    .filter((g: any) => g.type === "app")
-    .slice(0, 10)
-    .map((g: any): SearchResult => ({
+const EDITION_SUFFIX =
+  /\s+(directors? cut|definitive|remastered|remaster|goty|game of the year|complete|deluxe|enhanced|ultimate|anniversary)( edition)?$/;
+
+const STEAM_NOISE = /(soundtrack|original score|artbook|art book|\bdlc\b|\bost\b|demo|season pass)/i;
+
+/** Lowercase, strip accents and punctuation, collapse spaces. */
+function normTitle(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accents (Yotei)
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Same, with a trailing edition suffix removed, for cross-source matching. */
+function baseTitle(s: string): string {
+  return normTitle(s).replace(EDITION_SUFFIX, "").trim();
+}
+
+const steamPortrait = (appid: string | number) =>
+  `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}/library_600x900.jpg`;
+
+async function steamGames(q: string) {
+  try {
+    const res = await fetch(
+      `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(q)}&l=english&cc=GB`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return ((data.items ?? []) as any[]).filter(
+      (g) => g.type === "app" && !STEAM_NOISE.test(g.name ?? ""),
+    );
+  } catch {
+    return [];
+  }
+}
+
+async function imdbGames(q: string) {
+  try {
+    const lowered = q.toLowerCase();
+    const res = await fetch(
+      `https://v3.sg.media-imdb.com/suggestion/${encodeURIComponent(lowered[0])}/${encodeURIComponent(lowered)}.json`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return ((data.d ?? []) as any[]).filter(
+      (m) => typeof m.id === "string" && m.id.startsWith("tt") && m.q === "video game",
+    );
+  } catch {
+    return [];
+  }
+}
+
+async function searchGames(q: string): Promise<SearchResult[]> {
+  const [steam, imdb] = await Promise.all([steamGames(q), imdbGames(q)]);
+
+  // Index Steam by base title so IMDb entries can claim their Steam twin.
+  const steamByTitle = new Map<string, any>();
+  for (const g of steam) {
+    const key = baseTitle(g.name);
+    if (!steamByTitle.has(key)) steamByTitle.set(key, g);
+  }
+
+  const results: SearchResult[] = [];
+  const claimed = new Set<any>();
+
+  for (const m of imdb) {
+    const twin = steamByTitle.get(baseTitle(m.l));
+    if (twin) claimed.add(twin);
+    // For video games IMDb's `s` field carries genres (for films it's the cast).
+    const genres: string[] = m.s
+      ? String(m.s)
+          .split(",")
+          .map((g: string) => g.trim())
+          .filter(Boolean)
+          .slice(0, 3)
+      : [];
+    results.push({
+      // Steam id wins when the game is on Steam, so ids stay stable.
+      externalId: twin ? String(twin.id) : m.id,
+      title: m.l,
+      coverUrl: twin
+        ? steamPortrait(twin.id)
+        : m.i?.imageUrl
+          ? m.i.imageUrl.replace("._V1_.jpg", "._V1_UX400_.jpg")
+          : null,
+      year: m.y ?? null,
+      genres,
+      meta: {
+        metacritic: twin?.metascore ? Number(twin.metascore) : null,
+      },
+    });
+  }
+
+  // Steam-only titles (indies IMDb doesn't list).
+  for (const g of steam) {
+    if (claimed.has(g)) continue;
+    results.push({
       externalId: String(g.id),
-      // Search only returns the tiny landscape capsule; /api/detail swaps in
-      // the portrait cover, year and genres when the game is added.
       title: g.name,
-      coverUrl: g.tiny_image ?? null,
+      coverUrl: steamPortrait(g.id),
       year: null,
       genres: [],
-      meta: {
-        metacritic: g.metascore ? Number(g.metascore) : null,
-      },
-    }));
+      meta: { metacritic: g.metascore ? Number(g.metascore) : null },
+    });
+  }
+
+  // Rank by how closely the title matches what was typed.
+  const nq = normTitle(q);
+  const score = (t: string) => {
+    const n = normTitle(t);
+    if (n === nq) return 0;
+    if (n.startsWith(nq)) return 1;
+    if (n.includes(nq)) return 2;
+    return 3;
+  };
+  return results
+    .map((r, i) => ({ r, i, s: score(r.title) }))
+    .sort((a, b) => a.s - b.s || a.i - b.i)
+    .slice(0, 12)
+    .map((x) => x.r);
 }
 
 async function searchMovies(q: string): Promise<SearchResult[]> {
