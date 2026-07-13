@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  # The Supabase anon key is public by design (it ships in the client bundle);
+  # row-level security is what protects the data.
+  NEXT_PUBLIC_SUPABASE_URL: https://ttapmtrzzodzojunivcc.supabase.co
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR0YXBtdHJ6em9kem9qdW5pdmNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM1MTUyMzgsImV4cCI6MjA5OTA5MTIzOH0.ZoOzgygE1Sbg9tDGOPbTsU644aOFsm04MCiSGtcsbsI
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7
