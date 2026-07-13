@@ -12,6 +12,10 @@ export type ItemMeta = {
   episodes?: number | null;
   malScore?: number | null;
   studios?: string[];
+  /** When details were last re-fetched from the source (ISO timestamp). */
+  _refreshedAt?: string;
+  /** Set when a refresh discovers a previously-upcoming title has released. */
+  _outNow?: boolean;
 };
 
 /** A row in the library. */

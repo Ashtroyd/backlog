@@ -45,9 +45,8 @@ function sortItems(list: BacklogItem[], sort: Sort): BacklogItem[] {
 
 export default function Library({ section: slug }: { section: SectionSlug }) {
   const section = SECTIONS[slug];
-  const { items, ready, loadError, add, update, remove } = useBacklog(
-    section.mediaType,
-  );
+  const { items, ready, loadError, add, update, remove, applyDetails } =
+    useBacklog(section.mediaType);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("added");
@@ -238,6 +237,7 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
         onClose={() => setSelectedId(null)}
         onUpdate={update}
         onRemove={remove}
+        onRefresh={applyDetails}
       />
     </>
   );

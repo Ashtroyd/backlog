@@ -256,6 +256,11 @@ export function useBacklog(mediaType: MediaType) {
           patch.status === "completed"
             ? (existing?.completed_at ?? now)
             : null;
+        // Once a title moves out of the backlog, the "out now" nudge is done.
+        if (patch.status !== "backlog" && existing?.meta?._outNow) {
+          const { _outNow: _dropped, ...rest } = existing.meta;
+          fields.meta = rest;
+        }
       }
       if (patch.rating !== undefined) fields.rating = patch.rating;
       if (patch.review !== undefined) {
@@ -297,6 +302,43 @@ export function useBacklog(mediaType: MediaType) {
     [items, userId, mediaType, commit],
   );
 
+  /**
+   * Merge freshly-fetched source details into an item (cover, year, genres,
+   * scores). Flags `_outNow` when a previously-upcoming title has released.
+   */
+  const applyDetails = useCallback(
+    (id: string, fresh: { coverUrl: string | null; year: number | null; genres: string[]; meta: ItemMeta }) => {
+      const existing = items.find((i) => i.id === id);
+      if (!existing) return;
+      const currentYear = new Date().getFullYear();
+      const wasUpcoming =
+        existing.release_year != null && existing.release_year > currentYear;
+      const nowReleased =
+        fresh.year != null && fresh.year <= currentYear;
+      const meta: ItemMeta = {
+        ...existing.meta,
+        ...fresh.meta,
+        _refreshedAt: new Date().toISOString(),
+        _outNow: (wasUpcoming && nowReleased) || existing.meta?._outNow || undefined,
+      };
+      const fields = {
+        cover_url: fresh.coverUrl ?? existing.cover_url,
+        release_year: fresh.year ?? existing.release_year,
+        genres: fresh.genres.length ? fresh.genres : existing.genres,
+        meta,
+      };
+      commit(items.map((i) => (i.id === id ? { ...i, ...fields } : i)));
+      supabase
+        .from("items")
+        .update(fields)
+        .eq("id", id)
+        .then(({ error }) => {
+          if (error) console.warn("Refresh sync failed", error);
+        });
+    },
+    [items, commit],
+  );
+
   const remove = useCallback(
     (id: string) => {
       const previous = items;
@@ -315,7 +357,7 @@ export function useBacklog(mediaType: MediaType) {
     [items, commit],
   );
 
-  return { items, ready, loadError, add, update, remove };
+  return { items, ready, loadError, add, update, remove, applyDetails };
 }
 
 /**

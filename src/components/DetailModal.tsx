@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { STATUS_ORDER, statusLabel, statusLabelFor, type Section } from "@/lib/sections";
 import { useAuth, type UpdatePatch } from "@/lib/backlog-store";
@@ -16,8 +16,18 @@ import { Avatar } from "./Avatar";
 import { CommentThread } from "./CommentThread";
 import { useConfirm } from "./ConfirmDialog";
 import { ShareToFriendModal } from "./ShareToFriendModal";
-import { STATUS_DOT } from "./ItemCard";
+import { releaseBadge, STATUS_DOT } from "./ItemCard";
 import { EyeOffIcon, HeartIcon, SendIcon, TrashIcon, XIcon } from "./icons";
+
+/** Details are re-fetched when unreleased, or last refreshed over 30 days ago. */
+function isStale(item: BacklogItem): boolean {
+  const currentYear = new Date().getFullYear();
+  if (item.release_year == null || item.release_year > currentYear) return true;
+  const last = item.meta?._refreshedAt
+    ? Date.parse(item.meta._refreshedAt)
+    : Date.parse(item.created_at);
+  return Date.now() - last > 30 * 24 * 60 * 60 * 1000;
+}
 
 export function DetailModal({
   item,
@@ -25,12 +35,22 @@ export function DetailModal({
   onClose,
   onUpdate,
   onRemove,
+  onRefresh,
 }: {
   item: BacklogItem | null;
   section: Section;
   onClose: () => void;
   onUpdate: (id: string, patch: UpdatePatch) => void;
   onRemove: (id: string) => void;
+  onRefresh?: (
+    id: string,
+    fresh: {
+      coverUrl: string | null;
+      year: number | null;
+      genres: string[];
+      meta: BacklogItem["meta"];
+    },
+  ) => void;
 }) {
   const { session } = useAuth();
   const myId = session?.user?.id ?? null;
@@ -67,6 +87,29 @@ export function DetailModal({
       setStartedAt(todayISODate());
     }
   }
+
+  // Silently refresh stale details from the source while the dialog is open,
+  // so unreleased titles pick up covers, years and scores as they firm up.
+  const refreshedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!item || !onRefresh || !isStale(item)) return;
+    if (refreshedFor.current === item.id) return;
+    refreshedFor.current = item.id;
+    const url = `/api/refresh?type=${item.media_type}&id=${encodeURIComponent(item.external_id)}&title=${encodeURIComponent(item.title)}`;
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.result) {
+          onRefresh(item.id, {
+            coverUrl: data.result.coverUrl ?? null,
+            year: data.result.year ?? null,
+            genres: data.result.genres ?? [],
+            meta: data.result.meta ?? {},
+          });
+        }
+      })
+      .catch(() => {});
+  }, [item, onRefresh]);
 
   // Which friends also have this title?
   useEffect(() => {
@@ -150,8 +193,22 @@ export function DetailModal({
                   .join(" · ")}
               </p>
 
-              {chips.length > 0 && (
+              {(chips.length > 0 || releaseBadge(current)) && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(() => {
+                    const badge = releaseBadge(current);
+                    return badge ? (
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          badge.label === "Out now"
+                            ? "bg-sage-soft text-sage"
+                            : "bg-accent-soft text-accent-hover"
+                        }`}
+                      >
+                        {badge.label}
+                      </span>
+                    ) : null;
+                  })()}
                   {chips.map((c) => (
                     <span
                       key={c}

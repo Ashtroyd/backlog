@@ -14,6 +14,17 @@ export const STATUS_DOT: Record<BacklogItem["status"], string> = {
   dropped: "bg-muted/50",
 };
 
+/** "Coming soon" for unreleased titles; "Out now" once a refresh sees release. */
+export function releaseBadge(item: BacklogItem): { label: string; cls: string } | null {
+  if (item.release_year != null && item.release_year > new Date().getFullYear()) {
+    return { label: "Coming soon", cls: "bg-paper/90 text-accent-hover" };
+  }
+  if (item.meta?._outNow && item.status === "backlog") {
+    return { label: "Out now", cls: "bg-sage text-white" };
+  }
+  return null;
+}
+
 export function ItemCard({
   item,
   section,
@@ -55,6 +66,16 @@ export function ItemCard({
             {item.title.charAt(0)}
           </div>
         )}
+        {(() => {
+          const badge = releaseBadge(item);
+          return badge ? (
+            <span
+              className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm backdrop-blur ${badge.cls}`}
+            >
+              {badge.label}
+            </span>
+          ) : null;
+        })()}
       </div>
       <div className="mt-2.5 px-0.5">
         <p className="truncate text-sm font-medium text-ink">{item.title}</p>
