@@ -22,6 +22,17 @@ export const metadata: Metadata = {
   },
   description:
     "Your games, movies, series and anime — what's next, what's in progress, what's done.",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: "/apple-touch-icon.png",
+  },
+};
+
+export const viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf9f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#1b1a18" },
+  ],
 };
 
 // Runs synchronously before first paint: applies the saved theme (or the OS

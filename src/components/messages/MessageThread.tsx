@@ -11,6 +11,7 @@ import {
   type SharedItem,
 } from "@/lib/messages";
 import { timeAgo } from "@/lib/format";
+import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
 import { ItemPicker } from "./ItemPicker";
@@ -36,12 +37,32 @@ export function MessageThread({ friend }: { friend: Profile }) {
     markThreadRead(myId, friend.id);
   }, [myId, friend.id]);
 
-  // Load + light polling so replies show up without a refresh.
+  // Load once, then listen for the friend's messages in realtime (needs the
+  // 0007 realtime migration); a slow poll covers setups without it.
   useEffect(() => {
     load();
-    const t = setInterval(load, 4000);
-    return () => clearInterval(t);
-  }, [load]);
+    const t = setInterval(load, 20000);
+    if (!myId) return () => clearInterval(t);
+    const channel = supabase
+      .channel(`thread-${friend.id}-${myId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `recipient_id=eq.${myId}`,
+        },
+        (payload) => {
+          if ((payload.new as Message).sender_id === friend.id) load();
+        },
+      )
+      .subscribe();
+    return () => {
+      clearInterval(t);
+      supabase.removeChannel(channel);
+    };
+  }, [load, myId, friend.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

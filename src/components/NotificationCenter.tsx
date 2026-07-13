@@ -17,6 +17,7 @@ import {
   type Notification,
 } from "@/lib/social";
 import { statusLabelFor } from "@/lib/sections";
+import { supabase } from "@/lib/supabase";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "./Avatar";
 import { StarRating } from "./StarRating";
@@ -61,7 +62,25 @@ export function NotificationCenter() {
       // ignore
     }
     load();
-  }, [load]);
+    if (!myId) return undefined;
+    // New notifications arrive live once the 0007 realtime migration is run.
+    const channel = supabase
+      .channel(`notifs-${myId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `recipient_id=eq.${myId}`,
+        },
+        () => load(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [load, myId]);
 
   // Fresh data each time the panel opens.
   useEffect(() => {

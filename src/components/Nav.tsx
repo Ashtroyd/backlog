@@ -50,6 +50,8 @@ export default function Nav() {
   const fileRef = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
 
+  // Unread badge: realtime when the messages table is in the publication
+  // (migration 0007), with a slow poll as fallback either way.
   useEffect(() => {
     if (!myId) return;
     let alive = true;
@@ -58,12 +60,32 @@ export default function Nav() {
         .then((n) => alive && setUnreadMsgs(n))
         .catch(() => {});
     tick();
-    const t = setInterval(tick, 15000);
+    const t = setInterval(tick, 60000);
+    const channel = supabase
+      .channel(`msg-badge-${myId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `recipient_id=eq.${myId}`,
+        },
+        tick,
+      )
+      .subscribe();
     return () => {
       alive = false;
       clearInterval(t);
+      supabase.removeChannel(channel);
     };
-  }, [myId, pathname]);
+  }, [myId]);
+
+  // Refresh the badge on navigation too (e.g. after reading a thread).
+  useEffect(() => {
+    if (!myId) return;
+    fetchUnreadMessageCount(myId).then(setUnreadMsgs).catch(() => {});
+  }, [pathname, myId]);
 
   // Close the sheet whenever we navigate.
   useEffect(() => {
