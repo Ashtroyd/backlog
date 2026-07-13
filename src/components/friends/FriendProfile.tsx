@@ -16,6 +16,7 @@ import {
 } from "@/lib/social";
 import type { BacklogItem } from "@/lib/types";
 import { SpinnerIcon, UserPlusIcon } from "@/components/icons";
+import { useConfirm } from "@/components/ConfirmDialog";
 import { FriendLibrary } from "./FriendLibrary";
 import { TasteMatchCard } from "./TasteMatchCard";
 import { ProfileHero } from "./ProfileHero";
@@ -25,6 +26,7 @@ export default function FriendProfile({ username }: { username: string }) {
   const { session } = useAuth();
   const router = useRouter();
   const myId = session?.user?.id ?? null;
+  const confirm = useConfirm();
 
   const [view, setView] = useState<FriendView | null | "missing">(null);
   const [theirItems, setTheirItems] = useState<BacklogItem[]>([]);
@@ -147,10 +149,15 @@ export default function FriendProfile({ username }: { username: string }) {
                 <button
                   type="button"
                   disabled={busy}
-                  onClick={() => {
-                    if (confirm(`Remove ${profile.display_name} as a friend?`)) {
-                      act(() => removeFriendship(friendshipId!));
-                    }
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: `Remove ${profile.display_name}?`,
+                      message:
+                        "You'll stop seeing each other's libraries, and they'd need to send a new request to reconnect.",
+                      confirmLabel: "Unfriend",
+                      danger: true,
+                    });
+                    if (ok) act(() => removeFriendship(friendshipId!));
                   }}
                   className="rounded-full border border-line px-4 py-2 text-sm font-medium text-body transition-colors hover:bg-ivory disabled:opacity-60"
                 >

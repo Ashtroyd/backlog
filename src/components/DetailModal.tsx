@@ -14,6 +14,7 @@ import { Modal } from "./Modal";
 import { StarRating } from "./StarRating";
 import { Avatar } from "./Avatar";
 import { CommentThread } from "./CommentThread";
+import { useConfirm } from "./ConfirmDialog";
 import { ShareToFriendModal } from "./ShareToFriendModal";
 import { STATUS_DOT } from "./ItemCard";
 import { EyeOffIcon, HeartIcon, SendIcon, TrashIcon, XIcon } from "./icons";
@@ -33,6 +34,7 @@ export function DetailModal({
 }) {
   const { session } = useAuth();
   const myId = session?.user?.id ?? null;
+  const confirm = useConfirm();
 
   // Keep the last item around so the close animation still has content.
   const [snapshot, setSnapshot] = useState<BacklogItem | null>(item);
@@ -96,9 +98,15 @@ export function DetailModal({
     onClose();
   }
 
-  function handleRemove() {
+  async function handleRemove() {
     if (!current) return;
-    if (!confirm(`Remove “${current.title}” from your library?`)) return;
+    const ok = await confirm({
+      title: `Remove ${current.title}?`,
+      message: "It comes off your library along with its rating and review.",
+      confirmLabel: "Remove",
+      danger: true,
+    });
+    if (!ok) return;
     onRemove(current.id);
     onClose();
   }

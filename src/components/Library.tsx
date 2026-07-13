@@ -104,7 +104,17 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
         })}
       </div>
 
-      {!ready ? null : visible.length === 0 ? (
+      {!ready ? (
+        <div className="grid grid-cols-2 gap-x-5 gap-y-8 pt-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div key={i} className="animate-pulse" style={{ animationDelay: `${i * 80}ms` }}>
+              <div className="aspect-[2/3] rounded-xl bg-ivory" />
+              <div className="mt-2.5 h-3.5 w-3/4 rounded bg-ivory" />
+              <div className="mt-1.5 h-3 w-1/2 rounded bg-ivory" />
+            </div>
+          ))}
+        </div>
+      ) : visible.length === 0 ? (
         <motion.div
           key="empty"
           initial={{ opacity: 0, y: 10 }}

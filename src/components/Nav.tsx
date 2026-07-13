@@ -11,6 +11,8 @@ import { supabase } from "@/lib/supabase";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationCenter } from "./NotificationCenter";
 import { Avatar } from "./Avatar";
+import { useConfirm } from "./ConfirmDialog";
+import { toast } from "@/lib/toast-bus";
 import {
   ArchiveIcon,
   ChatIcon,
@@ -46,6 +48,7 @@ export default function Nav() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
 
   useEffect(() => {
     if (!myId) return;
@@ -73,8 +76,9 @@ export default function Nav() {
     setMobileOpen(false);
     try {
       await exportBacklog();
+      toast("success", "Backup downloaded.");
     } catch {
-      alert("Export failed — check your connection.");
+      toast("error", "Export failed — check your connection.");
     }
   }
 
@@ -84,9 +88,16 @@ export default function Nav() {
     if (!file || !session) return;
     const reader = new FileReader();
     reader.onload = async () => {
-      if (!confirm("Importing replaces your current library. Continue?")) return;
+      const ok = await confirm({
+        title: "Import backup?",
+        message:
+          "This replaces your entire library with the file's contents. Your current items will be gone.",
+        confirmLabel: "Import",
+        danger: true,
+      });
+      if (!ok) return;
       const result = await importBacklog(String(reader.result), session.user.id);
-      if ("error" in result) alert(result.error);
+      if ("error" in result) toast("error", result.error);
       else window.location.reload();
     };
     reader.readAsText(file);

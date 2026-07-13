@@ -9,6 +9,7 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { toast } from "./toast-bus";
 import type {
   BacklogItem,
   ItemMeta,
@@ -124,13 +125,46 @@ async function importLegacyLocalItems(userId: string) {
   localStorage.removeItem(LEGACY_KEY);
 }
 
+/**
+ * Session-scoped in-memory cache so switching between section tabs shows the
+ * last-known items instantly while a background refetch revalidates.
+ */
+const itemsCache = {
+  userId: null as string | null,
+  map: new Map<MediaType, BacklogItem[]>(),
+};
+
+function cacheGet(userId: string, mediaType: MediaType): BacklogItem[] | null {
+  return itemsCache.userId === userId
+    ? (itemsCache.map.get(mediaType) ?? null)
+    : null;
+}
+
+function cacheSet(userId: string, mediaType: MediaType, items: BacklogItem[]) {
+  if (itemsCache.userId !== userId) {
+    itemsCache.userId = userId;
+    itemsCache.map.clear();
+  }
+  itemsCache.map.set(mediaType, items);
+}
+
 export function useBacklog(mediaType: MediaType) {
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
 
-  const [items, setItems] = useState<BacklogItem[]>([]);
-  const [ready, setReady] = useState(false);
+  const cached = userId ? cacheGet(userId, mediaType) : null;
+  const [items, setItems] = useState<BacklogItem[]>(cached ?? []);
+  const [ready, setReady] = useState(cached !== null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  /** Update state and keep the tab-switch cache in step. */
+  const commit = useCallback(
+    (next: BacklogItem[]) => {
+      if (userId) cacheSet(userId, mediaType, next);
+      setItems(next);
+    },
+    [userId, mediaType],
+  );
 
   useEffect(() => {
     if (!userId) return undefined;
@@ -146,6 +180,7 @@ export function useBacklog(mediaType: MediaType) {
           .order("created_at", { ascending: false });
         if (error) throw error;
         if (alive) {
+          cacheSet(userId, mediaType, data as BacklogItem[]);
           setItems(data as BacklogItem[]);
           setLoadError(null);
           setReady(true);
@@ -204,10 +239,10 @@ export function useBacklog(mediaType: MediaType) {
         if (error.code === "23505") return { error: "duplicate" };
         return { error: error.message };
       }
-      setItems((prev) => [item, ...prev]);
+      commit([item, ...items]);
       return { error: null };
     },
-    [items, userId],
+    [items, userId, commit],
   );
 
   const update = useCallback(
@@ -233,8 +268,9 @@ export function useBacklog(mediaType: MediaType) {
       // Only one favourite per section — clear any other before setting this one.
       const claimingFavorite = patch.is_favorite === true;
 
-      setItems((prev) =>
-        prev.map((i) => {
+      const previous = items;
+      commit(
+        items.map((i) => {
           if (i.id === id) return { ...i, ...fields } as BacklogItem;
           if (claimingFavorite && i.is_favorite) return { ...i, is_favorite: false };
           return i;
@@ -252,22 +288,32 @@ export function useBacklog(mediaType: MediaType) {
             .neq("id", id);
         }
         const { error } = await supabase.from("items").update(fields).eq("id", id);
-        if (error) console.warn("Update failed to sync", error);
+        if (error) {
+          commit(previous);
+          toast("error", "Couldn't save your changes — check your connection.");
+        }
       })();
     },
-    [items, userId, mediaType],
+    [items, userId, mediaType, commit],
   );
 
-  const remove = useCallback((id: string) => {
-    setItems((prev) => prev.filter((i) => i.id !== id));
-    supabase
-      .from("items")
-      .delete()
-      .eq("id", id)
-      .then(({ error }) => {
-        if (error) console.warn("Delete failed to sync", error);
-      });
-  }, []);
+  const remove = useCallback(
+    (id: string) => {
+      const previous = items;
+      commit(items.filter((i) => i.id !== id));
+      supabase
+        .from("items")
+        .delete()
+        .eq("id", id)
+        .then(({ error }) => {
+          if (error) {
+            commit(previous);
+            toast("error", "Couldn't remove that — check your connection.");
+          }
+        });
+    },
+    [items, commit],
+  );
 
   return { items, ready, loadError, add, update, remove };
 }

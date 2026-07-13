@@ -6,6 +6,8 @@ import { fetchProfile } from "@/lib/social";
 import type { Profile } from "@/lib/types";
 import { AuthScreen } from "./AuthScreen";
 import { Onboarding } from "./Onboarding";
+import { ConfirmProvider } from "./ConfirmDialog";
+import { Toaster } from "./Toaster";
 import Nav from "./Nav";
 
 /**
@@ -53,10 +55,13 @@ export default function AppShell({
 
   return (
     <AuthContext.Provider value={{ session, profile, setProfile }}>
-      <Nav />
-      <main className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 sm:pb-24">
-        {children}
-      </main>
+      <ConfirmProvider>
+        <Nav />
+        <main className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 sm:pb-24">
+          {children}
+        </main>
+        <Toaster />
+      </ConfirmProvider>
     </AuthContext.Provider>
   );
 }

@@ -122,6 +122,15 @@ export function AddModal({
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter adds the top result that isn't already in the library.
+            if (e.key === "Enter" && results.length > 0) {
+              const first = results.find(
+                (r) => !existingIds.has(r.externalId) && !added.has(r.externalId),
+              );
+              if (first) handleAdd(first);
+            }
+          }}
           placeholder={section.searchPlaceholder}
           className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70 focus:outline-none"
         />
@@ -137,13 +146,24 @@ export function AddModal({
           </div>
         )}
 
-        {!notice && results.length === 0 && (
+        {!notice && results.length === 0 && searching && (
+          <ul className="divide-y divide-line/70">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="flex animate-pulse items-center gap-3.5 px-3 py-2.5" style={{ animationDelay: `${i * 100}ms` }}>
+                <div className="h-16 w-11 shrink-0 rounded-md bg-ivory" />
+                <div className="min-w-0 flex-1">
+                  <div className="h-3.5 w-2/3 rounded bg-ivory" />
+                  <div className="mt-2 h-3 w-1/3 rounded bg-ivory" />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+        {!notice && results.length === 0 && !searching && (
           <p className="px-6 py-10 text-center text-sm leading-relaxed text-muted">
             {query.trim().length < 2
-              ? `Start typing — results come from ${section.source} with covers and details filled in.`
-              : searching
-                ? "Searching…"
-                : "No results found."}
+              ? `Start typing — results come from ${section.source} with covers and details filled in. Press Enter to add the top match.`
+              : "No results found."}
           </p>
         )}
 
