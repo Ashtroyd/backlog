@@ -9,13 +9,39 @@ import {
   type SectionSlug,
 } from "@/lib/sections";
 import { useBacklog } from "@/lib/backlog-store";
-import type { ItemStatus } from "@/lib/types";
+import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { AddModal } from "./AddModal";
 import { DetailModal } from "./DetailModal";
 import { ItemCard } from "./ItemCard";
-import { PlusIcon } from "./icons";
+import { PlusIcon, SearchIcon } from "./icons";
 
 type Filter = "all" | ItemStatus;
+type Sort = "added" | "rating" | "title" | "release";
+
+const SORTS: { value: Sort; label: string }[] = [
+  { value: "added", label: "Recently added" },
+  { value: "rating", label: "Highest rated" },
+  { value: "title", label: "Title A–Z" },
+  { value: "release", label: "Release year" },
+];
+
+function sortItems(list: BacklogItem[], sort: Sort): BacklogItem[] {
+  const out = [...list];
+  switch (sort) {
+    case "rating":
+      out.sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1));
+      break;
+    case "title":
+      out.sort((a, b) => a.title.localeCompare(b.title));
+      break;
+    case "release":
+      out.sort((a, b) => (b.release_year ?? -1) - (a.release_year ?? -1));
+      break;
+    default:
+      break; // "added": server order (created_at desc)
+  }
+  return out;
+}
 
 export default function Library({ section: slug }: { section: SectionSlug }) {
   const section = SECTIONS[slug];
@@ -23,6 +49,8 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
     section.mediaType,
   );
   const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<Sort>("added");
   const [addOpen, setAddOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -38,8 +66,13 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
     return c;
   }, [items]);
 
-  const visible =
-    filter === "all" ? items : items.filter((i) => i.status === filter);
+  const q = query.trim().toLowerCase();
+  const visible = sortItems(
+    items
+      .filter((i) => filter === "all" || i.status === filter)
+      .filter((i) => !q || i.title.toLowerCase().includes(q)),
+    sort,
+  );
   const selected = items.find((i) => i.id === selectedId) ?? null;
   const filters: Filter[] = ["all", ...STATUS_ORDER];
 
@@ -104,6 +137,32 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
         })}
       </div>
 
+      {items.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 sm:max-w-xs">
+            <SearchIcon className="h-4 w-4 shrink-0 text-muted" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={`Search your ${section.label.toLowerCase()}…`}
+              className="w-full bg-transparent text-sm text-ink placeholder:text-muted/70 focus:outline-none"
+            />
+          </div>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as Sort)}
+            aria-label="Sort by"
+            className="rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-body focus:outline-none"
+          >
+            {SORTS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {!ready ? (
         <div className="grid grid-cols-2 gap-x-5 gap-y-8 pt-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {[0, 1, 2, 3, 4].map((i) => (
@@ -131,7 +190,9 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
             {items.length === 0
               ? section.emptyBody
-              : "No titles with this status yet."}
+              : q
+                ? `Nothing matches “${query.trim()}”.`
+                : "No titles with this status yet."}
           </p>
           {items.length === 0 && (
             <button

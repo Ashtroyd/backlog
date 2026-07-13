@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/backlog-store";
-import { fetchFavorites, updateProfile } from "@/lib/social";
+import { fetchFavorites, fetchUserItems, updateProfile } from "@/lib/social";
 import { IMAGE_SPEC, uploadProfileImage, type ImageKind } from "@/lib/profile-media";
 import type { BacklogItem } from "@/lib/types";
 import { SpinnerIcon } from "@/components/icons";
 import { ImageCropper } from "@/components/ImageCropper";
 import { ProfileHero } from "./ProfileHero";
 import { FavouritesRow } from "./FavouritesRow";
+import { StatsPanel } from "./StatsPanel";
 
 export default function MyProfile() {
   const { session, profile, setProfile } = useAuth();
@@ -23,6 +24,7 @@ export default function MyProfile() {
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<BacklogItem[]>([]);
+  const [allItems, setAllItems] = useState<BacklogItem[]>([]);
 
   useEffect(() => {
     if (profile) {
@@ -32,7 +34,10 @@ export default function MyProfile() {
   }, [profile]);
 
   useEffect(() => {
-    if (myId) fetchFavorites(myId).then(setFavorites).catch(() => {});
+    if (myId) {
+      fetchFavorites(myId).then(setFavorites).catch(() => {});
+      fetchUserItems(myId).then(setAllItems).catch(() => {});
+    }
   }, [myId]);
 
   if (!profile || !myId) return null;
@@ -145,6 +150,15 @@ export default function MyProfile() {
           </div>
         </div>
       </section>
+
+      {allItems.length > 0 && (
+        <section className="mt-10">
+          <h2 className="mb-4 font-serif text-xl font-semibold text-ink">
+            Your stats
+          </h2>
+          <StatsPanel items={allItems} />
+        </section>
+      )}
 
       <section className="mt-10">
         <h2 className="mb-1 font-serif text-xl font-semibold text-ink">Favourites</h2>
