@@ -238,7 +238,64 @@ async function searchSeries(q: string): Promise<SearchResult[]> {
   }));
 }
 
+/**
+ * Jikan proxies MyAnimeList and goes down whenever MAL blocks it, so anime
+ * search falls back to Kitsu. Kitsu's `mappings` include carries MAL ids, so
+ * items keep the same external id from either source (friend matching stays
+ * intact); the rare title without a MAL mapping gets a `kitsu:` id instead.
+ */
 async function searchAnime(q: string): Promise<SearchResult[]> {
+  try {
+    const jikan = await searchAnimeJikan(q);
+    if (jikan.length > 0) return jikan;
+  } catch {
+    // fall through to Kitsu
+  }
+  return searchAnimeKitsu(q);
+}
+
+async function searchAnimeKitsu(q: string): Promise<SearchResult[]> {
+  const url = `https://kitsu.io/api/edge/anime?filter%5Btext%5D=${encodeURIComponent(q)}&page%5Blimit%5D=10&include=mappings`;
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { Accept: "application/vnd.api+json" },
+  });
+  if (!res.ok) throw new Error(`Kitsu ${res.status}`);
+  const data = await res.json();
+
+  // mapping id -> MAL id, for stitching Kitsu results onto MAL identities.
+  const malByMapping = new Map<string, string>();
+  for (const inc of data.included ?? []) {
+    if (
+      inc.type === "mappings" &&
+      inc.attributes?.externalSite === "myanimelist/anime"
+    ) {
+      malByMapping.set(String(inc.id), String(inc.attributes.externalId));
+    }
+  }
+
+  return ((data.data ?? []) as any[]).map((a): SearchResult => {
+    const at = a.attributes ?? {};
+    const mappingRefs: { id: string }[] = a.relationships?.mappings?.data ?? [];
+    const malId = mappingRefs
+      .map((r) => malByMapping.get(String(r.id)))
+      .find(Boolean);
+    return {
+      externalId: malId ?? `kitsu:${a.id}`,
+      title: at.titles?.en || at.canonicalTitle || "Untitled",
+      coverUrl:
+        at.posterImage?.large ??
+        at.posterImage?.medium ??
+        at.posterImage?.original ??
+        null,
+      year: at.startDate ? Number(at.startDate.slice(0, 4)) : null,
+      genres: [],
+      meta: { episodes: at.episodeCount ?? null },
+    };
+  });
+}
+
+async function searchAnimeJikan(q: string): Promise<SearchResult[]> {
   const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=10&sfw=true`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Jikan ${res.status}`);

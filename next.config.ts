@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "m.media-amazon.com" },
       { protocol: "https", hostname: "static.tvmaze.com" },
       { protocol: "https", hostname: "cdn.myanimelist.net" },
+      { protocol: "https", hostname: "media.kitsu.app" },
+      { protocol: "https", hostname: "media.kitsu.io" },
     ],
   },
 };

@@ -100,6 +100,30 @@ export async function fetchTvmazeDetail(id: string): Promise<SearchResult | null
   };
 }
 
+/** Kitsu direct anime lookup, for items added while Jikan was down. */
+export async function fetchKitsuDetail(id: string): Promise<SearchResult | null> {
+  const res = await fetch(`https://kitsu.io/api/edge/anime/${id}`, {
+    cache: "no-store",
+    headers: { Accept: "application/vnd.api+json" },
+  });
+  if (!res.ok) return null;
+  const { data: a } = await res.json();
+  if (!a) return null;
+  const at = a.attributes ?? {};
+  return {
+    externalId: `kitsu:${a.id}`,
+    title: at.titles?.en || at.canonicalTitle || "Untitled",
+    coverUrl:
+      at.posterImage?.large ??
+      at.posterImage?.medium ??
+      at.posterImage?.original ??
+      null,
+    year: at.startDate ? Number(at.startDate.slice(0, 4)) : null,
+    genres: [],
+    meta: { episodes: at.episodeCount ?? null },
+  };
+}
+
 /** Jikan (MyAnimeList) direct anime lookup. */
 export async function fetchJikanDetail(id: string): Promise<SearchResult | null> {
   const res = await fetch(`https://api.jikan.moe/v4/anime/${id}`, {

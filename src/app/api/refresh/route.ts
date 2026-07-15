@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   fetchImdbDetail,
   fetchJikanDetail,
+  fetchKitsuDetail,
   fetchSteamDetail,
   fetchTvmazeDetail,
 } from "@/lib/server/refresh-sources";
@@ -33,7 +34,9 @@ export async function GET(request: NextRequest) {
     } else if (type === "series") {
       result = await fetchTvmazeDetail(id);
     } else if (type === "anime") {
-      result = await fetchJikanDetail(id);
+      result = id.startsWith("kitsu:")
+        ? await fetchKitsuDetail(id.slice(6))
+        : await fetchJikanDetail(id);
     }
     if (!result) {
       return NextResponse.json({ error: "not_found" }, { status: 404 });
