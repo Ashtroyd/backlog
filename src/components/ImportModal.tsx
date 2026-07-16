@@ -7,6 +7,7 @@ import type { SearchResult } from "@/lib/types";
 import type { SteamImportGame } from "@/app/api/import/steam/route";
 import type { MalImportAnime } from "@/app/api/import/mal/route";
 import { toast } from "@/lib/toast-bus";
+import { supabase } from "@/lib/supabase";
 import { Modal } from "./Modal";
 import { CoverImage } from "./CoverImage";
 import { CheckIcon, SpinnerIcon, UploadIcon, XIcon } from "./icons";
@@ -194,6 +195,22 @@ export function ImportModal({
     setNotice(null);
     setProgress({ done: 0, total: parsed.length });
 
+    // existingIds (from props) only covers this section's own media type
+    // (movies) — a Letterboxd row that turns out to be a series needs its
+    // own duplicate check against the Series library instead.
+    let existingSeriesIds = new Set<string>();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from("items")
+        .select("external_id")
+        .eq("user_id", user.id)
+        .eq("media_type", "series");
+      existingSeriesIds = new Set((data ?? []).map((r) => r.external_id as string));
+    }
+
     const results: PreviewRow[] = [];
     let idx = 0;
     const CONCURRENCY = 5;
@@ -201,29 +218,36 @@ export function ImportModal({
       while (idx < parsed.length) {
         const i = idx++;
         const row = parsed[i];
-        const match = await matchMovie(row.title, row.year);
+        const match = await matchLetterboxdRow(row.title, row.year);
         if (match) {
+          const { result, mediaType } = match;
           const input: ImportInput = {
-            mediaType: "movie",
-            externalId: match.externalId,
-            title: match.title,
-            coverUrl: match.coverUrl,
-            releaseYear: match.year,
-            genres: match.genres,
-            meta: match.meta,
+            mediaType,
+            externalId: result.externalId,
+            title: result.title,
+            coverUrl: result.coverUrl,
+            releaseYear: result.year,
+            genres: result.genres,
+            meta: result.meta,
             status: "completed",
             startedAt: row.watchedDate,
             completedAt: row.watchedDate,
             rating: row.rating,
           };
+          const alreadyInLibrary =
+            mediaType === "series"
+              ? existingSeriesIds.has(result.externalId)
+              : existingIds.has(result.externalId);
           results.push({
-            key: match.externalId,
-            title: match.title,
-            year: match.year,
-            coverUrl: match.coverUrl,
-            subtitle: row.watchedDate ? `Watched ${row.watchedDate}` : "Watched",
+            key: `${mediaType}:${result.externalId}`,
+            title: result.title,
+            year: result.year,
+            coverUrl: result.coverUrl,
+            subtitle:
+              (mediaType === "series" ? "Series · " : "") +
+              (row.watchedDate ? `Watched ${row.watchedDate}` : "Watched"),
             input,
-            alreadyInLibrary: existingIds.has(match.externalId),
+            alreadyInLibrary,
             matched: true,
           });
         } else {
@@ -553,9 +577,13 @@ function normTitle(s: string): string {
 }
 
 /** Only returns a confident match — an ambiguous title is left unmatched rather than guessed. */
-async function matchMovie(title: string, year: number | null): Promise<SearchResult | null> {
+async function searchAndMatch(
+  type: "movie" | "series",
+  title: string,
+  year: number | null,
+): Promise<SearchResult | null> {
   try {
-    const res = await fetch(`/api/search?type=movie&q=${encodeURIComponent(title)}`);
+    const res = await fetch(`/api/search?type=${type}&q=${encodeURIComponent(title)}`);
     if (!res.ok) return null;
     const data = await res.json();
     const results: SearchResult[] = data.results ?? [];
@@ -575,4 +603,20 @@ async function matchMovie(title: string, year: number | null): Promise<SearchRes
   } catch {
     return null;
   }
+}
+
+/**
+ * Letterboxd diaries aren't only films — Kdrama and other TV entries show up
+ * there too. Try a film match first (the common case), and only fall back to
+ * series search when nothing confident turns up.
+ */
+async function matchLetterboxdRow(
+  title: string,
+  year: number | null,
+): Promise<{ result: SearchResult; mediaType: "movie" | "series" } | null> {
+  const movie = await searchAndMatch("movie", title, year);
+  if (movie) return { result: movie, mediaType: "movie" };
+  const series = await searchAndMatch("series", title, year);
+  if (series) return { result: series, mediaType: "series" };
+  return null;
 }

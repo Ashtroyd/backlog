@@ -275,13 +275,18 @@ export function useBacklog(mediaType: MediaType) {
     ): Promise<{ added: number; skipped: number; error: string | null }> => {
       if (!userId) return { added: 0, skipped: inputs.length, error: "Not signed in." };
 
-      const existingIds = new Set(items.map((i) => i.external_id));
+      // Namespaced by media type: an import batch can carry mixed types (a
+      // Letterboxd row might resolve to a series, not a film), and external
+      // ids are only unique per (user, media_type) — see migration 0001.
+      const key = (mt: string, id: string) => `${mt}:${id}`;
+      const existingKeys = new Set(items.map((i) => key(i.media_type, i.external_id)));
       const seen = new Set<string>();
       const now = new Date().toISOString();
       const rows: BacklogItem[] = [];
       for (const input of inputs) {
-        if (existingIds.has(input.externalId) || seen.has(input.externalId)) continue;
-        seen.add(input.externalId);
+        const k = key(input.mediaType, input.externalId);
+        if (existingKeys.has(k) || seen.has(k)) continue;
+        seen.add(k);
         const status = input.status ?? "backlog";
         rows.push({
           id: crypto.randomUUID(),
@@ -311,6 +316,10 @@ export function useBacklog(mediaType: MediaType) {
       const skipped = inputs.length - rows.length;
       if (rows.length === 0) return { added: 0, skipped, error: null };
 
+      // Rows for another media type still get written below (a Letterboxd
+      // import can resolve some titles to series), but only this hook's own
+      // media type is merged into local state — otherwise a series row would
+      // briefly render on the Movies page until the next fetch sorts it out.
       const CHUNK = 200;
       const inserted: BacklogItem[] = [];
       for (let i = 0; i < rows.length; i += CHUNK) {
@@ -319,15 +328,16 @@ export function useBacklog(mediaType: MediaType) {
           .from("items")
           .insert(chunk.map((r) => ({ ...r, user_id: userId })));
         if (error) {
-          if (inserted.length) commit([...inserted, ...items]);
+          const committedSoFar = inserted.filter((r) => r.media_type === mediaType);
+          if (committedSoFar.length) commit([...committedSoFar, ...items]);
           return { added: inserted.length, skipped, error: error.message };
         }
         inserted.push(...chunk);
       }
-      commit([...inserted, ...items]);
+      commit([...inserted.filter((r) => r.media_type === mediaType), ...items]);
       return { added: inserted.length, skipped, error: null };
     },
-    [items, userId, commit],
+    [items, userId, mediaType, commit],
   );
 
   const update = useCallback(
