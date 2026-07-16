@@ -14,6 +14,12 @@ export const STATUS_DOT: Record<BacklogItem["status"], string> = {
   dropped: "bg-muted/50",
 };
 
+/** Games tagged live-service show that instead of "Playing" — they have no real "completed" state. */
+function displayStatusLabel(item: BacklogItem, section: Section): string {
+  if (item.live_service && item.status === "in_progress") return "Live Service";
+  return statusLabel(item.status, section);
+}
+
 /** "Coming soon" for unreleased titles; "Out now" once a refresh sees release. */
 export function releaseBadge(item: BacklogItem): { label: string; cls: string } | null {
   if (item.release_year != null && item.release_year > new Date().getFullYear()) {
@@ -84,7 +90,7 @@ export function ItemCard({
             className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[item.status]}`}
           />
           <span className="truncate">
-            {statusLabel(item.status, section)}
+            {displayStatusLabel(item, section)}
             {item.release_year ? ` · ${item.release_year}` : ""}
           </span>
         </p>

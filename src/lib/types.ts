@@ -42,6 +42,8 @@ export type BacklogItem = {
   notes: string | null;
   /** Set when pinned to the "Up next" row. */
   pinned_at: string | null;
+  /** Games only: an ongoing live-service/multiplayer title with no real "completed" state. */
+  live_service: boolean;
   created_at: string;
   updated_at: string;
   completed_at: string | null;

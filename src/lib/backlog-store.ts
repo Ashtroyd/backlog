@@ -92,6 +92,7 @@ export type UpdatePatch = {
   hours_played?: number | null;
   notes?: string | null;
   pinned_at?: string | null;
+  live_service?: boolean;
 };
 
 function looksLikeItem(i: unknown): i is BacklogItem {
@@ -247,6 +248,7 @@ export function useBacklog(mediaType: MediaType) {
         hours_played: null,
         notes: null,
         pinned_at: null,
+        live_service: false,
         created_at: now,
         updated_at: now,
         completed_at: null,
@@ -308,6 +310,7 @@ export function useBacklog(mediaType: MediaType) {
           hours_played: input.hoursPlayed ?? null,
           notes: null,
           pinned_at: null,
+          live_service: false,
           created_at: now,
           updated_at: now,
           completed_at:
@@ -371,6 +374,7 @@ export function useBacklog(mediaType: MediaType) {
         fields.notes = patch.notes?.trim() ? patch.notes.trim() : null;
       }
       if (patch.pinned_at !== undefined) fields.pinned_at = patch.pinned_at;
+      if (patch.live_service !== undefined) fields.live_service = patch.live_service;
 
       // Only one favourite per section — clear any other before setting this one.
       const claimingFavorite = patch.is_favorite === true;

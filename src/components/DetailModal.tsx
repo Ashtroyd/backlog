@@ -17,7 +17,7 @@ import { CommentThread } from "./CommentThread";
 import { useConfirm } from "./ConfirmDialog";
 import { ShareToFriendModal } from "./ShareToFriendModal";
 import { releaseBadge, STATUS_DOT } from "./ItemCard";
-import { EyeOffIcon, HeartIcon, SendIcon, TrashIcon, XIcon } from "./icons";
+import { EyeOffIcon, HeartIcon, InfinityIcon, SendIcon, TrashIcon, XIcon } from "./icons";
 
 /** Details are re-fetched when unreleased, or last refreshed over 30 days ago. */
 function isStale(item: BacklogItem): boolean {
@@ -66,6 +66,7 @@ export function DetailModal({
   const [startedAt, setStartedAt] = useState("");
   const [episodes, setEpisodes] = useState("");
   const [hours, setHours] = useState("");
+  const [liveService, setLiveService] = useState(false);
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -80,6 +81,7 @@ export function DetailModal({
       setStartedAt(item.started_at ?? "");
       setEpisodes(item.progress != null ? String(item.progress) : "");
       setHours(item.hours_played != null ? String(item.hours_played) : "");
+      setLiveService(item.live_service);
     }
   }, [item]);
 
@@ -154,6 +156,7 @@ export function DetailModal({
         section.mediaType === "game" && !Number.isNaN(parsedHours ?? 0)
           ? parsedHours
           : undefined,
+      live_service: section.mediaType === "game" ? liveService : undefined,
     });
     onClose();
   }
@@ -489,6 +492,25 @@ export function DetailModal({
                 />
                 {isFavorite ? "Favourite" : "Favourite"}
               </button>
+              {section.mediaType === "game" && (
+                <button
+                  type="button"
+                  onClick={() => setLiveService((v) => !v)}
+                  title={
+                    liveService
+                      ? "Tagged as live service — click to unset"
+                      : "Tag as a live-service game with no real \"completed\" state"
+                  }
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                    liveService
+                      ? "bg-accent-soft text-accent-hover"
+                      : "text-muted hover:bg-ivory hover:text-ink"
+                  }`}
+                >
+                  <InfinityIcon className="h-4 w-4" />
+                  Live Service
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setIsPrivate((v) => !v)}
