@@ -14,7 +14,7 @@ import { AddModal } from "./AddModal";
 import { DetailModal } from "./DetailModal";
 import { ImportModal } from "./ImportModal";
 import { ItemCard } from "./ItemCard";
-import { PlusIcon, SearchIcon, UploadIcon } from "./icons";
+import { PinIcon, PlusIcon, SearchIcon, UploadIcon } from "./icons";
 
 /** Sections with a supported bulk-import source (Steam, MyAnimeList, Letterboxd). */
 const IMPORTABLE_MEDIA_TYPES = new Set(["game", "anime", "movie", "series"]);
@@ -80,6 +80,14 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
   const selected = items.find((i) => i.id === selectedId) ?? null;
   const filters: Filter[] = ["all", ...STATUS_ORDER];
 
+  const pinned = useMemo(
+    () =>
+      items
+        .filter((i) => i.pinned_at != null)
+        .sort((a, b) => (b.pinned_at as string).localeCompare(a.pinned_at as string)),
+    [items],
+  );
+
   return (
     <>
       <header className="flex flex-wrap items-end justify-between gap-4 pt-12">
@@ -116,6 +124,28 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
           </button>
         </div>
       </header>
+
+      {pinned.length > 0 && (
+        <div className="mt-7">
+          <h2 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
+            <PinIcon className="h-3.5 w-3.5" />
+            Up next
+          </h2>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {pinned.map((item, i) => (
+              <div key={item.id} className="w-28 shrink-0 sm:w-32">
+                <ItemCard
+                  item={item}
+                  section={section}
+                  index={i}
+                  onClick={() => setSelectedId(item.id)}
+                  onUpdate={update}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {loadError && (
         <div className="mt-6 rounded-xl bg-accent-soft px-4 py-3 text-sm leading-relaxed text-accent-hover">

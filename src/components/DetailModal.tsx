@@ -17,7 +17,7 @@ import { CommentThread } from "./CommentThread";
 import { useConfirm } from "./ConfirmDialog";
 import { ShareToFriendModal } from "./ShareToFriendModal";
 import { releaseBadge, STATUS_DOT } from "./ItemCard";
-import { EyeOffIcon, HeartIcon, InfinityIcon, SendIcon, TrashIcon, XIcon } from "./icons";
+import { EyeOffIcon, HeartIcon, InfinityIcon, PinIcon, SendIcon, TrashIcon, XIcon } from "./icons";
 
 /** Details are re-fetched when unreleased, or last refreshed over 30 days ago. */
 function isStale(item: BacklogItem): boolean {
@@ -67,6 +67,7 @@ export function DetailModal({
   const [episodes, setEpisodes] = useState("");
   const [hours, setHours] = useState("");
   const [liveService, setLiveService] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -82,6 +83,7 @@ export function DetailModal({
       setEpisodes(item.progress != null ? String(item.progress) : "");
       setHours(item.hours_played != null ? String(item.hours_played) : "");
       setLiveService(item.live_service);
+      setPinned(item.pinned_at != null);
     }
   }, [item]);
 
@@ -157,6 +159,9 @@ export function DetailModal({
           ? parsedHours
           : undefined,
       live_service: section.mediaType === "game" ? liveService : undefined,
+      // Preserve the original pin time so re-saving doesn't bump it to the
+      // front of "Up next" — only a fresh pin gets a new timestamp.
+      pinned_at: pinned ? (current.pinned_at ?? new Date().toISOString()) : null,
     });
     onClose();
   }
@@ -491,6 +496,23 @@ export function DetailModal({
                   fill={isFavorite ? "currentColor" : "none"}
                 />
                 {isFavorite ? "Favourite" : "Favourite"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPinned((v) => !v)}
+                title={
+                  pinned
+                    ? "Pinned to Up next — click to unpin"
+                    : "Pin to Up next"
+                }
+                className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                  pinned
+                    ? "bg-accent-soft text-accent-hover"
+                    : "text-muted hover:bg-ivory hover:text-ink"
+                }`}
+              >
+                <PinIcon className="h-4 w-4" fill={pinned ? "currentColor" : "none"} />
+                {pinned ? "Pinned" : "Pin"}
               </button>
               {section.mediaType === "game" && (
                 <button
