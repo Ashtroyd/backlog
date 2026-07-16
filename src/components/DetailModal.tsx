@@ -68,6 +68,7 @@ export function DetailModal({
   const [hours, setHours] = useState("");
   const [liveService, setLiveService] = useState(false);
   const [pinned, setPinned] = useState(false);
+  const [notes, setNotes] = useState("");
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -84,6 +85,7 @@ export function DetailModal({
       setHours(item.hours_played != null ? String(item.hours_played) : "");
       setLiveService(item.live_service);
       setPinned(item.pinned_at != null);
+      setNotes(item.notes ?? "");
     }
   }, [item]);
 
@@ -150,6 +152,7 @@ export function DetailModal({
       status,
       rating,
       review,
+      notes,
       is_private: isPrivate,
       is_favorite: isFavorite,
       started_at: startedAt || null,
@@ -410,6 +413,20 @@ export function DetailModal({
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              <div className="mt-5">
+                <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
+                  <EyeOffIcon className="h-3 w-3" />
+                  Private notes
+                </p>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Only you can see this — jot down anything worth remembering."
+                  className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                />
+              </div>
 
               {/* Friends who also have this title */}
               {alsoHave.length > 0 && (
