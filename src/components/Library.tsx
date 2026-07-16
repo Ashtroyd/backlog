@@ -12,8 +12,12 @@ import { useBacklog } from "@/lib/backlog-store";
 import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { AddModal } from "./AddModal";
 import { DetailModal } from "./DetailModal";
+import { ImportModal } from "./ImportModal";
 import { ItemCard } from "./ItemCard";
-import { PlusIcon, SearchIcon } from "./icons";
+import { PlusIcon, SearchIcon, UploadIcon } from "./icons";
+
+/** Sections with a supported bulk-import source (Steam, MyAnimeList, Letterboxd). */
+const IMPORTABLE_MEDIA_TYPES = new Set(["game", "anime", "movie"]);
 
 type Filter = "all" | ItemStatus;
 type Sort = "added" | "rating" | "title" | "release";
@@ -45,12 +49,13 @@ function sortItems(list: BacklogItem[], sort: Sort): BacklogItem[] {
 
 export default function Library({ section: slug }: { section: SectionSlug }) {
   const section = SECTIONS[slug];
-  const { items, ready, loadError, add, update, remove, applyDetails } =
+  const { items, ready, loadError, add, bulkAdd, update, remove, applyDetails } =
     useBacklog(section.mediaType);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<Sort>("added");
   const [addOpen, setAddOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const counts = useMemo(() => {
@@ -90,14 +95,26 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
                 : `${items.length} title${items.length === 1 ? "" : "s"} · ${counts.completed} completed`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setAddOpen(true)}
-          className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
-        >
-          <PlusIcon className="h-4 w-4" />
-          Add {section.singular}
-        </button>
+        <div className="flex items-center gap-2">
+          {IMPORTABLE_MEDIA_TYPES.has(section.mediaType) && (
+            <button
+              type="button"
+              onClick={() => setImportOpen(true)}
+              className="flex items-center gap-1.5 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-ivory"
+            >
+              <UploadIcon className="h-4 w-4" />
+              Import
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
+          >
+            <PlusIcon className="h-4 w-4" />
+            Add {section.singular}
+          </button>
+        </div>
       </header>
 
       {loadError && (
@@ -231,6 +248,15 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
         existingIds={new Set(items.map((i) => i.external_id))}
         onAdd={add}
       />
+      {IMPORTABLE_MEDIA_TYPES.has(section.mediaType) && (
+        <ImportModal
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          section={section}
+          existingIds={new Set(items.map((i) => i.external_id))}
+          bulkAdd={bulkAdd}
+        />
+      )}
       <DetailModal
         item={selected}
         section={section}

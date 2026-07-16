@@ -70,6 +70,16 @@ export type AddInput = {
   meta: ItemMeta;
 };
 
+/** An item pulled from an external library (Steam/MAL/Letterboxd), ready for bulkAdd. */
+export type ImportInput = AddInput & {
+  status?: ItemStatus;
+  rating?: number | null;
+  progress?: number | null;
+  hoursPlayed?: number | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+};
+
 export type UpdatePatch = {
   status?: ItemStatus;
   rating?: number | null;
@@ -253,6 +263,73 @@ export function useBacklog(mediaType: MediaType) {
     [items, userId, commit],
   );
 
+  /**
+   * Bulk-insert items pulled from an external library import. Dedupes against
+   * what's already in the library (and within the batch itself) by external
+   * id, then writes in a few chunked inserts rather than one round trip per
+   * title — an import can easily carry hundreds of rows.
+   */
+  const bulkAdd = useCallback(
+    async (
+      inputs: ImportInput[],
+    ): Promise<{ added: number; skipped: number; error: string | null }> => {
+      if (!userId) return { added: 0, skipped: inputs.length, error: "Not signed in." };
+
+      const existingIds = new Set(items.map((i) => i.external_id));
+      const seen = new Set<string>();
+      const now = new Date().toISOString();
+      const rows: BacklogItem[] = [];
+      for (const input of inputs) {
+        if (existingIds.has(input.externalId) || seen.has(input.externalId)) continue;
+        seen.add(input.externalId);
+        const status = input.status ?? "backlog";
+        rows.push({
+          id: crypto.randomUUID(),
+          media_type: input.mediaType,
+          external_id: input.externalId,
+          title: input.title,
+          cover_url: input.coverUrl,
+          release_year: input.releaseYear,
+          genres: input.genres,
+          meta: input.meta,
+          status,
+          rating: input.rating ?? null,
+          review: null,
+          is_private: false,
+          is_favorite: false,
+          started_at: input.startedAt ?? null,
+          progress: input.progress ?? null,
+          hours_played: input.hoursPlayed ?? null,
+          notes: null,
+          pinned_at: null,
+          created_at: now,
+          updated_at: now,
+          completed_at:
+            status === "completed" ? (input.completedAt ?? input.startedAt ?? now) : null,
+        });
+      }
+      const skipped = inputs.length - rows.length;
+      if (rows.length === 0) return { added: 0, skipped, error: null };
+
+      const CHUNK = 200;
+      const inserted: BacklogItem[] = [];
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const chunk = rows.slice(i, i + CHUNK);
+        const { error } = await supabase
+          .from("items")
+          .insert(chunk.map((r) => ({ ...r, user_id: userId })));
+        if (error) {
+          if (inserted.length) commit([...inserted, ...items]);
+          return { added: inserted.length, skipped, error: error.message };
+        }
+        inserted.push(...chunk);
+      }
+      commit([...inserted, ...items]);
+      return { added: inserted.length, skipped, error: null };
+    },
+    [items, userId, commit],
+  );
+
   const update = useCallback(
     (id: string, patch: UpdatePatch) => {
       const now = new Date().toISOString();
@@ -371,7 +448,7 @@ export function useBacklog(mediaType: MediaType) {
     [items, commit],
   );
 
-  return { items, ready, loadError, add, update, remove, applyDetails };
+  return { items, ready, loadError, add, bulkAdd, update, remove, applyDetails };
 }
 
 /**
