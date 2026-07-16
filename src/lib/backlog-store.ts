@@ -74,6 +74,7 @@ export type AddInput = {
 export type ImportInput = AddInput & {
   status?: ItemStatus;
   rating?: number | null;
+  review?: string | null;
   progress?: number | null;
   hoursPlayed?: number | null;
   startedAt?: string | null;
@@ -299,7 +300,7 @@ export function useBacklog(mediaType: MediaType) {
           meta: input.meta,
           status,
           rating: input.rating ?? null,
-          review: null,
+          review: input.review?.trim() ? input.review.trim() : null,
           is_private: false,
           is_favorite: false,
           started_at: input.startedAt ?? null,

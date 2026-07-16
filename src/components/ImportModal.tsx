@@ -187,7 +187,7 @@ export function ImportModal({
     const parsed = parseLetterboxdCsv(text);
     if (parsed.length === 0) {
       setNotice(
-        "Couldn't find any films in that file — make sure it's a Letterboxd watched.csv or diary.csv export.",
+        "Couldn't find any films in that file — make sure it's a Letterboxd watched.csv, diary.csv, or reviews.csv export.",
       );
       return;
     }
@@ -233,6 +233,7 @@ export function ImportModal({
             startedAt: row.watchedDate,
             completedAt: row.watchedDate,
             rating: row.rating,
+            review: row.review,
           };
           const alreadyInLibrary =
             mediaType === "series"
@@ -245,7 +246,8 @@ export function ImportModal({
             coverUrl: result.coverUrl,
             subtitle:
               (mediaType === "series" ? "Series · " : "") +
-              (row.watchedDate ? `Watched ${row.watchedDate}` : "Watched"),
+              (row.watchedDate ? `Watched ${row.watchedDate}` : "Watched") +
+              (row.review ? " · has review" : ""),
             input,
             alreadyInLibrary,
             matched: true,
@@ -395,7 +397,8 @@ export function ImportModal({
                 />
                 <p className="mt-2.5 text-xs leading-relaxed text-muted">
                   Export your data from Letterboxd (Settings → Import & Export) and upload{" "}
-                  <code>watched.csv</code> or <code>diary.csv</code>.
+                  <code>watched.csv</code>, <code>diary.csv</code>, or <code>reviews.csv</code> —
+                  use <code>reviews.csv</code> to bring your written reviews along too.
                 </p>
               </div>
             )}
@@ -494,7 +497,23 @@ type LetterboxdRow = {
   year: number | null;
   watchedDate: string | null;
   rating: number | null;
+  review: string | null;
 };
+
+/** Letterboxd's reviews.csv wraps review text in <p> paragraphs — reduce it to plain text. */
+function stripReviewHtml(html: string): string {
+  return html
+    .replace(/<\/p>\s*<p>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?p>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
 
 /** Minimal RFC4180-ish CSV parser: handles quoted fields with embedded commas. */
 function parseCsvRows(text: string): string[][] {
@@ -538,7 +557,7 @@ function parseCsvRows(text: string): string[][] {
   return rows.filter((r) => r.some((c) => c.trim() !== ""));
 }
 
-/** Reads either Letterboxd's watched.csv or diary.csv (Rating is optional). */
+/** Reads any of Letterboxd's watched.csv, diary.csv, or reviews.csv exports. */
 function parseLetterboxdCsv(text: string): LetterboxdRow[] {
   const rows = parseCsvRows(text);
   if (rows.length < 2) return [];
@@ -546,6 +565,7 @@ function parseLetterboxdCsv(text: string): LetterboxdRow[] {
   const nameIdx = header.indexOf("name");
   const yearIdx = header.indexOf("year");
   const ratingIdx = header.indexOf("rating");
+  const reviewIdx = header.indexOf("review");
   // diary.csv has both "Date" (log date) and "Watched Date" (backdated entries) —
   // prefer the more precise one when both are present.
   const dateIdx = header.indexOf("watched date") !== -1
@@ -561,7 +581,9 @@ function parseLetterboxdCsv(text: string): LetterboxdRow[] {
       const year = yearIdx !== -1 ? Number(cols[yearIdx]) || null : null;
       const rating = ratingIdx !== -1 && cols[ratingIdx] ? Number(cols[ratingIdx]) || null : null;
       const watchedDate = dateIdx !== -1 ? cols[dateIdx]?.trim() || null : null;
-      return { title, year, watchedDate, rating };
+      const review =
+        reviewIdx !== -1 && cols[reviewIdx]?.trim() ? stripReviewHtml(cols[reviewIdx]) : null;
+      return { title, year, watchedDate, rating, review };
     })
     .filter((r): r is LetterboxdRow => r !== null);
 }
