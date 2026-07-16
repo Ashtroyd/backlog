@@ -235,6 +235,7 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
                 section={section}
                 index={i}
                 onClick={() => setSelectedId(item.id)}
+                onUpdate={update}
               />
             ))}
           </AnimatePresence>
