@@ -17,7 +17,7 @@ import { ItemCard } from "./ItemCard";
 import { PlusIcon, SearchIcon, UploadIcon } from "./icons";
 
 /** Sections with a supported bulk-import source (Steam, MyAnimeList, Letterboxd). */
-const IMPORTABLE_MEDIA_TYPES = new Set(["game", "anime", "movie"]);
+const IMPORTABLE_MEDIA_TYPES = new Set(["game", "anime", "movie", "series"]);
 
 type Filter = "all" | ItemStatus;
 type Sort = "added" | "rating" | "title" | "release";

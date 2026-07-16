@@ -187,7 +187,7 @@ export function ImportModal({
     const parsed = parseLetterboxdCsv(text);
     if (parsed.length === 0) {
       setNotice(
-        "Couldn't find any films in that file — make sure it's a Letterboxd watched.csv, diary.csv, or reviews.csv export.",
+        "Couldn't find any titles in that file — make sure it's a Letterboxd watched.csv, diary.csv, or reviews.csv export.",
       );
       return;
     }
@@ -195,10 +195,17 @@ export function ImportModal({
     setNotice(null);
     setProgress({ done: 0, total: parsed.length });
 
-    // existingIds (from props) only covers this section's own media type
-    // (movies) — a Letterboxd row that turns out to be a series needs its
-    // own duplicate check against the Series library instead.
-    let existingSeriesIds = new Set<string>();
+    // The Movies section matches films first; the Series section matches series
+    // first (K-dramas and TV are logged on Letterboxd too). Either way, the odd
+    // entry of the other type is routed to the other library.
+    const primaryType: "movie" | "series" =
+      section.mediaType === "series" ? "series" : "movie";
+    const fallbackType: "movie" | "series" =
+      primaryType === "movie" ? "series" : "movie";
+
+    // existingIds (from props) only covers this section's own media type — a row
+    // that resolves to the other type needs its own duplicate check.
+    let existingFallbackIds = new Set<string>();
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -207,8 +214,8 @@ export function ImportModal({
         .from("items")
         .select("external_id")
         .eq("user_id", user.id)
-        .eq("media_type", "series");
-      existingSeriesIds = new Set((data ?? []).map((r) => r.external_id as string));
+        .eq("media_type", fallbackType);
+      existingFallbackIds = new Set((data ?? []).map((r) => r.external_id as string));
     }
 
     const results: PreviewRow[] = [];
@@ -218,7 +225,7 @@ export function ImportModal({
       while (idx < parsed.length) {
         const i = idx++;
         const row = parsed[i];
-        const match = await matchLetterboxdRow(row.title, row.year);
+        const match = await matchLetterboxdRow(row.title, row.year, primaryType, fallbackType);
         if (match) {
           const { result, mediaType } = match;
           const input: ImportInput = {
@@ -236,16 +243,23 @@ export function ImportModal({
             review: row.review,
           };
           const alreadyInLibrary =
-            mediaType === "series"
-              ? existingSeriesIds.has(result.externalId)
-              : existingIds.has(result.externalId);
+            mediaType === primaryType
+              ? existingIds.has(result.externalId)
+              : existingFallbackIds.has(result.externalId);
+          // Flag the odd entry that lands in the other library.
+          const otherTypePrefix =
+            mediaType !== primaryType
+              ? mediaType === "series"
+                ? "Series · "
+                : "Film · "
+              : "";
           results.push({
             key: `${mediaType}:${result.externalId}`,
             title: result.title,
             year: result.year,
             coverUrl: result.coverUrl,
             subtitle:
-              (mediaType === "series" ? "Series · " : "") +
+              otherTypePrefix +
               (row.watchedDate ? `Watched ${row.watchedDate}` : "Watched") +
               (row.review ? " · has review" : ""),
             input,
@@ -270,7 +284,7 @@ export function ImportModal({
     await Promise.all(
       Array.from({ length: Math.min(CONCURRENCY, parsed.length) }, worker),
     );
-    finishFetch(results, "No films found in that file.");
+    finishFetch(results, "No titles found in that file.");
   }
 
   function toggle(key: string) {
@@ -373,7 +387,7 @@ export function ImportModal({
               </div>
             )}
 
-            {section.mediaType === "movie" && (
+            {(section.mediaType === "movie" || section.mediaType === "series") && (
               <div>
                 <button
                   type="button"
@@ -399,6 +413,9 @@ export function ImportModal({
                   Export your data from Letterboxd (Settings → Import & Export) and upload{" "}
                   <code>watched.csv</code>, <code>diary.csv</code>, or <code>reviews.csv</code> —
                   use <code>reviews.csv</code> to bring your written reviews along too.
+                  {section.mediaType === "series"
+                    ? " Entries are matched as series first; any that are actually films go to your Movies library."
+                    : " Entries that are actually series (K-dramas, TV) go to your Series library."}
                 </p>
               </div>
             )}
@@ -615,7 +632,14 @@ async function searchAndMatch(
       (r) => normTitle(r.title) === nt && (year == null || r.year === year),
     );
     if (exactYear) return exactYear;
-    const exact = results.find((r) => normTitle(r.title) === nt);
+    // Exact title but drifting year: films and series sometimes disagree by a
+    // year (release vs premiere), so allow ±1 — but a same-name work decades
+    // apart (e.g. the 1980 "Oppenheimer" series vs the 2023 film) is not it.
+    const exact = results.find(
+      (r) =>
+        normTitle(r.title) === nt &&
+        (year == null || r.year == null || Math.abs(r.year - year) <= 1),
+    );
     if (exact) return exact;
     if (year != null) {
       const yearMatch = results.find((r) => r.year === year);
@@ -628,17 +652,20 @@ async function searchAndMatch(
 }
 
 /**
- * Letterboxd diaries aren't only films — Kdrama and other TV entries show up
- * there too. Try a film match first (the common case), and only fall back to
- * series search when nothing confident turns up.
+ * Letterboxd diaries mix films and TV (K-dramas and other series get logged
+ * there too). Try the section's own type first, then the other one, so most
+ * entries land where the import was started and the odd exception still gets
+ * matched instead of dropped.
  */
 async function matchLetterboxdRow(
   title: string,
   year: number | null,
+  primaryType: "movie" | "series",
+  fallbackType: "movie" | "series",
 ): Promise<{ result: SearchResult; mediaType: "movie" | "series" } | null> {
-  const movie = await searchAndMatch("movie", title, year);
-  if (movie) return { result: movie, mediaType: "movie" };
-  const series = await searchAndMatch("series", title, year);
-  if (series) return { result: series, mediaType: "series" };
+  const primary = await searchAndMatch(primaryType, title, year);
+  if (primary) return { result: primary, mediaType: primaryType };
+  const fallback = await searchAndMatch(fallbackType, title, year);
+  if (fallback) return { result: fallback, mediaType: fallbackType };
   return null;
 }
