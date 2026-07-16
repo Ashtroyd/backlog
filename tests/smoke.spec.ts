@@ -47,7 +47,7 @@ test("signup → onboarding → add an anime → rate it", async ({ page }) => {
   await page.keyboard.press("Escape");
 
   // Complete it with a rating
-  await page.locator("main .grid button").first().click();
+  await page.locator('main .grid [role="button"]').first().click();
   await page
     .locator('[role="dialog"]')
     .getByRole("button", { name: "Completed", exact: true })
