@@ -116,7 +116,10 @@ export function NotificationCenter() {
   function openPanel() {
     setOpen((v) => {
       const next = !v;
-      if (next) setTab(incoming.length ? "requests" : "activity");
+      // Route through openTab (not setTab) even for the auto-selected default
+      // tab — otherwise landing on "activity" with no pending requests never
+      // marks notifications read, and the badge keeps reappearing on reload.
+      if (next) openTab(incoming.length ? "requests" : "activity");
       return next;
     });
   }
