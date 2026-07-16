@@ -34,6 +34,14 @@ export type BacklogItem = {
   is_private: boolean;
   is_favorite: boolean;
   started_at: string | null;
+  /** Episodes watched (series/anime). */
+  progress: number | null;
+  /** Hours played (games). */
+  hours_played: number | null;
+  /** Owner-only free-text notes, editable at any status. */
+  notes: string | null;
+  /** Set when pinned to the "Up next" row. */
+  pinned_at: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;

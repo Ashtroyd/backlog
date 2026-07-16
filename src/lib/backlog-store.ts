@@ -77,6 +77,10 @@ export type UpdatePatch = {
   is_private?: boolean;
   is_favorite?: boolean;
   started_at?: string | null;
+  progress?: number | null;
+  hours_played?: number | null;
+  notes?: string | null;
+  pinned_at?: string | null;
 };
 
 function looksLikeItem(i: unknown): i is BacklogItem {
@@ -228,6 +232,10 @@ export function useBacklog(mediaType: MediaType) {
         is_private: false,
         is_favorite: false,
         started_at: null,
+        progress: null,
+        hours_played: null,
+        notes: null,
+        pinned_at: null,
         created_at: now,
         updated_at: now,
         completed_at: null,
@@ -269,6 +277,12 @@ export function useBacklog(mediaType: MediaType) {
       if (patch.is_private !== undefined) fields.is_private = patch.is_private;
       if (patch.started_at !== undefined) fields.started_at = patch.started_at;
       if (patch.is_favorite !== undefined) fields.is_favorite = patch.is_favorite;
+      if (patch.progress !== undefined) fields.progress = patch.progress;
+      if (patch.hours_played !== undefined) fields.hours_played = patch.hours_played;
+      if (patch.notes !== undefined) {
+        fields.notes = patch.notes?.trim() ? patch.notes.trim() : null;
+      }
+      if (patch.pinned_at !== undefined) fields.pinned_at = patch.pinned_at;
 
       // Only one favourite per section — clear any other before setting this one.
       const claimingFavorite = patch.is_favorite === true;

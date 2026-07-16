@@ -64,6 +64,8 @@ export function DetailModal({
   const [isPrivate, setIsPrivate] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [startedAt, setStartedAt] = useState("");
+  const [episodes, setEpisodes] = useState("");
+  const [hours, setHours] = useState("");
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -76,6 +78,8 @@ export function DetailModal({
       setIsPrivate(item.is_private);
       setIsFavorite(item.is_favorite);
       setStartedAt(item.started_at ?? "");
+      setEpisodes(item.progress != null ? String(item.progress) : "");
+      setHours(item.hours_played != null ? String(item.hours_played) : "");
     }
   }, [item]);
 
@@ -128,8 +132,16 @@ export function DetailModal({
 
   const current = item ?? snapshot;
 
+  const isEpisodic =
+    section.mediaType === "series" || section.mediaType === "anime";
+  const totalEpisodes = current?.meta?.episodes ?? null;
+
   function handleSave() {
     if (!current) return;
+    const parsedEpisodes =
+      episodes.trim() === "" ? null : Math.max(0, Math.floor(Number(episodes)));
+    const parsedHours =
+      hours.trim() === "" ? null : Math.max(0, Number(hours));
     onUpdate(current.id, {
       status,
       rating,
@@ -137,8 +149,21 @@ export function DetailModal({
       is_private: isPrivate,
       is_favorite: isFavorite,
       started_at: startedAt || null,
+      progress: isEpisodic && !Number.isNaN(parsedEpisodes ?? 0) ? parsedEpisodes : undefined,
+      hours_played:
+        section.mediaType === "game" && !Number.isNaN(parsedHours ?? 0)
+          ? parsedHours
+          : undefined,
     });
     onClose();
+  }
+
+  /** Step the episode counter, clamped to [0, total] when the total is known. */
+  function stepEpisodes(delta: number) {
+    setEpisodes((prev) => {
+      const next = Math.max(0, (Number(prev) || 0) + delta);
+      return String(totalEpisodes != null ? Math.min(next, totalEpisodes) : next);
+    });
   }
 
   async function handleRemove() {
@@ -288,6 +313,57 @@ export function DetailModal({
                           </button>
                         )}
                       </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence initial={false}>
+                {status !== "backlog" && (isEpisodic || section.mediaType === "game") && (
+                  <motion.div
+                    key="progress"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-5 pt-1">
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                        {isEpisodic ? "Episodes watched" : "Hours played"}
+                      </p>
+                      {isEpisodic ? (
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => stepEpisodes(-1)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
+                          >
+                            −
+                          </button>
+                          <span className="min-w-[6rem] text-center text-[15px] tabular-nums text-ink">
+                            {episodes || "0"}
+                            {totalEpisodes != null ? ` of ${totalEpisodes}` : ""}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => stepEpisodes(1)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.5"
+                          value={hours}
+                          onChange={(e) => setHours(e.target.value)}
+                          placeholder="0"
+                          className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                        />
+                      )}
                     </div>
                   </motion.div>
                 )}
