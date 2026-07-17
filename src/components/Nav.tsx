@@ -9,6 +9,7 @@ import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
 import { fetchUnreadMessageCount } from "@/lib/messages";
 import { supabase } from "@/lib/supabase";
 import { startTour } from "@/lib/tour-bus";
+import { useDismissableMenu } from "@/lib/use-dismissable-menu";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationCenter } from "./NotificationCenter";
 import { Avatar } from "./Avatar";
@@ -51,6 +52,9 @@ export default function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const confirm = useConfirm();
+
+  useDismissableMenu(backupOpen, () => setBackupOpen(false));
+  useDismissableMenu(mobileOpen, () => setMobileOpen(false));
 
   // Unread badge: realtime when the messages table is in the publication
   // (migration 0007), with a slow poll as fallback either way.

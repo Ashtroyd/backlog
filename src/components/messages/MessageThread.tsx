@@ -89,6 +89,7 @@ export function MessageThread({ friend }: { friend: Profile }) {
       <header className="flex items-center gap-3 border-b border-line pb-4">
         <Link
           href="/messages"
+          aria-label="Back to messages"
           className="text-sm text-muted transition-colors hover:text-ink"
         >
           ←
@@ -159,6 +160,7 @@ export function MessageThread({ friend }: { friend: Profile }) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={1}
+          aria-label={`Message ${friend.display_name}`}
           placeholder={`Message ${friend.display_name}…`}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -172,6 +174,7 @@ export function MessageThread({ friend }: { friend: Profile }) {
           type="button"
           onClick={() => send()}
           disabled={sending || !text.trim()}
+          aria-label="Send message"
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
           {sending ? (

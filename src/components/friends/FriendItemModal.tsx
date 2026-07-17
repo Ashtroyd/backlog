@@ -46,6 +46,7 @@ export function FriendItemModal({
                 <button
                   type="button"
                   onClick={onClose}
+                  aria-label="Close"
                   className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
                 >
                   <XIcon className="h-4 w-4" />

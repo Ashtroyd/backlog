@@ -132,6 +132,7 @@ export function AddModal({
             }
           }}
           placeholder={section.searchPlaceholder}
+          aria-label={section.searchPlaceholder}
           className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70 focus:outline-none"
         />
         {searching && (

@@ -91,6 +91,7 @@ export function RecommendationModal({
               <button
                 type="button"
                 onClick={onClose}
+                aria-label="Close"
                 className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
               >
                 <XIcon className="h-4 w-4" />
@@ -118,7 +119,15 @@ export function RecommendationModal({
               <ul className="space-y-2">
                 {current.raters.map((r) => (
                   <li key={r.profile.id} className="flex items-center gap-2.5">
-                    <Link href={`/friends/${r.profile.username}`} onClick={onClose}>
+                    {/* Hidden from assistive tech — the name link right
+                        after repeats the same destination with a real
+                        accessible name. */}
+                    <Link
+                      href={`/friends/${r.profile.username}`}
+                      onClick={onClose}
+                      aria-hidden="true"
+                      tabIndex={-1}
+                    >
                       <Avatar profile={r.profile} size={30} />
                     </Link>
                     <Link

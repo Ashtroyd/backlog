@@ -258,6 +258,7 @@ export function ImageCropper({
                 value={scale}
                 disabled={!img}
                 onChange={(e) => zoomTo(Number(e.target.value))}
+                aria-label="Zoom"
                 className="h-1 w-full cursor-pointer appearance-none rounded-full bg-line accent-accent"
               />
             </div>

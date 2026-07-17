@@ -64,6 +64,7 @@ export function ShareToFriendModal({
             onChange={(e) => setNote(e.target.value)}
             rows={2}
             placeholder="Add a note (optional)…"
+            aria-label="Add a note (optional)"
             className="mt-4 w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
           />
 

@@ -90,7 +90,14 @@ export function CommentThread({
                   exit={{ opacity: 0, height: 0 }}
                   className="flex items-start gap-2.5"
                 >
-                  <Link href={`/friends/${c.author.username}`} onClick={onClose}>
+                  {/* Hidden from assistive tech — the name link right after
+                      repeats the same destination with a real accessible name. */}
+                  <Link
+                    href={`/friends/${c.author.username}`}
+                    onClick={onClose}
+                    aria-hidden="true"
+                    tabIndex={-1}
+                  >
                     <Avatar profile={c.author} size={30} />
                   </Link>
                   <div className="min-w-0 flex-1 rounded-2xl rounded-tl-sm bg-ivory px-3.5 py-2.5">
@@ -135,6 +142,7 @@ export function CommentThread({
           onChange={(e) => setBody(e.target.value)}
           rows={1}
           placeholder="Add a comment…"
+          aria-label="Add a comment"
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) post();
           }}

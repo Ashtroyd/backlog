@@ -225,6 +225,7 @@ function AddFriend({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Add a friend by their @handle…"
+          aria-label="Add a friend by their handle"
           autoCapitalize="none"
           autoCorrect="off"
           className="w-full bg-transparent text-[15px] text-ink placeholder:text-muted/70 focus:outline-none"

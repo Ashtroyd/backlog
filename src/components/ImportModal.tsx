@@ -337,6 +337,7 @@ export function ImportModal({
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
           >
             <XIcon className="h-4 w-4" />
@@ -353,6 +354,7 @@ export function ImportModal({
                   onChange={(e) => setSteamId(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && fetchSteam()}
                   placeholder="Steam ID, vanity name, or profile URL"
+                  aria-label="Steam ID, vanity name, or profile URL"
                   className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                 />
                 <button
@@ -374,6 +376,7 @@ export function ImportModal({
                   onChange={(e) => setMalUsername(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && fetchMal()}
                   placeholder="MyAnimeList username"
+                  aria-label="MyAnimeList username"
                   className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                 />
                 <button

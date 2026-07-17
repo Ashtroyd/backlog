@@ -19,6 +19,7 @@ import {
 import { statusLabelFor } from "@/lib/sections";
 import { supabase } from "@/lib/supabase";
 import { timeAgo } from "@/lib/format";
+import { useDismissableMenu } from "@/lib/use-dismissable-menu";
 import { Avatar } from "./Avatar";
 import { StarRating } from "./StarRating";
 import { ReviewCommentsModal } from "./ReviewCommentsModal";
@@ -41,6 +42,8 @@ export function NotificationCenter() {
   const [lastSeen, setLastSeen] = useState<number>(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
+
+  useDismissableMenu(open, () => setOpen(false));
 
   const load = useCallback(async () => {
     if (!myId) return;

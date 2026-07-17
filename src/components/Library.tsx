@@ -193,6 +193,7 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search your ${section.label.toLowerCase()}…`}
+              aria-label={`Search your ${section.label.toLowerCase()}`}
               className="w-full bg-transparent text-sm text-ink placeholder:text-muted/70 focus:outline-none"
             />
           </div>

@@ -144,6 +144,12 @@ export function FeatureTour() {
       <AnimatePresence mode="wait">
         <motion.div
           key={stepIndex}
+          // Callback ref (not useRef+useEffect): AnimatePresence's
+          // mode="wait" delays mounting this until the previous step's exit
+          // animation finishes, so a plain effect keyed on stepIndex would
+          // try to focus before the node exists.
+          ref={(el) => el?.focus()}
+          tabIndex={-1}
           role="dialog"
           aria-label="Feature tour"
           initial={{ opacity: 0, y: above ? 8 : -8 }}
@@ -151,7 +157,7 @@ export function FeatureTour() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           style={{ position: "fixed", top, bottom, left, width: TOOLTIP_WIDTH }}
-          className="pointer-events-auto z-[101] rounded-2xl border border-line bg-surface p-4 shadow-[0_16px_40px_rgba(38,37,33,0.24)]"
+          className="pointer-events-auto z-[101] rounded-2xl border border-line bg-surface p-4 shadow-[0_16px_40px_rgba(38,37,33,0.24)] focus:outline-none"
         >
           <div className="flex items-start justify-between gap-2">
             <p className="font-serif text-base font-semibold text-ink">{step.title}</p>

@@ -218,6 +218,7 @@ export function DetailModal({
                 <button
                   type="button"
                   onClick={onClose}
+                  aria-label="Close"
                   className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
                 >
                   <XIcon className="h-4 w-4" />
@@ -312,6 +313,7 @@ export function DetailModal({
                           value={startedAt}
                           max={todayISODate()}
                           onChange={(e) => setStartedAt(e.target.value)}
+                          aria-label={section.startedLabel}
                           className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
                         />
                         {startedAt && (
@@ -348,6 +350,7 @@ export function DetailModal({
                           <button
                             type="button"
                             onClick={() => stepEpisodes(-1)}
+                            aria-label="Decrease episodes watched"
                             className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
                           >
                             −
@@ -359,6 +362,7 @@ export function DetailModal({
                           <button
                             type="button"
                             onClick={() => stepEpisodes(1)}
+                            aria-label="Increase episodes watched"
                             className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
                           >
                             +
@@ -372,6 +376,7 @@ export function DetailModal({
                           value={hours}
                           onChange={(e) => setHours(e.target.value)}
                           placeholder="0"
+                          aria-label="Hours played"
                           className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
                         />
                       )}
@@ -406,6 +411,7 @@ export function DetailModal({
                           onChange={(e) => setReview(e.target.value)}
                           rows={4}
                           placeholder="What did you think?"
+                          aria-label="Your review"
                           className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                         />
                       </div>
@@ -424,6 +430,7 @@ export function DetailModal({
                   onChange={(e) => setNotes(e.target.value)}
                   rows={3}
                   placeholder="Only you can see this — jot down anything worth remembering."
+                  aria-label="Private notes"
                   className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                 />
               </div>
@@ -437,7 +444,16 @@ export function DetailModal({
                   <ul className="space-y-3">
                     {alsoHave.map(({ profile, item: it }) => (
                       <li key={profile.id} className="flex items-start gap-2.5">
-                        <Link href={`/friends/${profile.username}`} onClick={onClose}>
+                        {/* The name link right after this repeats the same
+                            destination with a real accessible name, so this
+                            one is hidden from assistive tech to avoid a
+                            duplicate stop. */}
+                        <Link
+                          href={`/friends/${profile.username}`}
+                          onClick={onClose}
+                          aria-hidden="true"
+                          tabIndex={-1}
+                        >
                           <Avatar profile={profile} size={34} />
                         </Link>
                         <div className="min-w-0 flex-1">
