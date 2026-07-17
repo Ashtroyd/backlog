@@ -8,6 +8,7 @@ import { SECTIONS, SECTION_SLUGS } from "@/lib/sections";
 import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
 import { fetchUnreadMessageCount } from "@/lib/messages";
 import { supabase } from "@/lib/supabase";
+import { startTour } from "@/lib/tour-bus";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationCenter } from "./NotificationCenter";
 import { Avatar } from "./Avatar";
@@ -16,6 +17,7 @@ import { toast } from "@/lib/toast-bus";
 import {
   ArchiveIcon,
   ChatIcon,
+  CompassIcon,
   DownloadIcon,
   LogoutIcon,
   MenuIcon,
@@ -92,6 +94,14 @@ export default function Nav() {
     setMobileOpen(false);
     setBackupOpen(false);
   }, [pathname]);
+
+  function handleTakeTour() {
+    setBackupOpen(false);
+    setMobileOpen(false);
+    // The tour spotlights elements on the current page — give the menu's
+    // close animation a moment to clear before measuring positions.
+    setTimeout(() => startTour(), 200);
+  }
 
   async function handleExport() {
     setBackupOpen(false);
@@ -198,6 +208,11 @@ export default function Nav() {
                   transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
                   className="absolute right-0 top-11 z-50 w-52 rounded-xl border border-line bg-surface p-1.5 shadow-[0_12px_32px_rgba(38,37,33,0.14)]"
                 >
+                  <button type="button" onClick={handleTakeTour} className={menuItem}>
+                    <CompassIcon className="h-4 w-4 text-muted" />
+                    Take a tour
+                  </button>
+                  <div className="my-1 h-px bg-line" />
                   <button type="button" onClick={handleExport} className={menuItem}>
                     <DownloadIcon className="h-4 w-4 text-muted" />
                     Export backup
@@ -305,6 +320,10 @@ export default function Nav() {
                     <div className="my-1 h-px bg-line" />
 
                     <ThemeToggle variant="row" onToggled={() => setMobileOpen(false)} />
+                    <button type="button" onClick={handleTakeTour} className={menuItem}>
+                      <CompassIcon className="h-4 w-4 text-muted" />
+                      Take a tour
+                    </button>
                     <button type="button" onClick={handleExport} className={menuItem}>
                       <DownloadIcon className="h-4 w-4 text-muted" />
                       Export backup

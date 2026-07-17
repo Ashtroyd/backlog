@@ -107,6 +107,7 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
           {IMPORTABLE_MEDIA_TYPES.has(section.mediaType) && (
             <button
               type="button"
+              data-tour="import-button"
               onClick={() => setImportOpen(true)}
               className="flex items-center gap-1.5 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-ivory"
             >
@@ -116,6 +117,7 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
           )}
           <button
             type="button"
+            data-tour="add-button"
             onClick={() => setAddOpen(true)}
             className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
           >
@@ -153,7 +155,7 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
         </div>
       )}
 
-      <div className="mt-6 flex flex-wrap gap-1.5">
+      <div className="mt-6 flex flex-wrap gap-1.5" data-tour="filter-tabs">
         {filters.map((f) => {
           const active = filter === f;
           return (
@@ -266,6 +268,7 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
                 index={i}
                 onClick={() => setSelectedId(item.id)}
                 onUpdate={update}
+                dataTour={i === 0 ? "item-card" : undefined}
               />
             ))}
           </AnimatePresence>

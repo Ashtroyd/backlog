@@ -39,6 +39,7 @@ export function ItemCard({
   index,
   onClick,
   onUpdate,
+  dataTour,
 }: {
   item: BacklogItem;
   section: Section;
@@ -46,6 +47,8 @@ export function ItemCard({
   onClick: () => void;
   /** Omit for a read-only view (e.g. a friend's library) to hide the quick-action overlay. */
   onUpdate?: (id: string, patch: UpdatePatch) => void;
+  /** Tags this card as a feature-tour target — set on the first card of the main grid only. */
+  dataTour?: string;
 }) {
   /** Mirrors DetailModal's convenience: first move out of the backlog defaults the start date to today. */
   function quickSetStatus(next: ItemStatus) {
@@ -62,6 +65,7 @@ export function ItemCard({
       layout
       role="button"
       tabIndex={0}
+      data-tour={dataTour}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {

@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AuthContext, useSession } from "@/lib/backlog-store";
 import { fetchProfile } from "@/lib/social";
+import { startTour } from "@/lib/tour-bus";
 import type { Profile } from "@/lib/types";
 import { AuthScreen } from "./AuthScreen";
 import { Onboarding } from "./Onboarding";
 import { ConfirmProvider } from "./ConfirmDialog";
+import { FeatureTour } from "./FeatureTour";
 import { Toaster } from "./Toaster";
 import Nav from "./Nav";
 
@@ -22,6 +24,23 @@ export default function AppShell({
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const tourChecked = useRef(false);
+
+  // First-ever visit: auto-run the tour once (edits to profile re-fire this
+  // effect with a new object reference, so guard with a ref, not a flag in
+  // state). Manual replays go through the Nav menu's "Take a tour" instead.
+  useEffect(() => {
+    if (!profile || tourChecked.current) return;
+    tourChecked.current = true;
+    try {
+      if (localStorage.getItem("backlog:tourSeen")) return;
+      localStorage.setItem("backlog:tourSeen", "true");
+    } catch {
+      return;
+    }
+    const t = setTimeout(() => startTour(), 800);
+    return () => clearTimeout(t);
+  }, [profile]);
 
   useEffect(() => {
     if (!userId) {
@@ -61,6 +80,7 @@ export default function AppShell({
           {children}
         </main>
         <Toaster />
+        <FeatureTour />
       </ConfirmProvider>
     </AuthContext.Provider>
   );
