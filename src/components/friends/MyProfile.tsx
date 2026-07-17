@@ -10,6 +10,7 @@ import { ImageCropper } from "@/components/ImageCropper";
 import { ProfileHero } from "./ProfileHero";
 import { FavouritesRow } from "./FavouritesRow";
 import { StatsPanel } from "./StatsPanel";
+import { YearInReviewModal } from "./YearInReviewModal";
 
 export default function MyProfile() {
   const { session, profile, setProfile } = useAuth();
@@ -25,6 +26,7 @@ export default function MyProfile() {
   const [note, setNote] = useState<string | null>(null);
   const [favorites, setFavorites] = useState<BacklogItem[]>([]);
   const [allItems, setAllItems] = useState<BacklogItem[]>([]);
+  const [yearInReviewOpen, setYearInReviewOpen] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -153,12 +155,27 @@ export default function MyProfile() {
 
       {allItems.length > 0 && (
         <section className="mt-10">
-          <h2 className="mb-4 font-serif text-xl font-semibold text-ink">
-            Your stats
-          </h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-serif text-xl font-semibold text-ink">
+              Your stats
+            </h2>
+            <button
+              type="button"
+              onClick={() => setYearInReviewOpen(true)}
+              className="text-sm font-medium text-accent transition-colors hover:text-accent-hover"
+            >
+              Year in review →
+            </button>
+          </div>
           <StatsPanel items={allItems} />
         </section>
       )}
+
+      <YearInReviewModal
+        open={yearInReviewOpen}
+        onClose={() => setYearInReviewOpen(false)}
+        items={allItems}
+      />
 
       <section className="mt-10">
         <h2 className="mb-1 font-serif text-xl font-semibold text-ink">Favourites</h2>
