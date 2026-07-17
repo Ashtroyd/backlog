@@ -28,7 +28,9 @@ test("signup → onboarding → add an anime → rate it", async ({ page }) => {
   await page.getByLabel("Display name").fill("CI Smoke");
   await page.getByLabel("Handle").fill(`ci${String(stamp).slice(-8)}`);
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "Games" })).toBeVisible({
+  // exact: true — "Games" otherwise substring-matches the empty state's
+  // "No games yet" heading too, which a brand-new signup always shows.
+  await expect(page.getByRole("heading", { name: "Games", exact: true })).toBeVisible({
     timeout: 15_000,
   });
 
