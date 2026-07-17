@@ -228,7 +228,7 @@ function AddFriend({
           aria-label="Add a friend by their handle"
           autoCapitalize="none"
           autoCorrect="off"
-          className="w-full bg-transparent text-[15px] text-ink placeholder:text-muted/70 focus:outline-none"
+          className="w-full bg-transparent text-[15px] text-ink placeholder:text-muted/70"
         />
         {searching && <SpinnerIcon className="h-4 w-4 shrink-0 animate-spin text-muted" />}
       </div>

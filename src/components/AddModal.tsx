@@ -133,7 +133,7 @@ export function AddModal({
           }}
           placeholder={section.searchPlaceholder}
           aria-label={section.searchPlaceholder}
-          className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70 focus:outline-none"
+          className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70"
         />
         {searching && (
           <SpinnerIcon className="h-4 w-4 shrink-0 animate-spin text-muted" />

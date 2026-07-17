@@ -24,7 +24,7 @@ export function StarRating({
     <div
       className="flex items-center gap-0.5"
       onMouseLeave={() => setHover(null)}
-      role={interactive ? "radiogroup" : undefined}
+      role={interactive ? "group" : undefined}
       aria-label={interactive ? "Rating" : `Rated ${value ?? 0} out of 5`}
     >
       {[1, 2, 3, 4, 5].map((n) => (

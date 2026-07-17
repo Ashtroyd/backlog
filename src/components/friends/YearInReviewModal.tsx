@@ -125,7 +125,7 @@ export function YearInReviewModal({
                 value={year}
                 onChange={(e) => setYear(Number(e.target.value))}
                 aria-label="Year"
-                className="mt-1.5 rounded-full border border-line bg-surface px-3 py-1 text-sm text-body focus:outline-none"
+                className="mt-1.5 rounded-full border border-line bg-surface px-3 py-1 text-sm text-body"
               >
                 {years.map((y) => (
                   <option key={y} value={y}>

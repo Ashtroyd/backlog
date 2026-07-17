@@ -194,14 +194,14 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search your ${section.label.toLowerCase()}…`}
               aria-label={`Search your ${section.label.toLowerCase()}`}
-              className="w-full bg-transparent text-sm text-ink placeholder:text-muted/70 focus:outline-none"
+              className="w-full bg-transparent text-sm text-ink placeholder:text-muted/70"
             />
           </div>
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as Sort)}
             aria-label="Sort by"
-            className="rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-body focus:outline-none"
+            className="rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-body"
           >
             {SORTS.map((s) => (
               <option key={s.value} value={s.value}>

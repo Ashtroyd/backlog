@@ -454,7 +454,10 @@ export function ImportModal({
                 const disabled = !r.matched || r.alreadyInLibrary;
                 const isChecked = checked.has(r.key);
                 return (
-                  <li key={r.key} className="flex items-center gap-3 px-1 py-2.5">
+                  <li
+                    key={r.key}
+                    className="flex items-center gap-3 px-1 py-2.5 [content-visibility:auto] [contain-intrinsic-size:0_52px]"
+                  >
                     <button
                       type="button"
                       onClick={() => toggle(r.key)}

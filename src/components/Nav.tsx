@@ -159,6 +159,7 @@ export default function Nav() {
           <Link
             href="/friends"
             title="Friends"
+            aria-label="Friends"
             className={`hidden sm:flex ${iconButton} ${
               friendsActive ? "bg-ivory text-ink" : "text-muted"
             }`}
@@ -169,6 +170,7 @@ export default function Nav() {
           <Link
             href="/messages"
             title="Messages"
+            aria-label="Messages"
             className={`relative hidden sm:flex ${iconButton} ${
               messagesActive ? "bg-ivory text-ink" : "text-muted"
             }`}
@@ -187,6 +189,7 @@ export default function Nav() {
             <button
               type="button"
               title="Backup"
+              aria-label="Backup"
               onClick={() => setBackupOpen((v) => !v)}
               className={`${iconButton} ${backupOpen ? "bg-ivory text-ink" : "text-muted"}`}
             >
@@ -251,6 +254,7 @@ export default function Nav() {
           <button
             type="button"
             title={`Sign out${session ? ` (${session.user.email})` : ""}`}
+            aria-label="Sign out"
             onClick={() => supabase.auth.signOut()}
             className={`hidden sm:flex ${iconButton} text-muted`}
           >

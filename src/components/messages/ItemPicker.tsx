@@ -47,7 +47,7 @@ export function ItemPicker({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Recommend a title from your library…"
           aria-label="Recommend a title from your library"
-          className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70 focus:outline-none"
+          className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70"
         />
       </div>
       <div className="max-h-[55vh] overflow-y-auto p-2">
