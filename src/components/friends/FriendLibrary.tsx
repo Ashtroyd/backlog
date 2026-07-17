@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   SECTIONS,
@@ -33,6 +33,19 @@ export function FriendLibrary({
   const available = SECTION_SLUGS.filter((s) => counts[s] > 0);
   const [active, setActive] = useState<SectionSlug>(available[0] ?? "games");
   const [openId, setOpenId] = useState<string | null>(null);
+
+  // items arrives as [] on the first render (the parent fetches it
+  // async), so `available` is empty then and the state initializer above
+  // locks onto the "games" fallback — jump to wherever the data actually
+  // showed up once it does, instead of leaving the tab stuck on an empty
+  // section.
+  const availableKey = available.join(",");
+  useEffect(() => {
+    if (available.length > 0 && !available.includes(active)) {
+      setActive(available[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [availableKey]);
 
   const visible = items.filter(
     (i) => SECTIONS[active].mediaType === i.media_type,
