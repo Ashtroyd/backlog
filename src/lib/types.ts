@@ -44,6 +44,12 @@ export type BacklogItem = {
   pinned_at: string | null;
   /** Games only: an ongoing live-service/multiplayer title with no real "completed" state. */
   live_service: boolean;
+  /**
+   * Games only, while in_progress: a running take that's shareable with
+   * friends (respects is_private) — a substitute for a review on titles
+   * that never reach "completed".
+   */
+  current_thoughts: string | null;
   created_at: string;
   updated_at: string;
   completed_at: string | null;

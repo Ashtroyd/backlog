@@ -7,7 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { STATUS_ORDER, statusLabel, statusLabelFor, type Section } from "@/lib/sections";
 import { useAuth, type UpdatePatch } from "@/lib/backlog-store";
 import { fetchAlsoHave, type AlsoHave } from "@/lib/social";
-import { itemChips } from "@/lib/chips";
+import { hasShareableTake, itemChips } from "@/lib/chips";
 import { todayISODate } from "@/lib/format";
 import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { Modal } from "./Modal";
@@ -69,6 +69,7 @@ export function DetailModal({
   const [liveService, setLiveService] = useState(false);
   const [pinned, setPinned] = useState(false);
   const [notes, setNotes] = useState("");
+  const [currentThoughts, setCurrentThoughts] = useState("");
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -86,6 +87,7 @@ export function DetailModal({
       setLiveService(item.live_service);
       setPinned(item.pinned_at != null);
       setNotes(item.notes ?? "");
+      setCurrentThoughts(item.current_thoughts ?? "");
     }
   }, [item]);
 
@@ -162,6 +164,7 @@ export function DetailModal({
           ? parsedHours
           : undefined,
       live_service: section.mediaType === "game" ? liveService : undefined,
+      current_thoughts: section.mediaType === "game" ? currentThoughts : undefined,
       // Preserve the original pin time so re-saving doesn't bump it to the
       // front of "Up next" — only a fresh pin gets a new timestamp.
       pinned_at: pinned ? (current.pinned_at ?? new Date().toISOString()) : null,
@@ -386,6 +389,40 @@ export function DetailModal({
               </AnimatePresence>
 
               <AnimatePresence initial={false}>
+                {section.mediaType === "game" && status === "in_progress" && (
+                  <motion.div
+                    key="current-thoughts"
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="mt-5 pt-1">
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                        Current thoughts
+                      </p>
+                      <textarea
+                        value={currentThoughts}
+                        onChange={(e) => setCurrentThoughts(e.target.value)}
+                        rows={3}
+                        placeholder={
+                          liveService
+                            ? "This one doesn't really end — what's your take right now?"
+                            : "Not finished yet, but what's the verdict so far?"
+                        }
+                        aria-label="Current thoughts"
+                        className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                      />
+                      <p className="mt-1.5 text-xs text-muted">
+                        Visible to friends, like a review — unless you hide this title below.
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence initial={false}>
                 {status === "completed" && (
                   <motion.div
                     key="review"
@@ -471,10 +508,16 @@ export function DetailModal({
                             </span>
                             {it.rating != null && <StarRating value={it.rating} size={12} />}
                           </div>
-                          {it.review && (
+                          {it.review ? (
                             <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body">
                               {it.review}
                             </p>
+                          ) : (
+                            it.current_thoughts && (
+                              <p className="mt-1 whitespace-pre-wrap text-sm italic leading-relaxed text-body">
+                                {it.current_thoughts}
+                              </p>
+                            )
                           )}
                         </div>
                       </li>
@@ -483,7 +526,7 @@ export function DetailModal({
                 </div>
               )}
 
-              {current.status === "completed" && myId && (
+              {hasShareableTake(current) && myId && (
                 <div className="mt-6 border-t border-line pt-4">
                   <CommentThread itemId={current.id} ownerId={myId} onClose={onClose} />
                 </div>

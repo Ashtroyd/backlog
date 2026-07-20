@@ -506,7 +506,11 @@ export function activityVerb(item: BacklogItem): {
       ? { verb: "rated", showStars: true }
       : { verb: "completed", showStars: false };
   }
-  if (item.status === "in_progress") return { verb: "started", showStars: false };
+  if (item.status === "in_progress") {
+    return item.media_type === "game" && item.current_thoughts?.trim()
+      ? { verb: "shared thoughts on", showStars: false }
+      : { verb: "started", showStars: false };
+  }
   if (item.status === "dropped") return { verb: "dropped", showStars: false };
   return { verb: "added", showStars: false };
 }

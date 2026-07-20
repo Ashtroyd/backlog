@@ -15,3 +15,18 @@ export function itemChips(item: BacklogItem | null): string[] {
   if (m.studios?.length) chips.push(m.studios.join(", "));
   return chips;
 }
+
+/**
+ * Whether an item has a shareable "take" worth showing to friends and
+ * opening a comment thread under — a finished review, or (for a game still
+ * in progress) current thoughts, since live-service titles never complete.
+ */
+export function hasShareableTake(item: Pick<BacklogItem, "status" | "media_type" | "current_thoughts"> | null): boolean {
+  if (!item) return false;
+  if (item.status === "completed") return true;
+  return (
+    item.media_type === "game" &&
+    item.status === "in_progress" &&
+    Boolean(item.current_thoughts?.trim())
+  );
+}

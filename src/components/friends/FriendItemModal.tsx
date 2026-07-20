@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { STATUS_DOT } from "@/components/ItemCard";
 import { statusLabelFor, startedLabelFor } from "@/lib/sections";
-import { itemChips } from "@/lib/chips";
+import { hasShareableTake, itemChips } from "@/lib/chips";
 import { formatDate } from "@/lib/format";
 import type { BacklogItem, Profile } from "@/lib/types";
 import { Modal } from "@/components/Modal";
@@ -96,6 +96,15 @@ export function FriendItemModal({
                   <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-body">
                     {item.review}
                   </p>
+                ) : item.current_thoughts ? (
+                  <>
+                    <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted">
+                      Current thoughts
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-body">
+                      {item.current_thoughts}
+                    </p>
+                  </>
                 ) : (
                   item.status === "completed" && (
                     <p className="mt-3 text-sm italic text-muted">No review written.</p>
@@ -112,7 +121,7 @@ export function FriendItemModal({
             </div>
           </div>
 
-          {item.status === "completed" && (
+          {hasShareableTake(item) && (
             <div className="mt-6 border-t border-line pt-5">
               <CommentThread
                 itemId={item.id}
