@@ -211,6 +211,54 @@ export function StarIcon(props: IconProps) {
   );
 }
 
+export function HomeIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M3.5 10.5 12 3.5l8.5 7" />
+      <path d="M5.5 9.3V19a1 1 0 0 0 1 1h4v-6h3v6h4a1 1 0 0 0 1-1V9.3" />
+    </svg>
+  );
+}
+
+export function GamepadIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M7 8.5h10a4.5 4.5 0 0 1 4.4 5.4l-.3 1.4a2.7 2.7 0 0 1-4.8 1.1L15 15H9l-1.3 1.4a2.7 2.7 0 0 1-4.8-1.1l-.3-1.4A4.5 4.5 0 0 1 7 8.5Z" />
+      <path d="M7.5 11v3M6 12.5h3" />
+      <circle cx="16" cy="11.2" r=".9" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="13.2" r=".9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function FilmIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="3" y="4.5" width="18" height="15" rx="2" />
+      <path d="M8 4.5v15M16 4.5v15M3 9h5M16 9h5M3 15h5M16 15h5" />
+    </svg>
+  );
+}
+
+export function TvIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="m8 3.5-3 3M16 3.5l3 3" />
+      <rect x="3" y="6.5" width="18" height="13" rx="2" />
+      <path d="M8 19.5h8" />
+    </svg>
+  );
+}
+
+export function SparklesIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M11 3.5c.4 2.6 1 3.9 2 5s2.4 1.6 5 2c-2.6.4-3.9 1-5 2s-1.6 2.4-2 5c-.4-2.6-1-3.9-2-5s-2.4-1.6-5-2c2.6-.4 3.9-1 5-2s1.6-2.4 2-5Z" strokeLinejoin="round" />
+      <path d="M18.5 15.5c.2 1 .5 1.6.9 2s1 .7 2 .9c-1 .2-1.6.5-2 .9s-.7 1-.9 2c-.2-1-.5-1.6-.9-2s-1-.7-2-.9c1-.2 1.6-.5 2-.9s.7-1 .9-2Z" />
+    </svg>
+  );
+}
+
 export function SpinnerIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" {...props}>

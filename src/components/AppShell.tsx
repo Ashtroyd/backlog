@@ -11,6 +11,7 @@ import { ConfirmProvider } from "./ConfirmDialog";
 import { FeatureTour } from "./FeatureTour";
 import { Toaster } from "./Toaster";
 import Nav from "./Nav";
+import { BottomNav } from "./BottomNav";
 
 /**
  * Client-side gate: login screen when signed out, an onboarding step until a
@@ -79,6 +80,7 @@ export default function AppShell({
         <main className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 sm:pb-24">
           {children}
         </main>
+        <BottomNav />
         <Toaster />
         <FeatureTour />
       </ConfirmProvider>

@@ -370,7 +370,7 @@ export default function Nav() {
         </div>
 
         {/* Section tabs: own row on mobile, inline on desktop. */}
-        <nav className="order-3 flex w-full items-center justify-between sm:order-2 sm:w-auto sm:flex-1 sm:justify-start sm:gap-1">
+        <nav className="order-3 hidden w-full items-center justify-between sm:order-2 sm:flex sm:w-auto sm:flex-1 sm:justify-start sm:gap-1">
           {SECTION_SLUGS.map((slug) => {
             const active =
               pathname === `/${slug}` || pathname.startsWith(`/${slug}/`);
