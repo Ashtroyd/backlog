@@ -2,12 +2,21 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { fetchAllMyItems, fetchRecentReviews, useAuth } from "@/lib/backlog-store";
+import {
+  fetchAllMyItems,
+  fetchRecentReviews,
+  removeItemDirect,
+  updateItemDirect,
+  useAuth,
+  type UpdatePatch,
+} from "@/lib/backlog-store";
 import { fetchConnections, fetchRecommendations, type Recommendation } from "@/lib/social";
 import { currentMonth, fetchTopPicks, monthLabel, type TopPick } from "@/lib/top-picks";
-import { SECTION_BY_MEDIA } from "@/lib/sections";
+import { SECTION_BY_MEDIA, SECTIONS, type Section } from "@/lib/sections";
+import { toast } from "@/lib/toast-bus";
 import type { BacklogItem } from "@/lib/types";
 import { CoverImage } from "./CoverImage";
+import { DetailModal } from "./DetailModal";
 import { StarRating } from "./StarRating";
 import { RecommendationModal } from "./friends/RecommendationModal";
 import { TopPicksPicker } from "./TopPicksPicker";
@@ -29,6 +38,45 @@ export default function Home() {
   const [picks, setPicks] = useState<TopPick[] | null>(null);
   const [allItems, setAllItems] = useState<BacklogItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Opening a title from a shelf shows its review right here — no navigating
+  // to the section page first. `openSection` only updates when a new item is
+  // opened (not on close), so it stays correct through the close animation.
+  const [openItem, setOpenItem] = useState<BacklogItem | null>(null);
+  const [openSection, setOpenSection] = useState<Section | null>(null);
+
+  function openItemModal(item: BacklogItem) {
+    setOpenSection(SECTION_BY_MEDIA[item.media_type]);
+    setOpenItem(item);
+  }
+
+  /** Patches an item wherever it appears on the homescreen's own shelves. */
+  function patchLocalItem(id: string, fields: Partial<BacklogItem>) {
+    setReviews((prev) => prev?.map((i) => (i.id === id ? { ...i, ...fields } : i)) ?? prev);
+    setPicks((prev) =>
+      prev?.map((p) => (p.item.id === id ? { ...p, item: { ...p.item, ...fields } } : p)) ?? prev,
+    );
+  }
+
+  function handleModalUpdate(id: string, patch: UpdatePatch) {
+    const item = openItem;
+    if (!item || item.id !== id) return;
+    updateItemDirect(item, patch).then(({ error, fields }) => {
+      if (error) {
+        toast("error", "Couldn't save your changes — check your connection.");
+        return;
+      }
+      patchLocalItem(id, fields as Partial<BacklogItem>);
+    });
+  }
+
+  function handleModalRemove(id: string) {
+    setReviews((prev) => prev?.filter((i) => i.id !== id) ?? prev);
+    setPicks((prev) => prev?.filter((p) => p.item.id !== id) ?? prev);
+    removeItemDirect(id).then(({ error }) => {
+      if (error) toast("error", "Couldn't remove that — check your connection.");
+    });
+  }
 
   const loadPicks = useCallback(async () => {
     if (!myId) return;
@@ -62,7 +110,7 @@ export default function Home() {
             {reviews.map((item) => (
               <ShelfCard
                 key={item.id}
-                href={`/${SECTION_BY_MEDIA[item.media_type].slug}?item=${item.id}`}
+                onClick={() => openItemModal(item)}
                 coverUrl={item.cover_url}
                 title={item.title}
                 ratingValue={item.rating}
@@ -129,7 +177,7 @@ export default function Home() {
             {picks.map((p) => (
               <ShelfCard
                 key={p.id}
-                href={`/${SECTION_BY_MEDIA[p.item.media_type].slug}?item=${p.item.id}`}
+                onClick={() => openItemModal(p.item)}
                 coverUrl={p.item.cover_url}
                 title={p.item.title}
                 ratingValue={p.item.rating}
@@ -139,6 +187,14 @@ export default function Home() {
           </Shelf>
         )}
       </HomeSection>
+
+      <DetailModal
+        item={openItem}
+        section={openSection ?? SECTIONS.games}
+        onClose={() => setOpenItem(null)}
+        onUpdate={handleModalUpdate}
+        onRemove={handleModalRemove}
+      />
 
       <RecommendationModal
         rec={openRec}

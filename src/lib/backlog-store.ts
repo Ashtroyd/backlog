@@ -96,6 +96,45 @@ export type UpdatePatch = {
   current_thoughts?: string | null;
 };
 
+/** Builds the DB field set for a patch, trimming text and deriving completed_at/meta. */
+function normalizeUpdateFields(
+  existing: BacklogItem | undefined,
+  patch: UpdatePatch,
+): Record<string, unknown> {
+  const now = new Date().toISOString();
+  const fields: Record<string, unknown> = { updated_at: now };
+  if (patch.status !== undefined) {
+    fields.status = patch.status;
+    fields.completed_at =
+      patch.status === "completed" ? (existing?.completed_at ?? now) : null;
+    // Once a title moves out of the backlog, the "out now" nudge is done.
+    if (patch.status !== "backlog" && existing?.meta?._outNow) {
+      const { _outNow: _dropped, ...rest } = existing.meta;
+      fields.meta = rest;
+    }
+  }
+  if (patch.rating !== undefined) fields.rating = patch.rating;
+  if (patch.review !== undefined) {
+    fields.review = patch.review?.trim() ? patch.review.trim() : null;
+  }
+  if (patch.is_private !== undefined) fields.is_private = patch.is_private;
+  if (patch.started_at !== undefined) fields.started_at = patch.started_at;
+  if (patch.is_favorite !== undefined) fields.is_favorite = patch.is_favorite;
+  if (patch.progress !== undefined) fields.progress = patch.progress;
+  if (patch.hours_played !== undefined) fields.hours_played = patch.hours_played;
+  if (patch.notes !== undefined) {
+    fields.notes = patch.notes?.trim() ? patch.notes.trim() : null;
+  }
+  if (patch.pinned_at !== undefined) fields.pinned_at = patch.pinned_at;
+  if (patch.live_service !== undefined) fields.live_service = patch.live_service;
+  if (patch.current_thoughts !== undefined) {
+    fields.current_thoughts = patch.current_thoughts?.trim()
+      ? patch.current_thoughts.trim()
+      : null;
+  }
+  return fields;
+}
+
 function looksLikeItem(i: unknown): i is BacklogItem {
   const x = i as BacklogItem;
   return (
@@ -349,40 +388,10 @@ export function useBacklog(mediaType: MediaType) {
 
   const update = useCallback(
     (id: string, patch: UpdatePatch) => {
-      const now = new Date().toISOString();
-      const fields: Record<string, unknown> = { updated_at: now };
-      if (patch.status !== undefined) {
-        fields.status = patch.status;
-        const existing = items.find((i) => i.id === id);
-        fields.completed_at =
-          patch.status === "completed"
-            ? (existing?.completed_at ?? now)
-            : null;
-        // Once a title moves out of the backlog, the "out now" nudge is done.
-        if (patch.status !== "backlog" && existing?.meta?._outNow) {
-          const { _outNow: _dropped, ...rest } = existing.meta;
-          fields.meta = rest;
-        }
-      }
-      if (patch.rating !== undefined) fields.rating = patch.rating;
-      if (patch.review !== undefined) {
-        fields.review = patch.review?.trim() ? patch.review.trim() : null;
-      }
-      if (patch.is_private !== undefined) fields.is_private = patch.is_private;
-      if (patch.started_at !== undefined) fields.started_at = patch.started_at;
-      if (patch.is_favorite !== undefined) fields.is_favorite = patch.is_favorite;
-      if (patch.progress !== undefined) fields.progress = patch.progress;
-      if (patch.hours_played !== undefined) fields.hours_played = patch.hours_played;
-      if (patch.notes !== undefined) {
-        fields.notes = patch.notes?.trim() ? patch.notes.trim() : null;
-      }
-      if (patch.pinned_at !== undefined) fields.pinned_at = patch.pinned_at;
-      if (patch.live_service !== undefined) fields.live_service = patch.live_service;
-      if (patch.current_thoughts !== undefined) {
-        fields.current_thoughts = patch.current_thoughts?.trim()
-          ? patch.current_thoughts.trim()
-          : null;
-      }
+      const fields = normalizeUpdateFields(
+        items.find((i) => i.id === id),
+        patch,
+      );
 
       // Only one favourite per section — clear any other before setting this one.
       const claimingFavorite = patch.is_favorite === true;
@@ -472,6 +481,42 @@ export function useBacklog(mediaType: MediaType) {
   );
 
   return { items, ready, loadError, add, bulkAdd, update, remove, applyDetails };
+}
+
+/**
+ * Same field normalization as useBacklog's update, for editing a single item
+ * outside any section hook — used by the homescreen's recent-reviews and
+ * top-picks shelves, which span multiple media types at once so there's no
+ * single `useBacklog(mediaType)` instance to reuse.
+ */
+export async function updateItemDirect(
+  item: BacklogItem,
+  patch: UpdatePatch,
+): Promise<{ error: string | null; fields: Record<string, unknown> }> {
+  const fields = normalizeUpdateFields(item, patch);
+
+  if (patch.is_favorite === true) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (user) {
+      await supabase
+        .from("items")
+        .update({ is_favorite: false })
+        .eq("user_id", user.id)
+        .eq("media_type", item.media_type)
+        .eq("is_favorite", true)
+        .neq("id", item.id);
+    }
+  }
+  const { error } = await supabase.from("items").update(fields).eq("id", item.id);
+  return { error: error?.message ?? null, fields };
+}
+
+/** Deletes a single item outside any section hook (see updateItemDirect). */
+export async function removeItemDirect(id: string): Promise<{ error: string | null }> {
+  const { error } = await supabase.from("items").delete().eq("id", id);
+  return { error: error?.message ?? null };
 }
 
 /**
