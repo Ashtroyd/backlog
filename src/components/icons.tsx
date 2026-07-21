@@ -223,10 +223,10 @@ export function HomeIcon(props: IconProps) {
 export function GamepadIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M7 8.5h10a4.5 4.5 0 0 1 4.4 5.4l-.3 1.4a2.7 2.7 0 0 1-4.8 1.1L15 15H9l-1.3 1.4a2.7 2.7 0 0 1-4.8-1.1l-.3-1.4A4.5 4.5 0 0 1 7 8.5Z" />
-      <path d="M7.5 11v3M6 12.5h3" />
-      <circle cx="16" cy="11.2" r=".9" fill="currentColor" stroke="none" />
-      <circle cx="18" cy="13.2" r=".9" fill="currentColor" stroke="none" />
+      <rect x="2" y="6" width="20" height="12" rx="6" />
+      <path d="M6.5 12h3M8 10.5v3" />
+      <circle cx="15.5" cy="10.5" r=".9" fill="currentColor" stroke="none" />
+      <circle cx="17.5" cy="13" r=".9" fill="currentColor" stroke="none" />
     </svg>
   );
 }
