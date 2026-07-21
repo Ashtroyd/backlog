@@ -8,7 +8,7 @@ import { STATUS_ORDER, statusLabel, statusLabelFor, type Section } from "@/lib/s
 import { useAuth, type UpdatePatch } from "@/lib/backlog-store";
 import { fetchAlsoHave, type AlsoHave } from "@/lib/social";
 import { hasShareableTake, itemChips } from "@/lib/chips";
-import { todayISODate } from "@/lib/format";
+import { formatDate, todayISODate } from "@/lib/format";
 import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { Modal } from "./Modal";
 import { StarRating } from "./StarRating";
@@ -17,7 +17,32 @@ import { CommentThread } from "./CommentThread";
 import { useConfirm } from "./ConfirmDialog";
 import { ShareToFriendModal } from "./ShareToFriendModal";
 import { releaseBadge, STATUS_DOT } from "./ItemCard";
-import { EyeOffIcon, HeartIcon, InfinityIcon, PinIcon, SendIcon, TrashIcon, XIcon } from "./icons";
+import {
+  EyeOffIcon,
+  HeartIcon,
+  InfinityIcon,
+  PencilIcon,
+  PinIcon,
+  SendIcon,
+  TrashIcon,
+  XIcon,
+} from "./icons";
+
+/** A typed/dated field stays read-only behind this button until clicked, or
+    the item is completed — at which point it's directly editable, matching
+    the rating/review fields below. */
+function EditToggle({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
+    >
+      <PencilIcon className="h-3 w-3" />
+      Edit
+    </button>
+  );
+}
 
 /** Details are re-fetched when unreleased, or last refreshed over 30 days ago. */
 function isStale(item: BacklogItem): boolean {
@@ -73,6 +98,13 @@ export function DetailModal({
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
 
+  // Typed/dated fields default to a read-only display behind an Edit
+  // button, to keep the modal calm for titles you're not finished with.
+  const [editingStarted, setEditingStarted] = useState(false);
+  const [editingHours, setEditingHours] = useState(false);
+  const [editingThoughts, setEditingThoughts] = useState(false);
+  const [editingNotes, setEditingNotes] = useState(false);
+
   useEffect(() => {
     if (item) {
       setSnapshot(item);
@@ -88,6 +120,10 @@ export function DetailModal({
       setPinned(item.pinned_at != null);
       setNotes(item.notes ?? "");
       setCurrentThoughts(item.current_thoughts ?? "");
+      setEditingStarted(false);
+      setEditingHours(false);
+      setEditingThoughts(false);
+      setEditingNotes(false);
     }
   }, [item]);
 
@@ -307,28 +343,39 @@ export function DetailModal({
                     className="overflow-hidden"
                   >
                     <div className="mt-5 pt-1">
-                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                        {section.startedLabel}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="date"
-                          value={startedAt}
-                          max={todayISODate()}
-                          onChange={(e) => setStartedAt(e.target.value)}
-                          aria-label={section.startedLabel}
-                          className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
-                        />
-                        {startedAt && (
-                          <button
-                            type="button"
-                            onClick={() => setStartedAt("")}
-                            className="rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
-                          >
-                            Clear
-                          </button>
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                          {section.startedLabel}
+                        </p>
+                        {status !== "completed" && !editingStarted && (
+                          <EditToggle onClick={() => setEditingStarted(true)} />
                         )}
                       </div>
+                      {status === "completed" || editingStarted ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            value={startedAt}
+                            max={todayISODate()}
+                            onChange={(e) => setStartedAt(e.target.value)}
+                            aria-label={section.startedLabel}
+                            className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                          />
+                          {startedAt && (
+                            <button
+                              type="button"
+                              onClick={() => setStartedAt("")}
+                              className="rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[15px] text-ink">
+                          {startedAt ? formatDate(startedAt) : "Not set"}
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -345,9 +392,14 @@ export function DetailModal({
                     className="overflow-hidden"
                   >
                     <div className="mt-5 pt-1">
-                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                        {isEpisodic ? "Episodes watched" : "Hours played"}
-                      </p>
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                          {isEpisodic ? "Episodes watched" : "Hours played"}
+                        </p>
+                        {!isEpisodic && status !== "completed" && !editingHours && (
+                          <EditToggle onClick={() => setEditingHours(true)} />
+                        )}
+                      </div>
                       {isEpisodic ? (
                         <div className="flex items-center gap-3">
                           <button
@@ -371,7 +423,7 @@ export function DetailModal({
                             +
                           </button>
                         </div>
-                      ) : (
+                      ) : status === "completed" || editingHours ? (
                         <input
                           type="number"
                           min={0}
@@ -382,6 +434,10 @@ export function DetailModal({
                           aria-label="Hours played"
                           className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
                         />
+                      ) : (
+                        <p className="text-[15px] text-ink">
+                          {hours ? `${hours} hrs` : "Not tracked"}
+                        </p>
                       )}
                     </div>
                   </motion.div>
@@ -399,24 +455,38 @@ export function DetailModal({
                     className="overflow-hidden"
                   >
                     <div className="mt-5 pt-1">
-                      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                        Current thoughts
-                      </p>
-                      <textarea
-                        value={currentThoughts}
-                        onChange={(e) => setCurrentThoughts(e.target.value)}
-                        rows={3}
-                        placeholder={
-                          liveService
-                            ? "This one doesn't really end — what's your take right now?"
-                            : "Not finished yet, but what's the verdict so far?"
-                        }
-                        aria-label="Current thoughts"
-                        className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                      />
-                      <p className="mt-1.5 text-xs text-muted">
-                        Visible to friends, like a review — unless you hide this title below.
-                      </p>
+                      <div className="mb-2 flex items-center justify-between">
+                        <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                          Current thoughts
+                        </p>
+                        {!editingThoughts && (
+                          <EditToggle onClick={() => setEditingThoughts(true)} />
+                        )}
+                      </div>
+                      {editingThoughts ? (
+                        <>
+                          <textarea
+                            value={currentThoughts}
+                            onChange={(e) => setCurrentThoughts(e.target.value)}
+                            rows={3}
+                            placeholder={
+                              liveService
+                                ? "This one doesn't really end — what's your take right now?"
+                                : "Not finished yet, but what's the verdict so far?"
+                            }
+                            aria-label="Current thoughts"
+                            autoFocus
+                            className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                          />
+                          <p className="mt-1.5 text-xs text-muted">
+                            Visible to friends, like a review — unless you hide this title below.
+                          </p>
+                        </>
+                      ) : (
+                        <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
+                          {currentThoughts || "Nothing yet"}
+                        </p>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -458,18 +528,30 @@ export function DetailModal({
               </AnimatePresence>
 
               <div className="mt-5">
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
-                  <EyeOffIcon className="h-3 w-3" />
-                  Private notes
-                </p>
-                <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
-                  placeholder="Only you can see this — jot down anything worth remembering."
-                  aria-label="Private notes"
-                  className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                />
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
+                    <EyeOffIcon className="h-3 w-3" />
+                    Private notes
+                  </p>
+                  {status !== "completed" && !editingNotes && (
+                    <EditToggle onClick={() => setEditingNotes(true)} />
+                  )}
+                </div>
+                {status === "completed" || editingNotes ? (
+                  <textarea
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Only you can see this — jot down anything worth remembering."
+                    aria-label="Private notes"
+                    autoFocus={editingNotes}
+                    className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                  />
+                ) : (
+                  <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
+                    {notes || "No notes yet"}
+                  </p>
+                )}
               </div>
 
               {/* Friends who also have this title */}
