@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import { SECTIONS, type SectionSlug } from "@/lib/sections";
 import Library from "@/components/Library";
 
-type Props = { params: Promise<{ section: string }> };
+type Props = {
+  params: Promise<{ section: string }>;
+  searchParams: Promise<{ item?: string }>;
+};
 
 export async function generateMetadata({ params }: Props) {
   const { section } = await params;
@@ -10,8 +13,9 @@ export async function generateMetadata({ params }: Props) {
   return { title: SECTIONS[section as SectionSlug].label };
 }
 
-export default async function SectionPage({ params }: Props) {
+export default async function SectionPage({ params, searchParams }: Props) {
   const { section } = await params;
   if (!(section in SECTIONS)) notFound();
-  return <Library section={section as SectionSlug} />;
+  const { item } = await searchParams;
+  return <Library section={section as SectionSlug} initialItemId={item} />;
 }

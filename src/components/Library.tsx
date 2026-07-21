@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
   SECTIONS,
@@ -47,8 +48,16 @@ function sortItems(list: BacklogItem[], sort: Sort): BacklogItem[] {
   return out;
 }
 
-export default function Library({ section: slug }: { section: SectionSlug }) {
+export default function Library({
+  section: slug,
+  initialItemId,
+}: {
+  section: SectionSlug;
+  initialItemId?: string;
+}) {
   const section = SECTIONS[slug];
+  const router = useRouter();
+  const pathname = usePathname();
   const { items, ready, loadError, add, bulkAdd, update, remove, applyDetails } =
     useBacklog(section.mediaType);
   const [filter, setFilter] = useState<Filter>("all");
@@ -56,7 +65,12 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
   const [sort, setSort] = useState<Sort>("added");
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialItemId ?? null);
+
+  function closeDetail() {
+    setSelectedId(null);
+    if (initialItemId) router.replace(pathname);
+  }
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = {
@@ -295,7 +309,7 @@ export default function Library({ section: slug }: { section: SectionSlug }) {
       <DetailModal
         item={selected}
         section={section}
-        onClose={() => setSelectedId(null)}
+        onClose={closeDetail}
         onUpdate={update}
         onRemove={remove}
         onRefresh={applyDetails}

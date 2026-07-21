@@ -62,7 +62,7 @@ export default function Home() {
             {reviews.map((item) => (
               <ShelfCard
                 key={item.id}
-                href={`/${SECTION_BY_MEDIA[item.media_type].slug}`}
+                href={`/${SECTION_BY_MEDIA[item.media_type].slug}?item=${item.id}`}
                 coverUrl={item.cover_url}
                 title={item.title}
                 ratingValue={item.rating}
@@ -129,7 +129,7 @@ export default function Home() {
             {picks.map((p) => (
               <ShelfCard
                 key={p.id}
-                href={`/${SECTION_BY_MEDIA[p.item.media_type].slug}`}
+                href={`/${SECTION_BY_MEDIA[p.item.media_type].slug}?item=${p.item.id}`}
                 coverUrl={p.item.cover_url}
                 title={p.item.title}
                 ratingValue={p.item.rating}
