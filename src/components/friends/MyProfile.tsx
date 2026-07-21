@@ -11,6 +11,7 @@ import { ProfileHero } from "./ProfileHero";
 import { FavouritesRow } from "./FavouritesRow";
 import { StatsPanel } from "./StatsPanel";
 import { YearInReviewModal } from "./YearInReviewModal";
+import { TopPicksMonthSection } from "./TopPicksMonthSection";
 
 export default function MyProfile() {
   const { session, profile, setProfile } = useAuth();
@@ -24,6 +25,7 @@ export default function MyProfile() {
   );
   const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [editingAbout, setEditingAbout] = useState(false);
   const [favorites, setFavorites] = useState<BacklogItem[]>([]);
   const [allItems, setAllItems] = useState<BacklogItem[]>([]);
   const [yearInReviewOpen, setYearInReviewOpen] = useState(false);
@@ -78,10 +80,24 @@ export default function MyProfile() {
     setSaving(false);
     if (updated) {
       setProfile(updated);
-      setNote("Saved.");
+      setEditingAbout(false);
     } else {
       setNote(error);
     }
+  }
+
+  function openEditAbout() {
+    setDisplayName(profile!.display_name);
+    setBio(profile!.bio ?? "");
+    setNote(null);
+    setEditingAbout(true);
+  }
+
+  function cancelEditAbout() {
+    setDisplayName(profile!.display_name);
+    setBio(profile!.bio ?? "");
+    setNote(null);
+    setEditingAbout(false);
   }
 
   return (
@@ -107,50 +123,83 @@ export default function MyProfile() {
       )}
 
       <section className="mt-10">
-        <h2 className="mb-4 font-serif text-xl font-semibold text-ink">
-          About you
-        </h2>
-        <div className="max-w-xl space-y-4 rounded-2xl border border-line bg-surface p-5">
-          <div>
-            <label htmlFor="displayName" className="mb-1.5 block text-sm font-medium text-ink">
-              Display name
-            </label>
-            <input
-              id="displayName"
-              value={displayName}
-              maxLength={40}
-              onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
-            />
-          </div>
-          <div>
-            <label htmlFor="bio" className="mb-1.5 block text-sm font-medium text-ink">
-              Bio
-            </label>
-            <textarea
-              id="bio"
-              value={bio}
-              maxLength={280}
-              rows={3}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="A line or two about your taste…"
-              className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-            />
-            <p className="mt-1 text-right text-xs text-muted">{bio.length}/280</p>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-sage">{note}</span>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-serif text-xl font-semibold text-ink">About you</h2>
+          {!editingAbout && (
             <button
               type="button"
-              onClick={handleSave}
-              disabled={saving || !dirty}
-              className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+              onClick={openEditAbout}
+              className="text-sm font-medium text-accent transition-colors hover:text-accent-hover"
             >
-              {saving && <SpinnerIcon className="h-4 w-4 animate-spin" />}
-              Save
+              Edit
             </button>
-          </div>
+          )}
         </div>
+
+        {editingAbout ? (
+          <div className="max-w-xl space-y-4 rounded-2xl border border-line bg-surface p-5">
+            <div>
+              <label htmlFor="displayName" className="mb-1.5 block text-sm font-medium text-ink">
+                Display name
+              </label>
+              <input
+                id="displayName"
+                value={displayName}
+                maxLength={40}
+                onChange={(e) => setDisplayName(e.target.value)}
+                className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+              />
+            </div>
+            <div>
+              <label htmlFor="bio" className="mb-1.5 block text-sm font-medium text-ink">
+                Bio
+              </label>
+              <textarea
+                id="bio"
+                value={bio}
+                maxLength={280}
+                rows={3}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="A line or two about your taste…"
+                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+              />
+              <p className="mt-1 text-right text-xs text-muted">{bio.length}/280</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-accent-hover">{note}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={cancelEditAbout}
+                  disabled={saving}
+                  className="rounded-full border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-ivory disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving || !dirty}
+                  className="flex items-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+                >
+                  {saving && <SpinnerIcon className="h-4 w-4 animate-spin" />}
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="max-w-xl rounded-2xl border border-line bg-surface p-5">
+            <p className="text-sm font-medium text-ink">{profile.display_name}</p>
+            {profile.bio ? (
+              <p className="mt-2 whitespace-pre-wrap text-[15px] leading-relaxed text-body">
+                {profile.bio}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm italic text-muted">No bio yet.</p>
+            )}
+          </div>
+        )}
       </section>
 
       {allItems.length > 0 && (
@@ -176,6 +225,8 @@ export default function MyProfile() {
         onClose={() => setYearInReviewOpen(false)}
         items={allItems}
       />
+
+      <TopPicksMonthSection userId={myId} />
 
       <section className="mt-10">
         <h2 className="mb-1 font-serif text-xl font-semibold text-ink">Favourites</h2>
