@@ -20,7 +20,9 @@ async function signUp(
   await page.getByLabel("Display name").fill(displayName);
   await page.getByLabel("Handle").fill(handle);
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "Games", exact: true })).toBeVisible({
+  // Onboarding lands on the homescreen now, not /games — "CI" is the first
+  // word of every display name passed in here, so this is deterministic.
+  await expect(page.getByRole("heading", { name: "Welcome back, CI" })).toBeVisible({
     timeout: 15_000,
   });
 }
