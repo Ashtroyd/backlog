@@ -25,7 +25,7 @@ export default function AppError({
         Something went wrong
       </h2>
       <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
-        This page hit a snag. Try again, or head back to your games.
+        This page hit a snag. Try again, or head back home.
       </p>
       <div className="mt-6 flex items-center gap-3">
         <button
@@ -36,10 +36,10 @@ export default function AppError({
           Try again
         </button>
         <Link
-          href="/games"
+          href="/"
           className="rounded-full border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-ivory"
         >
-          Go to Games
+          Go home
         </Link>
       </div>
     </div>

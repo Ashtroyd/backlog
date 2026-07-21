@@ -148,7 +148,7 @@ export default function Nav() {
     <header className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur-md">
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 sm:h-16 sm:flex-nowrap sm:gap-x-4 sm:gap-y-0 sm:px-6 sm:py-0">
         <Link
-          href="/games"
+          href="/"
           className="order-1 shrink-0 font-serif text-xl font-semibold tracking-tight text-ink"
         >
           Backlog<span className="text-accent">.</span>

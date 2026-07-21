@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     short_name: "Backlog",
     description:
       "Your games, movies, series and anime — what's next, what's in progress, what's done.",
-    start_url: "/games",
+    start_url: "/",
     display: "standalone",
     background_color: "#faf9f5",
     theme_color: "#faf9f5",

@@ -502,6 +502,33 @@ export async function addItemToLibrary(
   return { error: null };
 }
 
+/* ---------- homescreen ---------- */
+
+/** Every item in the signed-in user's library, across all media types. */
+export async function fetchAllMyItems(userId: string): Promise<BacklogItem[]> {
+  const { data } = await supabase
+    .from("items")
+    .select("*")
+    .eq("user_id", userId)
+    .order("title", { ascending: true });
+  return (data as BacklogItem[]) ?? [];
+}
+
+/** The user's most recently-written reviews or current-thoughts, across all media types. */
+export async function fetchRecentReviews(
+  userId: string,
+  limit = 6,
+): Promise<BacklogItem[]> {
+  const { data } = await supabase
+    .from("items")
+    .select("*")
+    .eq("user_id", userId)
+    .or("review.not.is.null,current_thoughts.not.is.null")
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+  return (data as BacklogItem[]) ?? [];
+}
+
 /* ---------- backup ---------- */
 
 /** Downloads the whole cloud library as a JSON backup file. */
