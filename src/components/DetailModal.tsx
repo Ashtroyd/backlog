@@ -29,8 +29,9 @@ import {
 } from "./icons";
 
 /** A typed/dated field stays read-only behind this button until clicked, or
-    the item is completed — at which point it's directly editable, matching
-    the rating/review fields below. */
+    the title was just marked Completed this session — at which point it's
+    directly editable so wrapping up a title doesn't take an extra click per
+    field. Reopening an already-completed title later goes back to Edit. */
 function EditToggle({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -104,11 +105,19 @@ export function DetailModal({
   const [editingHours, setEditingHours] = useState(false);
   const [editingThoughts, setEditingThoughts] = useState(false);
   const [editingNotes, setEditingNotes] = useState(false);
+  const [editingRating, setEditingRating] = useState(false);
+  const [editingReview, setEditingReview] = useState(false);
+
+  // The status this title had when the modal opened, so we can tell "just
+  // marked Completed in this session" (fields open right up) apart from
+  // "already completed, reopened later" (fields stay behind Edit).
+  const [initialStatus, setInitialStatus] = useState<ItemStatus>("backlog");
 
   useEffect(() => {
     if (item) {
       setSnapshot(item);
       setStatus(item.status);
+      setInitialStatus(item.status);
       setRating(item.rating);
       setReview(item.review ?? "");
       setIsPrivate(item.is_private);
@@ -124,6 +133,8 @@ export function DetailModal({
       setEditingHours(false);
       setEditingThoughts(false);
       setEditingNotes(false);
+      setEditingRating(false);
+      setEditingReview(false);
     }
   }, [item]);
 
@@ -175,6 +186,10 @@ export function DetailModal({
   }, [item, myId]);
 
   const current = item ?? snapshot;
+
+  // True only for the session where the status pill was just moved to
+  // Completed — not for a title that was already completed on open.
+  const justCompleted = status === "completed" && initialStatus !== "completed";
 
   const isEpisodic =
     section.mediaType === "series" || section.mediaType === "anime";
@@ -347,11 +362,11 @@ export function DetailModal({
                         <p className="text-xs font-medium uppercase tracking-wide text-muted">
                           {section.startedLabel}
                         </p>
-                        {status !== "completed" && !editingStarted && (
+                        {!justCompleted && !editingStarted && (
                           <EditToggle onClick={() => setEditingStarted(true)} />
                         )}
                       </div>
-                      {status === "completed" || editingStarted ? (
+                      {justCompleted || editingStarted ? (
                         <div className="flex items-center gap-2">
                           <input
                             type="date"
@@ -396,7 +411,7 @@ export function DetailModal({
                         <p className="text-xs font-medium uppercase tracking-wide text-muted">
                           {isEpisodic ? "Episodes watched" : "Hours played"}
                         </p>
-                        {!isEpisodic && status !== "completed" && !editingHours && (
+                        {!isEpisodic && !justCompleted && !editingHours && (
                           <EditToggle onClick={() => setEditingHours(true)} />
                         )}
                       </div>
@@ -423,7 +438,7 @@ export function DetailModal({
                             +
                           </button>
                         </div>
-                      ) : status === "completed" || editingHours ? (
+                      ) : justCompleted || editingHours ? (
                         <input
                           type="number"
                           min={0}
@@ -504,23 +519,44 @@ export function DetailModal({
                   >
                     <div className="mt-5 space-y-4 pt-1">
                       <div>
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                          Your rating
-                        </p>
-                        <StarRating value={rating} onChange={setRating} size={26} />
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                            Your rating
+                          </p>
+                          {!justCompleted && !editingRating && (
+                            <EditToggle onClick={() => setEditingRating(true)} />
+                          )}
+                        </div>
+                        {justCompleted || editingRating ? (
+                          <StarRating value={rating} onChange={setRating} size={26} />
+                        ) : (
+                          <StarRating value={rating} size={26} />
+                        )}
                       </div>
                       <div>
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                          Your review
-                        </p>
-                        <textarea
-                          value={review}
-                          onChange={(e) => setReview(e.target.value)}
-                          rows={4}
-                          placeholder="What did you think?"
-                          aria-label="Your review"
-                          className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                        />
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                            Your review
+                          </p>
+                          {!justCompleted && !editingReview && (
+                            <EditToggle onClick={() => setEditingReview(true)} />
+                          )}
+                        </div>
+                        {justCompleted || editingReview ? (
+                          <textarea
+                            value={review}
+                            onChange={(e) => setReview(e.target.value)}
+                            rows={4}
+                            placeholder="What did you think?"
+                            aria-label="Your review"
+                            autoFocus={editingReview}
+                            className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                          />
+                        ) : (
+                          <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-body">
+                            {review || "No review yet"}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -533,11 +569,11 @@ export function DetailModal({
                     <EyeOffIcon className="h-3 w-3" />
                     Private notes
                   </p>
-                  {status !== "completed" && !editingNotes && (
+                  {!justCompleted && !editingNotes && (
                     <EditToggle onClick={() => setEditingNotes(true)} />
                   )}
                 </div>
-                {status === "completed" || editingNotes ? (
+                {justCompleted || editingNotes ? (
                   <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
