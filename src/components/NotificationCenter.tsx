@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/backlog-store";
 import {
   acceptRequest,
   activityVerb,
+  clearNotifications,
   fetchActivity,
   fetchConnections,
   fetchNotifications,
@@ -19,6 +20,7 @@ import {
 import { statusLabelFor } from "@/lib/sections";
 import { supabase } from "@/lib/supabase";
 import { timeAgo } from "@/lib/format";
+import { toast } from "@/lib/toast-bus";
 import { useDismissableMenu } from "@/lib/use-dismissable-menu";
 import { Avatar } from "./Avatar";
 import { StarRating } from "./StarRating";
@@ -26,6 +28,10 @@ import { ReviewCommentsModal } from "./ReviewCommentsModal";
 import { BellIcon, CheckIcon, XIcon } from "./icons";
 
 const SEEN_KEY = "backlog:activitySeen";
+// Friends' activity has no per-user record to delete (it's derived live from
+// their items), so "Clear" just hides anything at/before this moment — new
+// updates from friends still show up afterward.
+const CLEARED_KEY = "backlog:activityClearedBefore";
 
 type Tab = "requests" | "activity";
 
@@ -40,6 +46,7 @@ export function NotificationCenter() {
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [lastSeen, setLastSeen] = useState<number>(0);
+  const [clearedBefore, setClearedBefore] = useState<number>(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
 
@@ -61,6 +68,7 @@ export function NotificationCenter() {
   useEffect(() => {
     try {
       setLastSeen(Number(localStorage.getItem(SEEN_KEY) ?? 0));
+      setClearedBefore(Number(localStorage.getItem(CLEARED_KEY) ?? 0));
     } catch {
       // ignore
     }
@@ -90,11 +98,30 @@ export function NotificationCenter() {
     if (open) load();
   }, [open, load]);
 
-  const newActivity = activity.filter(
+  const visibleActivity = activity.filter(
+    (a) => new Date(a.item.updated_at).getTime() > clearedBefore,
+  );
+  const newActivity = visibleActivity.filter(
     (a) => new Date(a.item.updated_at).getTime() > lastSeen,
   ).length;
   const unreadNotifs = notifications.filter((n) => !n.read_at).length;
   const badge = incoming.length + unreadNotifs;
+
+  async function handleClear() {
+    if (!myId) return;
+    const now = Date.now();
+    try {
+      localStorage.setItem(CLEARED_KEY, String(now));
+      localStorage.setItem(SEEN_KEY, String(now));
+    } catch {
+      // ignore
+    }
+    setClearedBefore(now);
+    setLastSeen(now);
+    setNotifications([]);
+    const error = await clearNotifications(myId);
+    if (error) toast("error", "Couldn't clear activity — check your connection.");
+  }
 
   function openTab(next: Tab) {
     setTab(next);
@@ -190,6 +217,18 @@ export function NotificationCenter() {
                 />
               </div>
 
+              {tab === "activity" && (notifications.length > 0 || visibleActivity.length > 0) && (
+                <div className="flex justify-end border-b border-line px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    className="rounded-full px-2.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+
               <div className="max-h-[60vh] overflow-y-auto p-2">
                 {tab === "requests" ? (
                   incoming.length === 0 ? (
@@ -238,7 +277,7 @@ export function NotificationCenter() {
                       ))}
                     </ul>
                   )
-                ) : notifications.length === 0 && activity.length === 0 ? (
+                ) : notifications.length === 0 && visibleActivity.length === 0 ? (
                   <Empty
                     text={
                       friends.length
@@ -279,13 +318,13 @@ export function NotificationCenter() {
                       </button>
                     ))}
 
-                    {notifications.length > 0 && activity.length > 0 && (
+                    {notifications.length > 0 && visibleActivity.length > 0 && (
                       <p className="px-2 pb-1 pt-3 text-xs font-medium uppercase tracking-wide text-muted">
                         Friends&apos; activity
                       </p>
                     )}
 
-                    {activity.map((a) => {
+                    {visibleActivity.map((a) => {
                       const { verb, showStars } = activityVerb(a.item);
                       return (
                         <Link

@@ -398,6 +398,12 @@ export async function markNotificationsRead(ids: string[]): Promise<void> {
     .in("id", ids);
 }
 
+/** Deletes all of the signed-in user's own notifications (the Activity tab's Clear button). */
+export async function clearNotifications(myId: string): Promise<string | null> {
+  const { error } = await supabase.from("notifications").delete().eq("recipient_id", myId);
+  return error?.message ?? null;
+}
+
 /* ---------- profile editing ---------- */
 
 export type ProfilePatch = Partial<
