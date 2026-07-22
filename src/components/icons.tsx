@@ -283,3 +283,20 @@ export function SpinnerIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function SharedIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="9" cy="12" r="6.5" />
+      <circle cx="15" cy="12" r="6.5" />
+    </svg>
+  );
+}
+
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M15 5.5 8.5 12l6.5 6.5" />
+    </svg>
+  );
+}

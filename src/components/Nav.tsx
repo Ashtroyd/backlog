@@ -22,6 +22,7 @@ import {
   DownloadIcon,
   LogoutIcon,
   MenuIcon,
+  SharedIcon,
   UploadIcon,
   UsersIcon,
 } from "./icons";
@@ -46,6 +47,7 @@ export default function Nav() {
   const friendsActive = pathname === "/friends" || pathname.startsWith("/friends/");
   const messagesActive =
     pathname === "/messages" || pathname.startsWith("/messages/");
+  const sharedActive = pathname === "/shared" || pathname.startsWith("/shared/");
 
   const [unreadMsgs, setUnreadMsgs] = useState(0);
   const [backupOpen, setBackupOpen] = useState(false);
@@ -177,6 +179,17 @@ export default function Nav() {
           >
             <ChatIcon className="h-[18px] w-[18px]" />
             <Badge count={unreadMsgs} />
+          </Link>
+
+          <Link
+            href="/shared"
+            title="Shared backlog"
+            aria-label="Shared backlog"
+            className={`hidden sm:flex ${iconButton} ${
+              sharedActive ? "bg-ivory text-ink" : "text-muted"
+            }`}
+          >
+            <SharedIcon className="h-[18px] w-[18px]" />
           </Link>
 
           <NotificationCenter />
@@ -323,6 +336,10 @@ export default function Nav() {
                           {unreadMsgs > 9 ? "9+" : unreadMsgs}
                         </span>
                       )}
+                    </Link>
+                    <Link href="/shared" className={menuItem}>
+                      <SharedIcon className="h-4 w-4 text-muted" />
+                      Shared backlog
                     </Link>
 
                     <div className="my-1 h-px bg-line" />
