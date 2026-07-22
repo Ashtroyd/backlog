@@ -45,6 +45,39 @@ function EditToggle({ onClick }: { onClick: () => void }) {
   );
 }
 
+/** Label + Edit toggle above either `editor` (when `open`) or the read-only
+    `display`. `open` is up to the caller — usually `justCompleted || editing`,
+    so the field opens right up the session a title is completed and falls
+    back to Edit on every later visit. */
+function EditableField({
+  label,
+  icon,
+  open,
+  onEdit,
+  editor,
+  display,
+}: {
+  label: React.ReactNode;
+  icon?: React.ReactNode;
+  open: boolean;
+  onEdit: () => void;
+  editor: React.ReactNode;
+  display: React.ReactNode;
+}) {
+  return (
+    <>
+      <div className="mb-2 flex items-center justify-between">
+        <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
+          {icon}
+          {label}
+        </p>
+        {!open && <EditToggle onClick={onEdit} />}
+      </div>
+      {open ? editor : display}
+    </>
+  );
+}
+
 /** Details are re-fetched when unreleased, or last refreshed over 30 days ago. */
 function isStale(item: BacklogItem): boolean {
   const currentYear = new Date().getFullYear();
@@ -358,39 +391,37 @@ export function DetailModal({
                     className="overflow-hidden"
                   >
                     <div className="mt-5 pt-1">
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                          {section.startedLabel}
-                        </p>
-                        {!justCompleted && !editingStarted && (
-                          <EditToggle onClick={() => setEditingStarted(true)} />
-                        )}
-                      </div>
-                      {justCompleted || editingStarted ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="date"
-                            value={startedAt}
-                            max={todayISODate()}
-                            onChange={(e) => setStartedAt(e.target.value)}
-                            aria-label={section.startedLabel}
-                            className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
-                          />
-                          {startedAt && (
-                            <button
-                              type="button"
-                              onClick={() => setStartedAt("")}
-                              className="rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
-                            >
-                              Clear
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-[15px] text-ink">
-                          {startedAt ? formatDate(startedAt) : "Not set"}
-                        </p>
-                      )}
+                      <EditableField
+                        label={section.startedLabel}
+                        open={justCompleted || editingStarted}
+                        onEdit={() => setEditingStarted(true)}
+                        editor={
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="date"
+                              value={startedAt}
+                              max={todayISODate()}
+                              onChange={(e) => setStartedAt(e.target.value)}
+                              aria-label={section.startedLabel}
+                              className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                            />
+                            {startedAt && (
+                              <button
+                                type="button"
+                                onClick={() => setStartedAt("")}
+                                className="rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+                        }
+                        display={
+                          <p className="text-[15px] text-ink">
+                            {startedAt ? formatDate(startedAt) : "Not set"}
+                          </p>
+                        }
+                      />
                     </div>
                   </motion.div>
                 )}
@@ -407,53 +438,53 @@ export function DetailModal({
                     className="overflow-hidden"
                   >
                     <div className="mt-5 pt-1">
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                          {isEpisodic ? "Episodes watched" : "Hours played"}
-                        </p>
-                        {!isEpisodic && !justCompleted && !editingHours && (
-                          <EditToggle onClick={() => setEditingHours(true)} />
-                        )}
-                      </div>
-                      {isEpisodic ? (
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => stepEpisodes(-1)}
-                            aria-label="Decrease episodes watched"
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
-                          >
-                            −
-                          </button>
-                          <span className="min-w-[6rem] text-center text-[15px] tabular-nums text-ink">
-                            {episodes || "0"}
-                            {totalEpisodes != null ? ` of ${totalEpisodes}` : ""}
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => stepEpisodes(1)}
-                            aria-label="Increase episodes watched"
-                            className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
-                          >
-                            +
-                          </button>
-                        </div>
-                      ) : justCompleted || editingHours ? (
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.5"
-                          value={hours}
-                          onChange={(e) => setHours(e.target.value)}
-                          placeholder="0"
-                          aria-label="Hours played"
-                          className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
-                        />
-                      ) : (
-                        <p className="text-[15px] text-ink">
-                          {hours ? `${hours} hrs` : "Not tracked"}
-                        </p>
-                      )}
+                      <EditableField
+                        label={isEpisodic ? "Episodes watched" : "Hours played"}
+                        open={isEpisodic || justCompleted || editingHours}
+                        onEdit={() => setEditingHours(true)}
+                        editor={
+                          isEpisodic ? (
+                            <div className="flex items-center gap-3">
+                              <button
+                                type="button"
+                                onClick={() => stepEpisodes(-1)}
+                                aria-label="Decrease episodes watched"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
+                              >
+                                −
+                              </button>
+                              <span className="min-w-[6rem] text-center text-[15px] tabular-nums text-ink">
+                                {episodes || "0"}
+                                {totalEpisodes != null ? ` of ${totalEpisodes}` : ""}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => stepEpisodes(1)}
+                                aria-label="Increase episodes watched"
+                                className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
+                              >
+                                +
+                              </button>
+                            </div>
+                          ) : (
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.5"
+                              value={hours}
+                              onChange={(e) => setHours(e.target.value)}
+                              placeholder="0"
+                              aria-label="Hours played"
+                              className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                            />
+                          )
+                        }
+                        display={
+                          <p className="text-[15px] text-ink">
+                            {hours ? `${hours} hrs` : "Not tracked"}
+                          </p>
+                        }
+                      />
                     </div>
                   </motion.div>
                 )}
@@ -470,38 +501,36 @@ export function DetailModal({
                     className="overflow-hidden"
                   >
                     <div className="mt-5 pt-1">
-                      <div className="mb-2 flex items-center justify-between">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                          Current thoughts
-                        </p>
-                        {!editingThoughts && (
-                          <EditToggle onClick={() => setEditingThoughts(true)} />
-                        )}
-                      </div>
-                      {editingThoughts ? (
-                        <>
-                          <textarea
-                            value={currentThoughts}
-                            onChange={(e) => setCurrentThoughts(e.target.value)}
-                            rows={3}
-                            placeholder={
-                              liveService
-                                ? "This one doesn't really end — what's your take right now?"
-                                : "Not finished yet, but what's the verdict so far?"
-                            }
-                            aria-label="Current thoughts"
-                            autoFocus
-                            className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                          />
-                          <p className="mt-1.5 text-xs text-muted">
-                            Visible to friends, like a review — unless you hide this title below.
+                      <EditableField
+                        label="Current thoughts"
+                        open={editingThoughts}
+                        onEdit={() => setEditingThoughts(true)}
+                        editor={
+                          <>
+                            <textarea
+                              value={currentThoughts}
+                              onChange={(e) => setCurrentThoughts(e.target.value)}
+                              rows={3}
+                              placeholder={
+                                liveService
+                                  ? "This one doesn't really end — what's your take right now?"
+                                  : "Not finished yet, but what's the verdict so far?"
+                              }
+                              aria-label="Current thoughts"
+                              autoFocus
+                              className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                            />
+                            <p className="mt-1.5 text-xs text-muted">
+                              Visible to friends, like a review — unless you hide this title below.
+                            </p>
+                          </>
+                        }
+                        display={
+                          <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
+                            {currentThoughts || "Nothing yet"}
                           </p>
-                        </>
-                      ) : (
-                        <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
-                          {currentThoughts || "Nothing yet"}
-                        </p>
-                      )}
+                        }
+                      />
                     </div>
                   </motion.div>
                 )}
@@ -519,44 +548,36 @@ export function DetailModal({
                   >
                     <div className="mt-5 space-y-4 pt-1">
                       <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                            Your rating
-                          </p>
-                          {!justCompleted && !editingRating && (
-                            <EditToggle onClick={() => setEditingRating(true)} />
-                          )}
-                        </div>
-                        {justCompleted || editingRating ? (
-                          <StarRating value={rating} onChange={setRating} size={26} />
-                        ) : (
-                          <StarRating value={rating} size={26} />
-                        )}
+                        <EditableField
+                          label="Your rating"
+                          open={justCompleted || editingRating}
+                          onEdit={() => setEditingRating(true)}
+                          editor={<StarRating value={rating} onChange={setRating} size={26} />}
+                          display={<StarRating value={rating} size={26} />}
+                        />
                       </div>
                       <div>
-                        <div className="mb-2 flex items-center justify-between">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                            Your review
-                          </p>
-                          {!justCompleted && !editingReview && (
-                            <EditToggle onClick={() => setEditingReview(true)} />
-                          )}
-                        </div>
-                        {justCompleted || editingReview ? (
-                          <textarea
-                            value={review}
-                            onChange={(e) => setReview(e.target.value)}
-                            rows={4}
-                            placeholder="What did you think?"
-                            aria-label="Your review"
-                            autoFocus={editingReview}
-                            className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                          />
-                        ) : (
-                          <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-body">
-                            {review || "No review yet"}
-                          </p>
-                        )}
+                        <EditableField
+                          label="Your review"
+                          open={justCompleted || editingReview}
+                          onEdit={() => setEditingReview(true)}
+                          editor={
+                            <textarea
+                              value={review}
+                              onChange={(e) => setReview(e.target.value)}
+                              rows={4}
+                              placeholder="What did you think?"
+                              aria-label="Your review"
+                              autoFocus={editingReview}
+                              className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                            />
+                          }
+                          display={
+                            <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-body">
+                              {review || "No review yet"}
+                            </p>
+                          }
+                        />
                       </div>
                     </div>
                   </motion.div>
@@ -564,30 +585,28 @@ export function DetailModal({
               </AnimatePresence>
 
               <div className="mt-5">
-                <div className="mb-2 flex items-center justify-between">
-                  <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
-                    <EyeOffIcon className="h-3 w-3" />
-                    Private notes
-                  </p>
-                  {!justCompleted && !editingNotes && (
-                    <EditToggle onClick={() => setEditingNotes(true)} />
-                  )}
-                </div>
-                {justCompleted || editingNotes ? (
-                  <textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    rows={3}
-                    placeholder="Only you can see this — jot down anything worth remembering."
-                    aria-label="Private notes"
-                    autoFocus={editingNotes}
-                    className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                  />
-                ) : (
-                  <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
-                    {notes || "No notes yet"}
-                  </p>
-                )}
+                <EditableField
+                  label="Private notes"
+                  icon={<EyeOffIcon className="h-3 w-3" />}
+                  open={justCompleted || editingNotes}
+                  onEdit={() => setEditingNotes(true)}
+                  editor={
+                    <textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      rows={3}
+                      placeholder="Only you can see this — jot down anything worth remembering."
+                      aria-label="Private notes"
+                      autoFocus={editingNotes}
+                      className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                    />
+                  }
+                  display={
+                    <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
+                      {notes || "No notes yet"}
+                    </p>
+                  }
+                />
               </div>
 
               {/* Friends who also have this title */}

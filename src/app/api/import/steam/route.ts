@@ -17,7 +17,11 @@ export type SteamImportGame = {
   hoursPlayed: number | null;
 };
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+interface SteamOwnedGame {
+  appid: number | string;
+  name: string;
+  playtime_forever?: number;
+}
 
 const steamPortrait = (appid: string) =>
   `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}/library_600x900.jpg`;
@@ -50,7 +54,7 @@ export async function GET(request: NextRequest) {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return NextResponse.json({ error: "fetch_failed" }, { status: 502 });
     const data = await res.json();
-    const games = data?.response?.games as any[] | undefined;
+    const games = data?.response?.games as SteamOwnedGame[] | undefined;
 
     if (!games) {
       return NextResponse.json(

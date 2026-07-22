@@ -31,7 +31,16 @@ const STATUS_MAP: Record<number, ItemStatus> = {
 const PAGE_SIZE = 300;
 const MAX_ENTRIES = 3000;
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+interface MalListEntry {
+  anime_id: number;
+  anime_title?: string;
+  anime_title_eng?: string | null;
+  anime_image_path?: string;
+  anime_num_episodes?: number;
+  num_watched_episodes?: number;
+  status: number;
+  score?: number;
+}
 
 export async function GET(request: NextRequest) {
   const username = request.nextUrl.searchParams.get("username")?.trim() ?? "";
@@ -47,7 +56,7 @@ export async function GET(request: NextRequest) {
     );
 
   try {
-    const entries: any[] = [];
+    const entries: MalListEntry[] = [];
     for (let offset = 0; offset < MAX_ENTRIES; offset += PAGE_SIZE) {
       const url = `https://myanimelist.net/animelist/${encodeURIComponent(username)}/load.json?status=7&offset=${offset}`;
       const res = await fetch(url, {
@@ -75,9 +84,9 @@ export async function GET(request: NextRequest) {
 
     const results: MalImportAnime[] = entries
       .filter((e) => e && e.anime_id != null)
-      .map((e: any): MalImportAnime => ({
+      .map((e): MalImportAnime => ({
         malId: String(e.anime_id),
-        title: (e.anime_title_eng?.trim() || e.anime_title || "Untitled") as string,
+        title: e.anime_title_eng?.trim() || e.anime_title || "Untitled",
         coverUrl: e.anime_image_path
           ? String(e.anime_image_path).replace(/\/r\/\d+x\d+\//, "/")
           : null,

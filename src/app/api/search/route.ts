@@ -53,8 +53,6 @@ function dedupe(results: SearchResult[]): SearchResult[] {
   );
 }
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 /* ---------- games: Steam ∪ IMDb ----------
  * Steam is exhaustive for PC but has no console exclusives; IMDb covers every
  * platform but misses some tiny indies. We search both and merge on title.
@@ -83,18 +81,34 @@ function baseTitle(s: string): string {
   return normTitle(s).replace(EDITION_SUFFIX, "").trim();
 }
 
+interface SteamStoreSearchItem {
+  type: string;
+  id: number | string;
+  name: string;
+  metascore?: number | string | null;
+}
+
+interface ImdbSuggestionItem {
+  id: string;
+  l: string;
+  q?: string;
+  y?: number | null;
+  s?: string | null;
+  i?: { imageUrl?: string };
+}
+
 const steamPortrait = (appid: string | number) =>
   `https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${appid}/library_600x900.jpg`;
 
-async function steamGames(q: string) {
+async function steamGames(q: string): Promise<SteamStoreSearchItem[]> {
   try {
     const res = await fetch(
       `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(q)}&l=english&cc=GB`,
-      { cache: "no-store" },
+      { next: { revalidate: 600 } },
     );
     if (!res.ok) return [];
     const data = await res.json();
-    return ((data.items ?? []) as any[]).filter(
+    return ((data.items ?? []) as SteamStoreSearchItem[]).filter(
       (g) => g.type === "app" && !STEAM_NOISE.test(g.name ?? ""),
     );
   } catch {
@@ -102,16 +116,16 @@ async function steamGames(q: string) {
   }
 }
 
-async function imdbGames(q: string) {
+async function imdbGames(q: string): Promise<ImdbSuggestionItem[]> {
   try {
     const lowered = q.toLowerCase();
     const res = await fetch(
       `https://v3.sg.media-imdb.com/suggestion/${encodeURIComponent(lowered[0])}/${encodeURIComponent(lowered)}.json`,
-      { cache: "no-store" },
+      { next: { revalidate: 600 } },
     );
     if (!res.ok) return [];
     const data = await res.json();
-    return ((data.d ?? []) as any[]).filter(
+    return ((data.d ?? []) as ImdbSuggestionItem[]).filter(
       (m) => typeof m.id === "string" && m.id.startsWith("tt") && m.q === "video game",
     );
   } catch {
@@ -123,14 +137,14 @@ async function searchGames(q: string): Promise<SearchResult[]> {
   const [steam, imdb] = await Promise.all([steamGames(q), imdbGames(q)]);
 
   // Index Steam by base title so IMDb entries can claim their Steam twin.
-  const steamByTitle = new Map<string, any>();
+  const steamByTitle = new Map<string, SteamStoreSearchItem>();
   for (const g of steam) {
     const key = baseTitle(g.name);
     if (!steamByTitle.has(key)) steamByTitle.set(key, g);
   }
 
   const results: SearchResult[] = [];
-  const claimed = new Set<any>();
+  const claimed = new Set<SteamStoreSearchItem>();
 
   for (const m of imdb) {
     const twin = steamByTitle.get(baseTitle(m.l));
@@ -192,19 +206,19 @@ async function searchGames(q: string): Promise<SearchResult[]> {
 async function searchMovies(q: string): Promise<SearchResult[]> {
   const lowered = q.toLowerCase();
   const url = `https://v3.sg.media-imdb.com/suggestion/${encodeURIComponent(lowered[0])}/${encodeURIComponent(lowered)}.json`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { next: { revalidate: 600 } });
   if (!res.ok) throw new Error(`IMDb ${res.status}`);
   const data = await res.json();
 
-  return (data.d ?? [])
+  return ((data.d ?? []) as ImdbSuggestionItem[])
     .filter(
-      (m: any) =>
+      (m) =>
         typeof m.id === "string" &&
         m.id.startsWith("tt") &&
         (m.q === "feature" || m.q === "TV movie"),
     )
     .slice(0, 10)
-    .map((m: any): SearchResult => ({
+    .map((m): SearchResult => ({
       externalId: m.id,
       title: m.l,
       // Ask Amazon's CDN for a 400px-wide poster instead of the original.
@@ -219,13 +233,24 @@ async function searchMovies(q: string): Promise<SearchResult[]> {
     }));
 }
 
+interface TvMazeShow {
+  id: number;
+  name: string;
+  image?: { original?: string; medium?: string } | null;
+  premiered?: string | null;
+  genres?: string[];
+  rating?: { average?: number | null } | null;
+  network?: { name?: string } | null;
+  webChannel?: { name?: string } | null;
+}
+
 async function searchSeries(q: string): Promise<SearchResult[]> {
   const url = `https://api.tvmaze.com/search/shows?q=${encodeURIComponent(q)}`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { next: { revalidate: 600 } });
   if (!res.ok) throw new Error(`TVMaze ${res.status}`);
-  const data = await res.json();
+  const data = (await res.json()) as { show: TvMazeShow }[];
 
-  return (data ?? []).slice(0, 10).map(({ show }: any): SearchResult => ({
+  return (data ?? []).slice(0, 10).map(({ show }): SearchResult => ({
     externalId: String(show.id),
     title: show.name,
     coverUrl: show.image?.original ?? show.image?.medium ?? null,
@@ -254,14 +279,32 @@ async function searchAnime(q: string): Promise<SearchResult[]> {
   return searchAnimeKitsu(q);
 }
 
+interface KitsuMapping {
+  type: "mappings";
+  id: string;
+  attributes?: { externalSite?: string; externalId?: string };
+}
+
+interface KitsuAnime {
+  id: string;
+  attributes?: {
+    titles?: { en?: string };
+    canonicalTitle?: string;
+    posterImage?: { large?: string; medium?: string; original?: string };
+    startDate?: string;
+    episodeCount?: number | null;
+  };
+  relationships?: { mappings?: { data?: { id: string }[] } };
+}
+
 async function searchAnimeKitsu(q: string): Promise<SearchResult[]> {
   const url = `https://kitsu.io/api/edge/anime?filter%5Btext%5D=${encodeURIComponent(q)}&page%5Blimit%5D=10&include=mappings`;
   const res = await fetch(url, {
-    cache: "no-store",
+    next: { revalidate: 600 },
     headers: { Accept: "application/vnd.api+json" },
   });
   if (!res.ok) throw new Error(`Kitsu ${res.status}`);
-  const data = await res.json();
+  const data = (await res.json()) as { data?: KitsuAnime[]; included?: KitsuMapping[] };
 
   // mapping id -> MAL id, for stitching Kitsu results onto MAL identities.
   const malByMapping = new Map<string, string>();
@@ -274,9 +317,9 @@ async function searchAnimeKitsu(q: string): Promise<SearchResult[]> {
     }
   }
 
-  return ((data.data ?? []) as any[]).map((a): SearchResult => {
+  return (data.data ?? []).map((a): SearchResult => {
     const at = a.attributes ?? {};
-    const mappingRefs: { id: string }[] = a.relationships?.mappings?.data ?? [];
+    const mappingRefs = a.relationships?.mappings?.data ?? [];
     const malId = mappingRefs
       .map((r) => malByMapping.get(String(r.id)))
       .find(Boolean);
@@ -295,22 +338,35 @@ async function searchAnimeKitsu(q: string): Promise<SearchResult[]> {
   });
 }
 
+interface JikanAnime {
+  mal_id: number;
+  title: string;
+  title_english?: string | null;
+  images?: { jpg?: { large_image_url?: string; image_url?: string } };
+  year?: number | null;
+  aired?: { from?: string | null };
+  genres?: { name: string }[];
+  episodes?: number | null;
+  score?: number | null;
+  studios?: { name: string }[];
+}
+
 async function searchAnimeJikan(q: string): Promise<SearchResult[]> {
   const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=10&sfw=true`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { next: { revalidate: 600 } });
   if (!res.ok) throw new Error(`Jikan ${res.status}`);
-  const data = await res.json();
+  const data = (await res.json()) as { data?: JikanAnime[] };
 
-  return (data.data ?? []).map((a: any): SearchResult => ({
+  return (data.data ?? []).map((a): SearchResult => ({
     externalId: String(a.mal_id),
     title: a.title_english || a.title,
     coverUrl: a.images?.jpg?.large_image_url ?? a.images?.jpg?.image_url ?? null,
     year: a.year ?? (a.aired?.from ? Number(a.aired.from.slice(0, 4)) : null),
-    genres: (a.genres ?? []).slice(0, 3).map((g: any) => g.name),
+    genres: (a.genres ?? []).slice(0, 3).map((g) => g.name),
     meta: {
       episodes: a.episodes ?? null,
       malScore: a.score ?? null,
-      studios: (a.studios ?? []).map((s: any) => s.name),
+      studios: (a.studios ?? []).map((s) => s.name),
     },
   }));
 }
