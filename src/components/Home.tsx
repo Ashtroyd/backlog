@@ -20,6 +20,7 @@ import { DetailModal } from "./DetailModal";
 import { StarRating } from "./StarRating";
 import { RecommendationModal } from "./friends/RecommendationModal";
 import { TopPicksPicker } from "./TopPicksPicker";
+import { TrendingSection } from "./TrendingSection";
 import { PlusIcon } from "./icons";
 
 /**
@@ -187,6 +188,8 @@ export default function Home() {
           </Shelf>
         )}
       </HomeSection>
+
+      <TrendingSection userId={myId} />
 
       <DetailModal
         item={openItem}

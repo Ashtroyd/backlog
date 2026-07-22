@@ -1,19 +1,23 @@
-import type { BacklogItem } from "./types";
+import type { BacklogItem, ItemMeta } from "./types";
+
+/** Human-readable metadata chips (platforms, scores, episodes…) from raw item meta. */
+export function metaChips(meta: ItemMeta): string[] {
+  const chips: string[] = [];
+  if (meta.platforms?.length) chips.push(meta.platforms.join(" · "));
+  if (meta.metacritic) chips.push(`Metacritic ${meta.metacritic}`);
+  if (meta.stars) chips.push(meta.stars);
+  if (meta.tvmazeRating) chips.push(`TVMaze ${meta.tvmazeRating}`);
+  if (meta.network) chips.push(meta.network);
+  if (meta.episodes) chips.push(`${meta.episodes} episodes`);
+  if (meta.malScore) chips.push(`MAL ${meta.malScore}`);
+  if (meta.studios?.length) chips.push(meta.studios.join(", "));
+  return chips;
+}
 
 /** Human-readable metadata chips (platforms, scores, episodes…) for an item. */
 export function itemChips(item: BacklogItem | null): string[] {
   if (!item) return [];
-  const m = item.meta ?? {};
-  const chips: string[] = [];
-  if (m.platforms?.length) chips.push(m.platforms.join(" · "));
-  if (m.metacritic) chips.push(`Metacritic ${m.metacritic}`);
-  if (m.stars) chips.push(m.stars);
-  if (m.tvmazeRating) chips.push(`TVMaze ${m.tvmazeRating}`);
-  if (m.network) chips.push(m.network);
-  if (m.episodes) chips.push(`${m.episodes} episodes`);
-  if (m.malScore) chips.push(`MAL ${m.malScore}`);
-  if (m.studios?.length) chips.push(m.studios.join(", "));
-  return chips;
+  return metaChips(item.meta ?? {});
 }
 
 /**
