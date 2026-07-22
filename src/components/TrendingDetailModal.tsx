@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { metaChips } from "@/lib/chips";
 import type { Section } from "@/lib/sections";
 import type { SearchResult } from "@/lib/types";
 import { Modal } from "./Modal";
 import { CoverImage } from "./CoverImage";
 import { CheckIcon, PlusIcon, SpinnerIcon, XIcon } from "./icons";
+
+type Detail = { id: string; description: string | null; facts: string[] };
 
 /** What a trending title is, before you commit to adding it. */
 export function TrendingDetailModal({
@@ -25,6 +26,7 @@ export function TrendingDetailModal({
   const [snapshot, setSnapshot] = useState<{ result: SearchResult; section: Section } | null>(null);
   const [adding, setAdding] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const [detail, setDetail] = useState<Detail | null>(null);
 
   useEffect(() => {
     if (result && section) {
@@ -34,10 +36,30 @@ export function TrendingDetailModal({
     }
   }, [result, section]);
 
+  // Tagged by id, same as the trending list's own load state — a response
+  // for a title the user has since navigated away from is just ignored.
+  useEffect(() => {
+    if (!result || !section) return;
+    let alive = true;
+    fetch(`/api/trending/detail?type=${section.mediaType}&id=${encodeURIComponent(result.externalId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (alive) {
+          setDetail({ id: result.externalId, description: data.detail?.description ?? null, facts: data.detail?.facts ?? [] });
+        }
+      })
+      .catch(() => {
+        if (alive) setDetail({ id: result.externalId, description: null, facts: [] });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [result, section]);
+
   const current = result && section ? { result, section } : snapshot;
   if (!current) return null;
   const { result: r, section: s } = current;
-  const chips = metaChips(r.meta);
+  const loadedDetail = detail?.id === r.externalId ? detail : null;
 
   async function handleAdd() {
     setAdding(true);
@@ -79,11 +101,23 @@ export function TrendingDetailModal({
               {[r.year, r.genres.join(", ")].filter(Boolean).join(" · ")}
             </p>
 
-            {chips.length > 0 && (
+            {!loadedDetail && (
+              <div className="mt-3 animate-pulse space-y-1.5">
+                <div className="h-3 w-full rounded bg-ivory" />
+                <div className="h-3 w-full rounded bg-ivory" />
+                <div className="h-3 w-2/3 rounded bg-ivory" />
+              </div>
+            )}
+
+            {loadedDetail?.description && (
+              <p className="mt-3 text-sm leading-relaxed text-body">{loadedDetail.description}</p>
+            )}
+
+            {loadedDetail?.facts && loadedDetail.facts.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {chips.map((c) => (
-                  <span key={c} className="rounded-full bg-ivory px-2.5 py-1 text-xs text-body">
-                    {c}
+                {loadedDetail.facts.map((f) => (
+                  <span key={f} className="rounded-full bg-ivory px-2.5 py-1 text-xs text-body">
+                    {f}
                   </span>
                 ))}
               </div>
