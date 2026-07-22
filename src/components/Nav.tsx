@@ -337,10 +337,6 @@ export default function Nav() {
                         </span>
                       )}
                     </Link>
-                    <Link href="/shared" className={menuItem}>
-                      <SharedIcon className="h-4 w-4 text-muted" />
-                      Shared backlog
-                    </Link>
 
                     <div className="my-1 h-px bg-line" />
 

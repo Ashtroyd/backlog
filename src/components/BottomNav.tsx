@@ -4,7 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { SECTION_SLUGS, SECTIONS } from "@/lib/sections";
-import { HomeIcon, GamepadIcon, FilmIcon, TvIcon, SparklesIcon } from "./icons";
+import { HomeIcon, GamepadIcon, FilmIcon, TvIcon, SparklesIcon, SharedIcon } from "./icons";
 
 const SECTION_ICONS = {
   games: GamepadIcon,
@@ -20,6 +20,7 @@ const ITEMS = [
     label: SECTIONS[slug].label,
     Icon: SECTION_ICONS[slug],
   })),
+  { href: "/shared", label: "Shared", Icon: SharedIcon },
 ];
 
 type Rect = { left: number; width: number };
