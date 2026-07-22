@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
 interface SteamFeaturedItem {
   id: number;
   name: string;
+  header_image?: string;
 }
 
 const steamPortrait = (appid: string) =>
@@ -53,6 +54,18 @@ const steamPortrait = (appid: string) =>
 // games, with no field to tell them apart — the storefront just has a
 // handful of these, so a name denylist is the pragmatic fix.
 const STEAM_HARDWARE = new Set(["Steam Machine", "Steam Controller", "Steam Deck", "Steam Link"]);
+
+/** The guessed portrait 404s for plenty of titles — same fallback the add flow already uses (fetchSteamDetail). */
+async function resolveSteamCover(appid: string, headerImage?: string): Promise<string | null> {
+  const portrait = steamPortrait(appid);
+  try {
+    const head = await fetch(portrait, { method: "HEAD", next: { revalidate: REVALIDATE } });
+    if (head.ok) return portrait;
+  } catch {
+    // fall through to header image
+  }
+  return headerImage ?? null;
+}
 
 async function trendingGames(): Promise<SearchResult[]> {
   const res = await fetch("https://store.steampowered.com/api/featuredcategories?cc=us&l=en", {
@@ -66,20 +79,24 @@ async function trendingGames(): Promise<SearchResult[]> {
 
   const merged = [...(data.top_sellers?.items ?? []), ...(data.specials?.items ?? [])];
   const seen = new Set<number>();
-  const results: SearchResult[] = [];
+  const games: SteamFeaturedItem[] = [];
   for (const g of merged) {
     if (seen.has(g.id) || STEAM_HARDWARE.has(g.name)) continue;
     seen.add(g.id);
-    results.push({
+    games.push(g);
+  }
+
+  const picked = games.slice(0, 15);
+  return Promise.all(
+    picked.map(async (g): Promise<SearchResult> => ({
       externalId: String(g.id),
       title: g.name,
-      coverUrl: steamPortrait(String(g.id)),
+      coverUrl: await resolveSteamCover(String(g.id), g.header_image),
       year: null,
       genres: [],
       meta: {},
-    });
-  }
-  return results.slice(0, 15);
+    })),
+  );
 }
 
 /* ---------- anime: Kitsu's trending chart, falling back to Jikan's airing season ---------- */
