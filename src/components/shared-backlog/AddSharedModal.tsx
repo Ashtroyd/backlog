@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/backlog-store";
 import { fetchConnections, type Connection } from "@/lib/social";
 import { addToSharedBacklog } from "@/lib/shared-backlog";
 import { SECTIONS, SECTION_SLUGS, type SectionSlug } from "@/lib/sections";
+import { toast } from "@/lib/toast-bus";
 import type { SearchResult } from "@/lib/types";
 import { Modal } from "@/components/Modal";
 import { CoverImage } from "@/components/CoverImage";
@@ -115,6 +116,8 @@ export function AddSharedModal({
     if (!error || error === "duplicate") {
       setSharedWith((prev) => new Set(prev).add(f.profile.id));
       onAdded();
+    } else {
+      toast("error", error);
     }
   }
 

@@ -35,7 +35,7 @@ create policy "shared items insertable by adder" on public.shared_items
   for insert to authenticated
   with check (
     added_by = (select auth.uid())
-    and public.are_friends((select auth.uid()), friend_id)
+    and private.are_friends((select auth.uid()), friend_id)
   );
 
 -- Either participant can update status (marking watched/played together).
