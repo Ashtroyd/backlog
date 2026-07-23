@@ -226,7 +226,9 @@ export default function MyProfile() {
         items={allItems}
       />
 
-      <TopPicksMonthSection userId={myId} />
+      <div className="mt-10">
+        <TopPicksMonthSection userId={myId} />
+      </div>
 
       <section className="mt-10">
         <h2 className="mb-1 font-serif text-xl font-semibold text-ink">Favourites</h2>

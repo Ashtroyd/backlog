@@ -5,12 +5,24 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SECTION_BY_MEDIA } from "@/lib/sections";
 import { currentMonth, fetchTopPicks, monthLabel, type TopPick } from "@/lib/top-picks";
-import type { BacklogItem } from "@/lib/types";
+import type { BacklogItem, Profile } from "@/lib/types";
+import { FriendItemModal } from "./FriendItemModal";
 
-/** The signed-in user's curated top picks, browsable month by month. */
-export function TopPicksMonthSection({ userId }: { userId: string }) {
+type FriendContext = { profile: Profile; myItemsByKey: Map<string, BacklogItem> };
+
+/** A user's curated top picks, browsable month by month. Pass `friend` when
+    viewing someone else's — cards then open a read-only modal instead of
+    navigating to your own section page. */
+export function TopPicksMonthSection({
+  userId,
+  friend,
+}: {
+  userId: string;
+  friend?: FriendContext;
+}) {
   const [month, setMonth] = useState(currentMonth());
   const [picks, setPicks] = useState<TopPick[] | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -21,8 +33,14 @@ export function TopPicksMonthSection({ userId }: { userId: string }) {
     };
   }, [userId, month]);
 
+  const selected = picks?.find((p) => p.item.id === openId)?.item ?? null;
+  const mineForSelected =
+    friend && selected
+      ? friend.myItemsByKey.get(`${selected.media_type}:${selected.external_id}`) ?? null
+      : null;
+
   return (
-    <section className="mt-10">
+    <section>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-serif text-xl font-semibold text-ink">Top picks</h2>
         <input
@@ -42,18 +60,31 @@ export function TopPicksMonthSection({ userId }: { userId: string }) {
       ) : (
         <div className="grid grid-cols-2 gap-x-5 gap-y-6 sm:grid-cols-5">
           {picks.map((p) => (
-            <TopPickCard key={p.id} item={p.item} />
+            <TopPickCard
+              key={p.id}
+              item={p.item}
+              onClick={friend ? () => setOpenId(p.item.id) : undefined}
+            />
           ))}
         </div>
+      )}
+
+      {friend && (
+        <FriendItemModal
+          item={selected}
+          profile={friend.profile}
+          mine={mineForSelected}
+          onClose={() => setOpenId(null)}
+        />
       )}
     </section>
   );
 }
 
-function TopPickCard({ item }: { item: BacklogItem }) {
+function TopPickCard({ item, onClick }: { item: BacklogItem; onClick?: () => void }) {
   const section = SECTION_BY_MEDIA[item.media_type];
-  return (
-    <Link href={`/${section.slug}`} className="block text-left">
+  const content = (
+    <>
       <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-ivory shadow-[0_1px_2px_rgba(38,37,33,0.06)]">
         {item.cover_url ? (
           <Image
@@ -71,6 +102,15 @@ function TopPickCard({ item }: { item: BacklogItem }) {
       </div>
       <p className="mt-2 truncate px-0.5 text-sm font-medium text-ink">{item.title}</p>
       <p className="truncate px-0.5 text-xs text-muted">{section.label}</p>
+    </>
+  );
+  return onClick ? (
+    <button type="button" onClick={onClick} className="block w-full text-left">
+      {content}
+    </button>
+  ) : (
+    <Link href={`/${section.slug}`} className="block text-left">
+      {content}
     </Link>
   );
 }

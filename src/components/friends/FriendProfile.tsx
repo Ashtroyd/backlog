@@ -21,6 +21,7 @@ import { FriendLibrary } from "./FriendLibrary";
 import { TasteMatchCard } from "./TasteMatchCard";
 import { ProfileHero } from "./ProfileHero";
 import { FavouritesRow } from "./FavouritesRow";
+import { TopPicksMonthSection } from "./TopPicksMonthSection";
 
 export default function FriendProfile({ username }: { username: string }) {
   const { session } = useAuth();
@@ -188,6 +189,10 @@ export default function FriendProfile({ username }: { username: string }) {
               <FavouritesRow favorites={theirFavorites} />
             </section>
           )}
+          <TopPicksMonthSection
+            userId={profile.id}
+            friend={relation === "friends" ? { profile, myItemsByKey } : undefined}
+          />
           {relation === "friends" && (
             <TasteMatchCard match={taste} friendName={profile.display_name} />
           )}

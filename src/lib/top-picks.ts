@@ -4,9 +4,9 @@ import { supabase } from "./supabase";
 import type { BacklogItem } from "./types";
 
 /**
- * A user's own curated "top picks" shelf for one calendar month (see
- * supabase/migrations/0011_top_picks.sql). Private to the owner — this isn't
- * a friend-visible feature, just a homescreen highlight reel.
+ * A user's curated "top picks" shelf for one calendar month (see
+ * supabase/migrations/0011_top_picks.sql and 0013_top_picks_friends_visible.sql).
+ * Editable by the owner only, but readable by accepted friends too.
  */
 export type TopPick = { id: string; position: number; item: BacklogItem };
 
@@ -34,6 +34,35 @@ export async function fetchTopPicks(
     .order("position", { ascending: true });
   const rows = (data as unknown as { id: string; position: number; item: BacklogItem | null }[]) ?? [];
   return rows.filter((r): r is TopPick => r.item != null);
+}
+
+/** Batched version of fetchTopPicks for a group of friends at once (e.g. the homescreen). */
+export async function fetchTopPicksForUsers(
+  userIds: string[],
+  month: string,
+): Promise<Map<string, TopPick[]>> {
+  const map = new Map<string, TopPick[]>();
+  if (!userIds.length) return map;
+  const { data } = await supabase
+    .from("top_picks")
+    .select("id,position,user_id,item:items(*)")
+    .in("user_id", userIds)
+    .eq("month", month)
+    .order("position", { ascending: true });
+  const rows =
+    (data as unknown as {
+      id: string;
+      position: number;
+      user_id: string;
+      item: BacklogItem | null;
+    }[]) ?? [];
+  for (const r of rows) {
+    if (!r.item) continue;
+    const list = map.get(r.user_id) ?? [];
+    list.push({ id: r.id, position: r.position, item: r.item });
+    map.set(r.user_id, list);
+  }
+  return map;
 }
 
 /** Replaces the whole shelf for this month with an ordered list of item ids (max 5). */

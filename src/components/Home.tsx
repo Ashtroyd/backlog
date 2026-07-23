@@ -11,17 +11,39 @@ import {
   type UpdatePatch,
 } from "@/lib/backlog-store";
 import { fetchConnections, fetchRecommendations, type Recommendation } from "@/lib/social";
-import { currentMonth, fetchTopPicks, monthLabel, type TopPick } from "@/lib/top-picks";
+import {
+  currentMonth,
+  fetchTopPicks,
+  fetchTopPicksForUsers,
+  monthLabel,
+  type TopPick,
+} from "@/lib/top-picks";
 import { SECTION_BY_MEDIA, SECTIONS, type Section } from "@/lib/sections";
 import { toast } from "@/lib/toast-bus";
-import type { BacklogItem } from "@/lib/types";
+import type { BacklogItem, Profile } from "@/lib/types";
+import { Avatar } from "./Avatar";
 import { CoverImage } from "./CoverImage";
 import { DetailModal } from "./DetailModal";
 import { StarRating } from "./StarRating";
+import { FriendItemModal } from "./friends/FriendItemModal";
 import { RecommendationModal } from "./friends/RecommendationModal";
 import { TopPicksPicker } from "./TopPicksPicker";
 import { TrendingSection } from "./TrendingSection";
 import { PlusIcon } from "./icons";
+
+type FriendPicks = { profile: Profile; picks: TopPick[] };
+
+// FriendItemModal always wants a Profile, but Home.tsx has no single friend
+// in scope until a pick is actually clicked — this stand-in is only ever
+// passed alongside a null item, which the modal never renders.
+const EMPTY_PROFILE: Profile = {
+  id: "",
+  username: "",
+  display_name: "",
+  avatar_url: null,
+  banner_url: null,
+  bio: null,
+};
 
 /**
  * The app's landing page: a few quiet, high-signal shelves rather than a
@@ -37,6 +59,10 @@ export default function Home() {
   const [recs, setRecs] = useState<Recommendation[] | null>(null);
   const [openRec, setOpenRec] = useState<Recommendation | null>(null);
   const [picks, setPicks] = useState<TopPick[] | null>(null);
+  const [friendPicks, setFriendPicks] = useState<FriendPicks[] | null>(null);
+  const [openFriendPick, setOpenFriendPick] = useState<{ item: BacklogItem; profile: Profile } | null>(
+    null,
+  );
   const [allItems, setAllItems] = useState<BacklogItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -87,9 +113,19 @@ export default function Home() {
   useEffect(() => {
     if (!myId) return;
     fetchRecentReviews(myId).then(setReviews);
-    fetchConnections(myId).then((c) => fetchRecommendations(myId, c.friends).then(setRecs));
+    fetchConnections(myId).then((c) => {
+      fetchRecommendations(myId, c.friends).then(setRecs);
+      const friendIds = c.friends.map((f) => f.profile.id);
+      fetchTopPicksForUsers(friendIds, month).then((byUser) => {
+        setFriendPicks(
+          c.friends
+            .map((f) => ({ profile: f.profile, picks: byUser.get(f.profile.id) ?? [] }))
+            .filter((f) => f.picks.length > 0),
+        );
+      });
+    });
     loadPicks();
-  }, [myId, loadPicks]);
+  }, [myId, month, loadPicks]);
 
   function openPicker() {
     if (!myId) return;
@@ -187,6 +223,34 @@ export default function Home() {
             ))}
           </Shelf>
         )}
+
+        {friendPicks && friendPicks.length > 0 && (
+          <div className="mt-8 space-y-6">
+            {friendPicks.map((f) => (
+              <div key={f.profile.id}>
+                <Link
+                  href={`/friends/${f.profile.username}`}
+                  className="mb-2.5 flex w-fit items-center gap-2 text-sm font-medium text-ink transition-colors hover:text-accent"
+                >
+                  <Avatar profile={f.profile} size={22} />
+                  {f.profile.display_name}
+                </Link>
+                <Shelf>
+                  {f.picks.map((p) => (
+                    <ShelfCard
+                      key={p.id}
+                      onClick={() => setOpenFriendPick({ item: p.item, profile: f.profile })}
+                      coverUrl={p.item.cover_url}
+                      title={p.item.title}
+                      ratingValue={p.item.rating}
+                      subtitle={SECTION_BY_MEDIA[p.item.media_type].label}
+                    />
+                  ))}
+                </Shelf>
+              </div>
+            ))}
+          </div>
+        )}
       </HomeSection>
 
       <TrendingSection userId={myId} />
@@ -197,6 +261,13 @@ export default function Home() {
         onClose={() => setOpenItem(null)}
         onUpdate={handleModalUpdate}
         onRemove={handleModalRemove}
+      />
+
+      <FriendItemModal
+        item={openFriendPick?.item ?? null}
+        profile={openFriendPick?.profile ?? EMPTY_PROFILE}
+        mine={null}
+        onClose={() => setOpenFriendPick(null)}
       />
 
       <RecommendationModal
