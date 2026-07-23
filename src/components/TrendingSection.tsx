@@ -125,7 +125,7 @@ export function TrendingSection({
       )}
 
       {!notice && results == null && (
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
           {[0, 1, 2, 3, 4].map((i) => (
             <div key={i} className="w-28 shrink-0 animate-pulse sm:w-32" style={{ animationDelay: `${i * 80}ms` }}>
               <div className="aspect-[2/3] rounded-xl bg-ivory" />
@@ -140,7 +140,7 @@ export function TrendingSection({
       )}
 
       {!notice && results && results.length > 0 && (
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
           {results.map((r) => {
             const isAdded = added.has(r.externalId);
             return (

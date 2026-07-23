@@ -76,3 +76,13 @@ body {
   outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
   outline-offset: 2px;
 }
+
+/* Horizontal shelves scroll by drag/swipe/trackpad; the OS scrollbar just
+   adds visual noise against the app's own chrome. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

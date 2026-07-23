@@ -467,7 +467,7 @@ function HomeSection({
 }
 
 function Shelf({ children }: { children: React.ReactNode }) {
-  return <div className="flex gap-4 overflow-x-auto pb-2">{children}</div>;
+  return <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2">{children}</div>;
 }
 
 function ShelfCard({

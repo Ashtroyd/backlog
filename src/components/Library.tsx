@@ -147,7 +147,7 @@ export default function Library({
             <PinIcon className="h-3.5 w-3.5" />
             Up next
           </h2>
-          <div className="flex gap-4 overflow-x-auto pb-2">
+          <div className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
             {pinned.map((item, i) => (
               <div key={item.id} className="w-28 shrink-0 sm:w-32">
                 <ItemCard
