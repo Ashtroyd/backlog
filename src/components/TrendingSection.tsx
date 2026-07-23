@@ -125,9 +125,9 @@ export function TrendingSection({
       )}
 
       {!notice && results == null && (
-        <div className="shelf-scrollbar flex gap-4 overflow-x-auto pb-2">
+        <div className="shelf-scrollbar flex snap-x snap-proximity gap-4 overflow-x-auto pb-2">
           {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="w-28 shrink-0 animate-pulse sm:w-32" style={{ animationDelay: `${i * 80}ms` }}>
+            <div key={i} className="w-28 shrink-0 snap-start animate-pulse sm:w-32" style={{ animationDelay: `${i * 80}ms` }}>
               <div className="aspect-[2/3] rounded-xl bg-ivory" />
               <div className="mt-2.5 h-3.5 w-4/5 rounded bg-ivory" />
             </div>
@@ -140,7 +140,7 @@ export function TrendingSection({
       )}
 
       {!notice && results && results.length > 0 && (
-        <div className="shelf-scrollbar flex gap-4 overflow-x-auto pb-2">
+        <div className="shelf-scrollbar flex snap-x snap-proximity gap-4 overflow-x-auto pb-2">
           {results.map((r) => {
             const isAdded = added.has(r.externalId);
             return (
@@ -148,7 +148,7 @@ export function TrendingSection({
                 key={r.externalId}
                 type="button"
                 onClick={() => setSelected(r)}
-                className="group w-28 shrink-0 text-left sm:w-32"
+                className="group w-28 shrink-0 snap-start text-left sm:w-32"
                 title={r.title}
               >
                 <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-ivory shadow-[0_1px_2px_rgba(38,37,33,0.06)] transition-shadow duration-300 group-hover:shadow-[0_12px_28px_rgba(38,37,33,0.14)]">

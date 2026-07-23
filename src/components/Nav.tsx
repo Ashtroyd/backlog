@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { SECTIONS, SECTION_SLUGS } from "@/lib/sections";
 import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
+import { openCommandPalette } from "@/lib/command-palette-bus";
 import { fetchUnreadMessageCount } from "@/lib/messages";
 import { supabase } from "@/lib/supabase";
 import { startTour } from "@/lib/tour-bus";
@@ -22,6 +23,7 @@ import {
   DownloadIcon,
   LogoutIcon,
   MenuIcon,
+  SearchIcon,
   SharedIcon,
   UploadIcon,
   UsersIcon,
@@ -158,6 +160,17 @@ export default function Nav() {
 
         {/* Controls: full icon row on desktop, bell + hamburger on mobile. */}
         <div className="order-2 ml-auto flex items-center gap-1 sm:order-3 sm:ml-0">
+          <button
+            type="button"
+            title="Quick search (⌘K)"
+            aria-label="Quick search"
+            onClick={() => openCommandPalette()}
+            className="hidden items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-xs text-muted transition-colors hover:border-line-strong hover:bg-ivory hover:text-ink sm:flex"
+          >
+            <SearchIcon className="h-3.5 w-3.5" />
+            <kbd className="font-sans">⌘K</kbd>
+          </button>
+
           <Link
             href="/friends"
             title="Friends"
@@ -324,6 +337,17 @@ export default function Nav() {
                       </>
                     )}
 
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileOpen(false);
+                        openCommandPalette();
+                      }}
+                      className={menuItem}
+                    >
+                      <SearchIcon className="h-4 w-4 text-muted" />
+                      Quick search
+                    </button>
                     <Link href="/friends" className={menuItem}>
                       <UsersIcon className="h-4 w-4 text-muted" />
                       Friends

@@ -467,7 +467,11 @@ function HomeSection({
 }
 
 function Shelf({ children }: { children: React.ReactNode }) {
-  return <div className="shelf-scrollbar flex gap-4 overflow-x-auto pb-2">{children}</div>;
+  return (
+    <div className="shelf-scrollbar flex snap-x snap-proximity gap-4 overflow-x-auto pb-2">
+      {children}
+    </div>
+  );
 }
 
 function ShelfCard({
@@ -504,7 +508,7 @@ function ShelfCard({
       {subtitle && <p className="mt-0.5 truncate px-0.5 text-xs text-muted">{subtitle}</p>}
     </>
   );
-  const className = "group block w-28 shrink-0 text-left sm:w-32";
+  const className = "group block w-28 shrink-0 snap-start text-left sm:w-32";
   return href ? (
     <Link href={href} className={className} title={title}>
       {content}

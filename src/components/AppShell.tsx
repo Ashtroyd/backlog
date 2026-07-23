@@ -7,6 +7,7 @@ import { startTour } from "@/lib/tour-bus";
 import type { Profile } from "@/lib/types";
 import { AuthScreen } from "./AuthScreen";
 import { Onboarding } from "./Onboarding";
+import { CommandPalette } from "./CommandPalette";
 import { ConfirmProvider } from "./ConfirmDialog";
 import { FeatureTour } from "./FeatureTour";
 import { Toaster } from "./Toaster";
@@ -83,6 +84,7 @@ export default function AppShell({
         <BottomNav />
         <Toaster />
         <FeatureTour />
+        <CommandPalette />
       </ConfirmProvider>
     </AuthContext.Provider>
   );
