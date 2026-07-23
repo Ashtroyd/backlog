@@ -77,12 +77,22 @@ body {
   outline-offset: 2px;
 }
 
-/* Horizontal shelves scroll by drag/swipe/trackpad; the OS scrollbar just
-   adds visual noise against the app's own chrome. */
-.no-scrollbar {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+/* Horizontal shelves need a mouse-draggable scrollbar (not everyone has a
+   trackpad/touch), just not the OS's default thick, square-edged one. */
+.shelf-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
 }
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
+.shelf-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+.shelf-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.shelf-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
+  border-radius: 9999px;
+}
+.shelf-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted);
 }
