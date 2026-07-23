@@ -63,6 +63,8 @@ export type Profile = {
   avatar_url: string | null;
   banner_url: string | null;
   bio: string | null;
+  /** The user's chosen homescreen shelf order, or null to use the default. */
+  home_layout: string[] | null;
 };
 
 /** A result returned by /api/search, ready to become a BacklogItem. */

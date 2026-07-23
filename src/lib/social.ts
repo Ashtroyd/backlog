@@ -11,7 +11,7 @@ import type { BacklogItem, MediaType, Profile } from "./types";
  */
 
 /** Columns that make up a public Profile. */
-const PROFILE_COLS = "id,username,display_name,avatar_url,banner_url,bio";
+const PROFILE_COLS = "id,username,display_name,avatar_url,banner_url,bio,home_layout";
 
 /** An items row including its owner id (the domain BacklogItem omits it). */
 export type ItemRow = BacklogItem & { user_id: string };
@@ -407,7 +407,7 @@ export async function clearNotifications(myId: string): Promise<string | null> {
 /* ---------- profile editing ---------- */
 
 export type ProfilePatch = Partial<
-  Pick<Profile, "display_name" | "bio" | "avatar_url" | "banner_url">
+  Pick<Profile, "display_name" | "bio" | "avatar_url" | "banner_url" | "home_layout">
 >;
 
 export async function updateProfile(

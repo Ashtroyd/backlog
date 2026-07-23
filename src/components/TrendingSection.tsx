@@ -17,7 +17,13 @@ const TOGGLE_ICON: Record<SectionSlug, (props: { className?: string }) => React.
 };
 
 /** What's popular right now, per media type — a lightweight discovery shelf, not tied to the user's own library. */
-export function TrendingSection({ userId }: { userId: string | null }) {
+export function TrendingSection({
+  userId,
+  dragHandle,
+}: {
+  userId: string | null;
+  dragHandle?: React.ReactNode;
+}) {
   const [slug, setSlug] = useState<SectionSlug>("games");
   const [load, setLoad] = useState<{
     slug: SectionSlug;
@@ -79,6 +85,7 @@ export function TrendingSection({ userId }: { userId: string | null }) {
     <section className="mt-10">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-1.5 font-serif text-xl font-semibold text-ink">
+          {dragHandle}
           <TrendingUpIcon className="h-4.5 w-4.5 text-accent" />
           Currently trending
         </h2>

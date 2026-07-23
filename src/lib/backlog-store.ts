@@ -574,6 +574,21 @@ export async function fetchRecentReviews(
   return (data as BacklogItem[]) ?? [];
 }
 
+/** Titles currently in progress, most recently touched first — the "pick back up" shelf. */
+export async function fetchContinueItems(
+  userId: string,
+  limit = 8,
+): Promise<BacklogItem[]> {
+  const { data } = await supabase
+    .from("items")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "in_progress")
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+  return (data as BacklogItem[]) ?? [];
+}
+
 /* ---------- backup ---------- */
 
 /** Downloads the whole cloud library as a JSON backup file. */
