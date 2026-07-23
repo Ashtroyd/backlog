@@ -4,8 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SECTION_BY_MEDIA } from "@/lib/sections";
-import { currentMonth, fetchTopPicks, monthLabel, type TopPick } from "@/lib/top-picks";
+import { currentMonth, fetchTopPicks, monthLabel, shiftMonth, type TopPick } from "@/lib/top-picks";
 import type { BacklogItem, Profile } from "@/lib/types";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { FriendItemModal } from "./FriendItemModal";
 
 type FriendContext = { profile: Profile; myItemsByKey: Map<string, BacklogItem> };
@@ -43,14 +44,28 @@ export function TopPicksMonthSection({
     <section>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h2 className="font-serif text-xl font-semibold text-ink">Top picks</h2>
-        <input
-          type="month"
-          value={month}
-          max={currentMonth()}
-          onChange={(e) => setMonth(e.target.value)}
-          aria-label="Choose month"
-          className="rounded-full border border-line bg-surface px-3.5 py-1.5 text-sm text-body"
-        />
+        <div className="flex items-center gap-0.5 rounded-full border border-line bg-surface p-1">
+          <button
+            type="button"
+            onClick={() => setMonth((m) => shiftMonth(m, -1))}
+            aria-label="Previous month"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+          >
+            <ChevronLeftIcon className="h-4 w-4" />
+          </button>
+          <span className="min-w-[8rem] text-center text-sm font-medium text-ink">
+            {monthLabel(month)}
+          </span>
+          <button
+            type="button"
+            onClick={() => setMonth((m) => shiftMonth(m, 1))}
+            disabled={month >= currentMonth()}
+            aria-label="Next month"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted"
+          >
+            <ChevronRightIcon className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {picks == null ? null : picks.length === 0 ? (
