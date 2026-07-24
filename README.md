@@ -9,7 +9,29 @@ and it lands in your backlog with cover art, year, genres and details filled in
 automatically. Move it through *Backlog → Playing/Watching → Completed* (or
 *Dropped*), and once it's done, rate it out of five stars and write a review.
 
-Built with Next.js 16, Tailwind CSS 4 and Motion.
+Built with **Next.js 16, Tailwind CSS 4, Motion**, and **Supabase** (Postgres,
+Auth) for cross-device sync. Deploys to Vercel.
+
+## Features
+
+- **Four sections** — Games, Movies, Series, Anime — each with its own
+  library, search, and status pipeline (Backlog → Playing/Watching →
+  Completed/Dropped).
+- **Search & autofill** — free, keyless sources (below) fill in cover art,
+  year, genre, platform, and score automatically.
+- **Reviews** — a five-star rating plus a written review once something's
+  Completed, shareable as a card.
+- **Friends** — add friends and see what they're playing/watching/completed.
+- **Shared Backlog** — a jointly-tracked list for titles you and a friend are
+  working through together.
+- **Messages** — direct messages between friends.
+- **Notifications** — a bell for friend requests and shared-backlog activity.
+- **Top Picks** — a monthly, manually-curated highlight reel per section.
+- **Trending** — what's currently popular per section, from the same free
+  sources used for search.
+- **Command palette** — `Cmd`/`Ctrl`+`K` to jump anywhere or add a title fast.
+- **Import/export** — back up your whole library to JSON, or restore one.
+- **Installable PWA** — add it to your home screen on desktop or mobile.
 
 ## Setup
 
