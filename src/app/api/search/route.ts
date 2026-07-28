@@ -65,15 +65,43 @@ const EDITION_SUFFIX =
 
 const STEAM_NOISE = /(soundtrack|original score|artbook|art book|\bdlc\b|\bost\b|demo|season pass)/i;
 
+/**
+ * Sequel numbering as a roman numeral in one source and an arabic digit in
+ * another (Steam's "Baldur's Gate 3" vs IMDb's "Baldur's Gate III") is common
+ * enough to break twin-matching outright, leaving the same game as two
+ * separate, differently-enriched search results. Single-letter numerals (I,
+ * V, X) are excluded since they collide with real words/initials.
+ */
+const ROMAN_NUMERALS: Record<string, string> = {
+  ii: "2",
+  iii: "3",
+  iv: "4",
+  vi: "6",
+  vii: "7",
+  viii: "8",
+  ix: "9",
+  xi: "11",
+  xii: "12",
+  xiii: "13",
+  xiv: "14",
+  xv: "15",
+};
+
+function romanToArabic(s: string): string {
+  return s.replace(/\b(ii|iii|iv|vi|vii|viii|ix|xi|xii|xiii|xiv|xv)\b/g, (m) => ROMAN_NUMERALS[m]);
+}
+
 /** Lowercase, strip accents and punctuation, collapse spaces. */
 function normTitle(s: string): string {
-  return s
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // strip accents (Yotei)
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return romanToArabic(
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // strip accents (Yotei)
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
 }
 
 /** Same, with a trailing edition suffix removed, for cross-source matching. */
