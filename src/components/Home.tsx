@@ -12,7 +12,12 @@ import {
   useAuth,
   type UpdatePatch,
 } from "@/lib/backlog-store";
-import { fetchConnections, fetchRecommendations, updateProfile, type Recommendation } from "@/lib/social";
+import {
+  fetchConnections,
+  fetchRecommendations,
+  updateProfile,
+  type Recommendation,
+} from "@/lib/social";
 import {
   currentMonth,
   fetchTopPicks,
@@ -49,7 +54,13 @@ const EMPTY_PROFILE: Profile = {
 };
 
 /** Every shelf the homescreen can show, in the app's default order. */
-const DEFAULT_ORDER = ["continue", "reviews", "friends", "picks", "trending"] as const;
+const DEFAULT_ORDER = [
+  "continue",
+  "reviews",
+  "friends",
+  "picks",
+  "trending",
+] as const;
 type SectionKey = (typeof DEFAULT_ORDER)[number];
 
 /** Merges a saved order with the current default set: drops keys the app no
@@ -63,10 +74,15 @@ function normalizeOrder(saved: string[] | null | undefined): SectionKey[] {
 
 /** Re-applies a reordering of the *visible* subset onto the full key list,
     leaving currently-hidden sections exactly where they were. */
-function mergeReorder(fullOrder: SectionKey[], reorderedVisible: SectionKey[]): SectionKey[] {
+function mergeReorder(
+  fullOrder: SectionKey[],
+  reorderedVisible: SectionKey[],
+): SectionKey[] {
   const visible = new Set(reorderedVisible);
   let vi = 0;
-  return fullOrder.map((key) => (visible.has(key) ? reorderedVisible[vi++] : key));
+  return fullOrder.map((key) =>
+    visible.has(key) ? reorderedVisible[vi++] : key,
+  );
 }
 
 /**
@@ -80,15 +96,18 @@ export default function Home() {
   const myId = session?.user?.id ?? null;
   const month = currentMonth();
 
-  const [continueItems, setContinueItems] = useState<BacklogItem[] | null>(null);
+  const [continueItems, setContinueItems] = useState<BacklogItem[] | null>(
+    null,
+  );
   const [reviews, setReviews] = useState<BacklogItem[] | null>(null);
   const [recs, setRecs] = useState<Recommendation[] | null>(null);
   const [openRec, setOpenRec] = useState<Recommendation | null>(null);
   const [picks, setPicks] = useState<TopPick[] | null>(null);
   const [friendPicks, setFriendPicks] = useState<FriendPicks[] | null>(null);
-  const [openFriendPick, setOpenFriendPick] = useState<{ item: BacklogItem; profile: Profile } | null>(
-    null,
-  );
+  const [openFriendPick, setOpenFriendPick] = useState<{
+    item: BacklogItem;
+    profile: Profile;
+  } | null>(null);
   const [allItems, setAllItems] = useState<BacklogItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -119,32 +138,49 @@ export default function Home() {
 
   /** Patches an item wherever it appears on the homescreen's own shelves. */
   function patchLocalItem(id: string, fields: Partial<BacklogItem>) {
-    setContinueItems((prev) => prev?.map((i) => (i.id === id ? { ...i, ...fields } : i)) ?? prev);
-    setReviews((prev) => prev?.map((i) => (i.id === id ? { ...i, ...fields } : i)) ?? prev);
-    setPicks((prev) =>
-      prev?.map((p) => (p.item.id === id ? { ...p, item: { ...p.item, ...fields } } : p)) ?? prev,
+    setContinueItems(
+      (prev) =>
+        prev?.map((i) => (i.id === id ? { ...i, ...fields } : i)) ?? prev,
+    );
+    setReviews(
+      (prev) =>
+        prev?.map((i) => (i.id === id ? { ...i, ...fields } : i)) ?? prev,
+    );
+    setPicks(
+      (prev) =>
+        prev?.map((p) =>
+          p.item.id === id ? { ...p, item: { ...p.item, ...fields } } : p,
+        ) ?? prev,
     );
   }
 
-  function handleModalUpdate(id: string, patch: UpdatePatch) {
-    const item = openItem;
-    if (!item || item.id !== id) return;
-    updateItemDirect(item, patch).then(({ error, fields }) => {
-      if (error) {
-        toast("error", "Couldn't save your changes — check your connection.");
-        return;
+  async function saveItem(item: BacklogItem, patch: UpdatePatch) {
+    const result = await updateItemDirect(item, patch);
+    if (!result.error) {
+      patchLocalItem(item.id, result.fields as Partial<BacklogItem>);
+      if (patch.status && patch.status !== "in_progress") {
+        setContinueItems(
+          (prev) => prev?.filter((i) => i.id !== item.id) ?? prev,
+        );
       }
-      patchLocalItem(id, fields as Partial<BacklogItem>);
-    });
+    }
+    return result;
   }
 
-  function handleModalRemove(id: string) {
-    setContinueItems((prev) => prev?.filter((i) => i.id !== id) ?? prev);
-    setReviews((prev) => prev?.filter((i) => i.id !== id) ?? prev);
-    setPicks((prev) => prev?.filter((p) => p.item.id !== id) ?? prev);
-    removeItemDirect(id).then(({ error }) => {
-      if (error) toast("error", "Couldn't remove that — check your connection.");
-    });
+  async function handleModalUpdate(id: string, patch: UpdatePatch) {
+    if (!openItem || openItem.id !== id)
+      return { error: "Title no longer open." };
+    return saveItem(openItem, patch);
+  }
+
+  async function handleModalRemove(id: string) {
+    const result = await removeItemDirect(id);
+    if (!result.error) {
+      setContinueItems((prev) => prev?.filter((i) => i.id !== id) ?? prev);
+      setReviews((prev) => prev?.filter((i) => i.id !== id) ?? prev);
+      setPicks((prev) => prev?.filter((p) => p.item.id !== id) ?? prev);
+    }
+    return result;
   }
 
   const loadPicks = useCallback(async () => {
@@ -162,7 +198,10 @@ export default function Home() {
       fetchTopPicksForUsers(friendIds, month).then((byUser) => {
         setFriendPicks(
           c.friends
-            .map((f) => ({ profile: f.profile, picks: byUser.get(f.profile.id) ?? [] }))
+            .map((f) => ({
+              profile: f.profile,
+              picks: byUser.get(f.profile.id) ?? [],
+            }))
             .filter((f) => f.picks.length > 0),
         );
       });
@@ -199,25 +238,28 @@ export default function Home() {
 
   function persistOrder() {
     if (!myId) return;
-    updateProfile(myId, { home_layout: orderRef.current }).then(({ profile: updated }) => {
-      if (updated) setProfile(updated);
-    });
+    updateProfile(myId, { home_layout: orderRef.current }).then(
+      ({ profile: updated }) => {
+        if (updated) setProfile(updated);
+      },
+    );
   }
 
-  function renderSection(key: SectionKey, dragHandle: React.ReactNode): React.ReactNode {
+  function renderSection(
+    key: SectionKey,
+    dragHandle: React.ReactNode,
+  ): React.ReactNode {
     switch (key) {
       case "continue":
         return continueItems && continueItems.length > 0 ? (
           <HomeSection title="Continue" dragHandle={dragHandle}>
             <Shelf>
               {continueItems.map((item) => (
-                <ShelfCard
+                <ContinueCard
                   key={item.id}
-                  onClick={() => openItemModal(item)}
-                  coverUrl={item.cover_url}
-                  title={item.title}
-                  ratingValue={item.rating}
-                  subtitle={SECTION_BY_MEDIA[item.media_type].label}
+                  item={item}
+                  onOpen={() => openItemModal(item)}
+                  onSave={saveItem}
                 />
               ))}
             </Shelf>
@@ -229,14 +271,33 @@ export default function Home() {
           <HomeSection title="Recent reviews" dragHandle={dragHandle}>
             <Shelf>
               {reviews.map((item) => (
-                <ShelfCard
+                <button
                   key={item.id}
+                  type="button"
                   onClick={() => openItemModal(item)}
-                  coverUrl={item.cover_url}
-                  title={item.title}
-                  ratingValue={item.rating}
-                  subtitle={<span className="italic">{item.review ?? item.current_thoughts}</span>}
-                />
+                  className="flex w-80 shrink-0 snap-start gap-4 rounded-xl border border-line bg-surface p-4 text-left transition-colors hover:border-line-strong"
+                >
+                  <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-ivory">
+                    <CoverImage
+                      src={item.cover_url}
+                      title={item.title}
+                      sizes="80px"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="line-clamp-2 text-sm font-medium text-ink">
+                      {item.title}
+                    </p>
+                    {item.rating != null && (
+                      <div className="mt-1.5">
+                        <StarRating value={item.rating} size={12} />
+                      </div>
+                    )}
+                    <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-body">
+                      {item.review ?? item.current_thoughts}
+                    </p>
+                  </div>
+                </button>
               ))}
             </Shelf>
           </HomeSection>
@@ -248,7 +309,10 @@ export default function Home() {
             title="From your friends"
             dragHandle={dragHandle}
             action={
-              <Link href="/friends" className="text-sm font-medium text-accent hover:text-accent-hover">
+              <Link
+                href="/friends"
+                className="text-sm font-medium text-accent hover:text-accent-hover"
+              >
                 See all
               </Link>
             }
@@ -256,7 +320,10 @@ export default function Home() {
             <Shelf>
               {recs.slice(0, 6).map((r) => {
                 const names = r.raters.map((x) => x.profile.display_name);
-                const label = names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
+                const label =
+                  names.length === 1
+                    ? names[0]
+                    : `${names[0]} +${names.length - 1}`;
                 return (
                   <ShelfCard
                     key={`${r.item.media_type}:${r.item.external_id}`}
@@ -328,7 +395,12 @@ export default function Home() {
                       {f.picks.map((p) => (
                         <ShelfCard
                           key={p.id}
-                          onClick={() => setOpenFriendPick({ item: p.item, profile: f.profile })}
+                          onClick={() =>
+                            setOpenFriendPick({
+                              item: p.item,
+                              profile: f.profile,
+                            })
+                          }
                           coverUrl={p.item.cover_url}
                           title={p.item.title}
                           ratingValue={p.item.rating}
@@ -344,7 +416,9 @@ export default function Home() {
         );
 
       case "trending":
-        return myId ? <TrendingSection userId={myId} dragHandle={dragHandle} /> : null;
+        return myId ? (
+          <TrendingSection userId={myId} dragHandle={dragHandle} />
+        ) : null;
     }
   }
 
@@ -358,7 +432,12 @@ export default function Home() {
         Welcome back, {profile.display_name.split(" ")[0]}
       </h1>
 
-      <Reorder.Group as="div" axis="y" values={visibleOrder} onReorder={handleReorder}>
+      <Reorder.Group
+        as="div"
+        axis="y"
+        values={visibleOrder}
+        onReorder={handleReorder}
+      >
         {visibleOrder.map((key) => (
           <DraggableSection key={key} value={key} onDragEnd={persistOrder}>
             {(handle) => renderSection(key, handle)}
@@ -386,7 +465,9 @@ export default function Home() {
         onClose={() => setOpenRec(null)}
         onAdded={(key) => {
           setRecs((prev) =>
-            (prev ?? []).filter((r) => `${r.item.media_type}:${r.item.external_id}` !== key),
+            (prev ?? []).filter(
+              (r) => `${r.item.media_type}:${r.item.external_id}` !== key,
+            ),
           );
           setOpenRec(null);
         }}
@@ -435,7 +516,13 @@ function DraggableSection({
     </button>
   );
   return (
-    <Reorder.Item value={value} as="div" dragListener={false} dragControls={controls} onDragEnd={onDragEnd}>
+    <Reorder.Item
+      value={value}
+      as="div"
+      dragListener={false}
+      dragControls={controls}
+      onDragEnd={onDragEnd}
+    >
       {children(handle)}
     </Reorder.Item>
   );
@@ -499,13 +586,17 @@ function ShelfCard({
           className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
       </div>
-      <p className="mt-2.5 truncate px-0.5 text-sm font-medium text-ink">{title}</p>
+      <p className="mt-2.5 truncate px-0.5 text-sm font-medium text-ink">
+        {title}
+      </p>
       {ratingValue != null && (
         <div className="mt-0.5 px-0.5">
           <StarRating value={ratingValue} size={11} />
         </div>
       )}
-      {subtitle && <p className="mt-0.5 truncate px-0.5 text-xs text-muted">{subtitle}</p>}
+      {subtitle && (
+        <p className="mt-0.5 truncate px-0.5 text-xs text-muted">{subtitle}</p>
+      )}
     </>
   );
   const className = "group block w-28 shrink-0 snap-start text-left sm:w-32";
@@ -517,5 +608,68 @@ function ShelfCard({
     <button type="button" onClick={onClick} className={className} title={title}>
       {content}
     </button>
+  );
+}
+
+function ContinueCard({
+  item,
+  onOpen,
+  onSave,
+}: {
+  item: BacklogItem;
+  onOpen: () => void;
+  onSave: (
+    item: BacklogItem,
+    patch: UpdatePatch,
+  ) => Promise<{ error: string | null }>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const episodic = item.media_type === "anime" || item.media_type === "series";
+  const total =
+    item.meta?.episodes && item.meta.episodes > 0 ? item.meta.episodes : null;
+  const watched = item.progress ?? 0;
+  const label = episodic
+    ? `${watched}${total ? ` / ${total}` : ""} episodes`
+    : item.hours_played != null
+      ? `${item.hours_played} hrs played`
+      : item.live_service
+        ? "Live service"
+        : SECTION_BY_MEDIA[item.media_type].label;
+  async function increment() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await onSave(item, { progress: watched + 1 });
+      if (result.error) toast("error", "Couldn't update progress. Try again.");
+    } catch {
+      toast("error", "Couldn't update progress. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="w-28 shrink-0 snap-start sm:w-32">
+      <ShelfCard
+        onClick={onOpen}
+        coverUrl={item.cover_url}
+        title={item.title}
+        subtitle={label}
+      />
+      {episodic && (
+        <button
+          type="button"
+          disabled={busy || (total != null && watched >= total)}
+          onClick={increment}
+          aria-label={`Add one episode watched for ${item.title}`}
+          className="mt-2 min-h-11 w-full rounded-lg border border-line px-2 text-xs font-medium text-ink transition-colors hover:bg-ivory disabled:opacity-50"
+        >
+          {busy
+            ? "Saving…"
+            : total != null && watched >= total
+              ? "Caught up"
+              : "+1 episode"}
+        </button>
+      )}
+    </div>
   );
 }

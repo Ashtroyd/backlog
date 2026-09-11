@@ -30,7 +30,9 @@ test("signup → onboarding → add an anime → rate it", async ({ page }) => {
   await page.getByRole("button", { name: "Continue" }).click();
   // Onboarding lands on the homescreen now, not /games — "CI" is the first
   // word of the display name set above, so this is deterministic.
-  await expect(page.getByRole("heading", { name: "Welcome back, CI" })).toBeVisible({
+  await expect(
+    page.getByRole("heading", { name: "Welcome back, CI" }),
+  ).toBeVisible({
     timeout: 15_000,
   });
 
@@ -42,20 +44,25 @@ test("signup → onboarding → add an anime → rate it", async ({ page }) => {
     .click();
   await page.getByPlaceholder("Search for an anime…").fill("frieren");
   const firstRow = page.locator('[role="dialog"] li').first();
-  await firstRow.getByRole("button", { name: /Add/ }).click({ timeout: 20_000 });
+  await firstRow
+    .getByRole("button", { name: /Add/ })
+    .click({ timeout: 20_000 });
   await expect(
     page.locator('[role="dialog"]').getByText("Added").first(),
   ).toBeVisible({ timeout: 20_000 });
   await page.keyboard.press("Escape");
 
   // Complete it with a rating
-  await page.locator('main .grid [role="button"]').first().click();
+  await page
+    .getByRole("button", { name: /^Open / })
+    .first()
+    .click();
   await page
     .locator('[role="dialog"]')
     .getByRole("button", { name: "Completed", exact: true })
     .click();
   await page.getByLabel("4 stars").click();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByLabel("Rated 4 out of 5")).toBeVisible({
     timeout: 10_000,
   });

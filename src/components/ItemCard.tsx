@@ -1,6 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
+import { toast } from "@/lib/toast-bus";
 import { motion } from "motion/react";
 import { STATUS_ORDER, statusLabel, type Section } from "@/lib/sections";
 import { formatDate, todayISODate } from "@/lib/format";
@@ -14,6 +16,7 @@ export const STATUS_DOT: Record<BacklogItem["status"], string> = {
   in_progress: "bg-accent",
   completed: "bg-sage",
   dropped: "bg-muted/50",
+  on_hold: "bg-muted",
 };
 
 /** Games tagged live-service show that instead of "Playing" — they have no real "completed" state. */
@@ -23,8 +26,13 @@ function displayStatusLabel(item: BacklogItem, section: Section): string {
 }
 
 /** "Coming soon" for unreleased titles; "Out now" once a refresh sees release. */
-export function releaseBadge(item: BacklogItem): { label: string; cls: string } | null {
-  if (item.release_year != null && item.release_year > new Date().getFullYear()) {
+export function releaseBadge(
+  item: BacklogItem,
+): { label: string; cls: string } | null {
+  if (
+    item.release_year != null &&
+    item.release_year > new Date().getFullYear()
+  ) {
     return { label: "Coming soon", cls: "bg-paper/90 text-accent-hover" };
   }
   if (item.meta?._outNow && item.status === "backlog") {
@@ -46,10 +54,26 @@ export function ItemCard({
   index: number;
   onClick: () => void;
   /** Omit for a read-only view (e.g. a friend's library) to hide the quick-action overlay. */
-  onUpdate?: (id: string, patch: UpdatePatch) => void;
+  onUpdate?: (
+    id: string,
+    patch: UpdatePatch,
+  ) => Promise<{ error: string | null }>;
   /** Tags this card as a feature-tour target — set on the first card of the main grid only. */
   dataTour?: string;
 }) {
+  const [busy, setBusy] = useState(false);
+  async function save(patch: UpdatePatch) {
+    if (!onUpdate || busy) return;
+    setBusy(true);
+    try {
+      const result = await onUpdate(item.id, patch);
+      if (result.error) toast("error", "Couldn't save that change. Try again.");
+    } catch {
+      toast("error", "Couldn't save that change. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
   /** Mirrors DetailModal's convenience: first move out of the backlog defaults the start date to today. */
   function quickSetStatus(next: ItemStatus) {
     if (!onUpdate) return;
@@ -57,22 +81,13 @@ export function ItemCard({
     if ((next === "in_progress" || next === "completed") && !item.started_at) {
       patch.started_at = todayISODate();
     }
-    onUpdate(item.id, patch);
+    void save(patch);
   }
 
   return (
     <motion.div
       layout
-      role="button"
-      tabIndex={0}
       data-tour={dataTour}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onClick();
-        }
-      }}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.15 } }}
@@ -85,6 +100,12 @@ export function ItemCard({
       className="group cursor-pointer text-left"
     >
       <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-ivory shadow-[0_1px_2px_rgba(38,37,33,0.06)] transition-shadow duration-300 group-hover:shadow-[0_12px_28px_rgba(38,37,33,0.14)]">
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={`Open ${item.title}`}
+          className="absolute inset-0 z-10 rounded-xl focus-visible:outline-offset-4"
+        />
         {item.cover_url ? (
           <Image
             src={item.cover_url}
@@ -110,59 +131,53 @@ export function ItemCard({
         })()}
 
         {onUpdate && (
-          <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onUpdate(item.id, { is_favorite: !item.is_favorite });
-              }}
-              title={item.is_favorite ? "Remove from favourites" : "Add to favourites"}
-              aria-label={item.is_favorite ? "Remove from favourites" : "Add to favourites"}
-              className={`absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-paper/85 backdrop-blur transition-opacity ${
-                item.is_favorite
-                  ? "text-accent opacity-100"
-                  : "text-muted opacity-0 hover:text-ink group-hover:opacity-100"
-              }`}
-            >
-              <HeartIcon className="h-3.5 w-3.5" fill={item.is_favorite ? "currentColor" : "none"} />
-            </button>
-
-            <div className="absolute inset-x-0 bottom-0 flex justify-center gap-0.5 bg-gradient-to-t from-black/70 via-black/30 to-transparent px-1.5 pb-1.5 pt-5 opacity-0 transition-opacity group-hover:opacity-100">
-              {STATUS_ORDER.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    quickSetStatus(s);
-                  }}
-                  title={statusLabel(s, section)}
-                  aria-label={`Mark as ${statusLabel(s, section)}`}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center"
-                >
-                  <span
-                    className={`h-2.5 w-2.5 rounded-full transition-transform hover:scale-125 ${
-                      item.status === s ? STATUS_DOT[s] : "bg-white/40"
-                    }`}
-                  />
-                </button>
-              ))}
-            </div>
-          </>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => save({ is_favorite: !item.is_favorite })}
+            aria-label={
+              item.is_favorite
+                ? `Remove ${item.title} from favourites`
+                : `Add ${item.title} to favourites`
+            }
+            aria-pressed={item.is_favorite}
+            className={`absolute right-2 top-2 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-paper/90 backdrop-blur ${item.is_favorite ? "text-accent" : "text-muted hover:text-ink"} disabled:opacity-50`}
+          >
+            <HeartIcon
+              className="h-4 w-4"
+              fill={item.is_favorite ? "currentColor" : "none"}
+            />
+          </button>
         )}
       </div>
       <div className="mt-2.5 px-0.5">
         <p className="truncate text-sm font-medium text-ink">{item.title}</p>
-        <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
-          <span
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[item.status]}`}
-          />
-          <span className="truncate">
+        {onUpdate ? (
+          <select
+            aria-label={`Status for ${item.title}`}
+            value={item.status}
+            disabled={busy}
+            onChange={(e) => quickSetStatus(e.target.value as ItemStatus)}
+            className="mt-1 min-h-11 w-full rounded-lg border border-line bg-surface px-2 text-xs text-ink disabled:opacity-50"
+          >
+            {STATUS_ORDER.map((status) => (
+              <option key={status} value={status}>
+                {statusLabel(status, section)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="mt-0.5 text-xs text-muted">
             {displayStatusLabel(item, section)}
-            {item.release_year ? ` · ${item.release_year}` : ""}
-          </span>
-        </p>
+          </p>
+        )}
+        {(item.release_year || item.live_service) && (
+          <p className="mt-1 text-xs text-muted">
+            {[item.live_service ? "Live service" : null, item.release_year]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
         {item.started_at && (
           <p className="mt-0.5 truncate text-xs text-muted/80">
             {section.startedLabel} {formatDate(item.started_at)}

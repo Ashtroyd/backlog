@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
   SECTIONS,
@@ -14,6 +14,8 @@ import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { AddModal } from "./AddModal";
 import { DetailModal } from "./DetailModal";
 import { ImportModal } from "./ImportModal";
+import { importExclusion } from "@/lib/import-cleanup";
+import { toast } from "@/lib/toast-bus";
 import { ItemCard } from "./ItemCard";
 import { PinIcon, PlusIcon, SearchIcon, UploadIcon } from "./icons";
 
@@ -58,18 +60,95 @@ export default function Library({
   const section = SECTIONS[slug];
   const router = useRouter();
   const pathname = usePathname();
-  const { items, ready, loadError, add, bulkAdd, update, remove, applyDetails } =
-    useBacklog(section.mediaType);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<Sort>("added");
+  const {
+    items,
+    ready,
+    loadError,
+    add,
+    bulkAdd,
+    update,
+    remove,
+    applyDetails,
+  } = useBacklog(section.mediaType);
+  const params = useSearchParams();
+  const rawFilter = params.get("status") ?? "all";
+  const filter: Filter = STATUS_ORDER.includes(rawFilter as ItemStatus)
+    ? (rawFilter as ItemStatus)
+    : "all";
+  const query = params.get("q") ?? "";
+  const rawSort = params.get("sort");
+  const sort: Sort = SORTS.some((s) => s.value === rawSort)
+    ? (rawSort as Sort)
+    : "added";
+  const view = params.get("view") === "list" ? "list" : "grid";
+  const scope = params.get("scope") ?? "all";
+  const [selecting, setSelecting] = useState(false);
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<ItemStatus>("backlog");
+  const [bulkBusy, setBulkBusy] = useState(false);
+
+  function setParam(key: string, value: string, defaultValue = "") {
+    const next = new URLSearchParams(window.location.search);
+    if (value === defaultValue) next.delete(key);
+    else next.set(key, value);
+    window.history.replaceState(
+      null,
+      "",
+      `${pathname}${next.size ? `?${next}` : ""}`,
+    );
+    setChecked(new Set());
+  }
+  const setFilter = (value: Filter) => setParam("status", value, "all");
+  const setQuery = (value: string) => setParam("q", value);
+  const setSort = (value: Sort) => setParam("sort", value, "added");
+
+  function toggleItem(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function applyBulkStatus() {
+    if (bulkBusy || !checked.size) return;
+    setBulkBusy(true);
+    let saved = 0;
+    const failed = new Set<string>();
+    for (const id of checked) {
+      try {
+        const result = await update(id, { status: bulkStatus });
+        if (result.error) failed.add(id);
+        else saved++;
+      } catch {
+        failed.add(id);
+      }
+    }
+    setChecked(failed);
+    setBulkBusy(false);
+    toast(
+      failed.size ? "error" : "success",
+      failed.size
+        ? `${saved} updated; ${failed.size} couldn't save. Retry the selected titles.`
+        : `Updated ${saved} titles.`,
+    );
+  }
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState<string | null>(initialItemId ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    initialItemId ?? null,
+  );
 
   function closeDetail() {
     setSelectedId(null);
-    if (initialItemId) router.replace(pathname);
+    if (initialItemId) {
+      const next = new URLSearchParams(window.location.search);
+      next.delete("item");
+      router.replace(`${pathname}${next.size ? `?${next}` : ""}`, {
+        scroll: false,
+      });
+    }
   }
 
   const counts = useMemo(() => {
@@ -79,6 +158,7 @@ export default function Library({
       in_progress: 0,
       completed: 0,
       dropped: 0,
+      on_hold: 0,
     };
     for (const it of items) c[it.status]++;
     return c;
@@ -88,7 +168,20 @@ export default function Library({
   const visible = sortItems(
     items
       .filter((i) => filter === "all" || i.status === filter)
-      .filter((i) => !q || i.title.toLowerCase().includes(q)),
+      .filter((i) => !q || i.title.toLowerCase().includes(q))
+      .filter((i) =>
+        scope === "favourites"
+          ? i.is_favorite
+          : section.mediaType !== "game"
+            ? true
+            : scope === "active"
+              ? i.status === "in_progress" && !i.live_service
+              : scope === "live"
+                ? i.live_service
+                : scope === "cleanup"
+                  ? importExclusion(i.title) != null
+                  : true,
+      ),
     sort,
   );
   const selected = items.find((i) => i.id === selectedId) ?? null;
@@ -98,7 +191,9 @@ export default function Library({
     () =>
       items
         .filter((i) => i.pinned_at != null)
-        .sort((a, b) => (b.pinned_at as string).localeCompare(a.pinned_at as string)),
+        .sort((a, b) =>
+          (b.pinned_at as string).localeCompare(a.pinned_at as string),
+        ),
     [items],
   );
 
@@ -177,8 +272,12 @@ export default function Library({
               key={f}
               type="button"
               onClick={() => setFilter(f)}
+              aria-pressed={active}
+              disabled={bulkBusy}
               className={`relative rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
-                active ? "text-paper" : "text-muted hover:bg-ivory hover:text-ink"
+                active
+                  ? "text-paper"
+                  : "text-muted hover:bg-ivory hover:text-ink"
               }`}
             >
               {active && (
@@ -205,6 +304,7 @@ export default function Library({
             <SearchIcon className="h-4 w-4 shrink-0 text-muted" />
             <input
               value={query}
+              disabled={bulkBusy}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={`Search your ${section.label.toLowerCase()}…`}
               aria-label={`Search your ${section.label.toLowerCase()}`}
@@ -213,6 +313,7 @@ export default function Library({
           </div>
           <select
             value={sort}
+            disabled={bulkBusy}
             onChange={(e) => setSort(e.target.value as Sort)}
             aria-label="Sort by"
             className="rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-body"
@@ -223,13 +324,108 @@ export default function Library({
               </option>
             ))}
           </select>
+          <select
+            aria-label="Library filter"
+            value={scope}
+            disabled={bulkBusy}
+            onChange={(e) => setParam("scope", e.target.value, "all")}
+            className="rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-body"
+          >
+            <option value="all">All titles</option>
+            <option value="favourites">Favourites</option>
+            {section.mediaType === "game" && (
+              <>
+                <option value="active">Playing · excluding live service</option>
+                <option value="live">Live service</option>
+                <option value="cleanup">Playtests & utilities</option>
+              </>
+            )}
+          </select>
+          <div
+            className="flex rounded-full border border-line p-1"
+            aria-label="Library view"
+          >
+            {(["grid", "list"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                disabled={bulkBusy}
+                onClick={() => setParam("view", v, "grid")}
+                className={`rounded-full px-3 py-1 text-sm capitalize ${view === v ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={bulkBusy}
+            aria-pressed={selecting}
+            onClick={() => {
+              setSelecting(!selecting);
+              setChecked(new Set());
+            }}
+            className="rounded-full border border-line px-3.5 py-2 text-sm text-ink hover:bg-ivory"
+          >
+            {selecting ? "Done selecting" : "Select titles"}
+          </button>
         </div>
+      )}
+      {selecting && (
+        <fieldset
+          disabled={bulkBusy}
+          className="sticky top-16 z-20 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface p-3 shadow-sm"
+        >
+          <button
+            type="button"
+            onClick={() =>
+              setChecked(
+                visible.every((i) => checked.has(i.id))
+                  ? new Set()
+                  : new Set(visible.map((i) => i.id)),
+              )
+            }
+            className="text-sm text-accent hover:text-accent-hover"
+          >
+            {visible.length > 0 && visible.every((i) => checked.has(i.id))
+              ? "Deselect all"
+              : "Select visible"}
+          </button>
+          <span aria-live="polite" className="text-sm text-muted">
+            {checked.size} selected
+          </span>
+          <select
+            aria-label="Status for selected titles"
+            value={bulkStatus}
+            onChange={(e) => setBulkStatus(e.target.value as ItemStatus)}
+            className="rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink"
+          >
+            {STATUS_ORDER.map((status) => (
+              <option key={status} value={status}>
+                {statusLabel(status, section)}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={applyBulkStatus}
+            disabled={!checked.size || bulkBusy}
+            className="rounded-full bg-accent px-4 py-2 text-sm text-white disabled:opacity-50"
+          >
+            {bulkBusy ? "Updating…" : "Apply status"}
+          </button>
+        </fieldset>
       )}
 
       {!ready ? (
         <div className="grid grid-cols-2 gap-x-5 gap-y-8 pt-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
           {[0, 1, 2, 3, 4].map((i) => (
-            <div key={i} className="animate-pulse" style={{ animationDelay: `${i * 80}ms` }}>
+            <div
+              key={i}
+              className="animate-pulse"
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
               <div className="aspect-[2/3] rounded-xl bg-ivory" />
               <div className="mt-2.5 h-3.5 w-3/4 rounded bg-ivory" />
               <div className="mt-1.5 h-3 w-1/2 rounded bg-ivory" />
@@ -257,6 +453,18 @@ export default function Library({
                 ? `Nothing matches “${query.trim()}”.`
                 : "No titles with this status yet."}
           </p>
+          {items.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                window.history.replaceState(null, "", pathname);
+                setChecked(new Set());
+              }}
+              className="mt-4 rounded-full border border-line px-4 py-2 text-sm text-ink hover:bg-ivory"
+            >
+              Clear filters
+            </button>
+          )}
           {items.length === 0 && (
             <button
               type="button"
@@ -268,6 +476,61 @@ export default function Library({
             </button>
           )}
         </motion.div>
+      ) : view === "list" ? (
+        <div className="mt-6 overflow-x-auto rounded-xl border border-line">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-ivory text-muted">
+              <tr>
+                <th className="p-3">Title</th>
+                <th className="p-3">Status</th>
+                <th className="p-3">Progress</th>
+                <th className="p-3">Rating</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line">
+              {visible.map((item) => (
+                <tr key={item.id} className="bg-surface hover:bg-ivory/50">
+                  <td className="p-3">
+                    <div className="flex items-center gap-3">
+                      {selecting && (
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${item.title}`}
+                          checked={checked.has(item.id)}
+                          disabled={bulkBusy}
+                          onChange={() => toggleItem(item.id)}
+                          className="h-5 w-5 accent-accent"
+                        />
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedId(item.id)}
+                        className="text-left font-medium text-ink hover:text-accent"
+                      >
+                        {item.title}
+                      </button>
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap p-3 text-muted">
+                    {item.live_service && item.status === "in_progress"
+                      ? "Live service"
+                      : statusLabel(item.status, section)}
+                  </td>
+                  <td className="whitespace-nowrap p-3 tabular-nums text-muted">
+                    {item.progress != null
+                      ? `${item.progress} episodes`
+                      : item.hours_played != null
+                        ? `${item.hours_played} hrs`
+                        : "—"}
+                  </td>
+                  <td className="p-3 tabular-nums text-muted">
+                    {item.rating != null ? `${item.rating}/5` : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : (
         <motion.div
           key="grid"
@@ -276,15 +539,31 @@ export default function Library({
         >
           <AnimatePresence mode="popLayout" initial={false}>
             {visible.map((item, i) => (
-              <ItemCard
-                key={item.id}
-                item={item}
-                section={section}
-                index={i}
-                onClick={() => setSelectedId(item.id)}
-                onUpdate={update}
-                dataTour={i === 0 ? "item-card" : undefined}
-              />
+              <div key={item.id} className="min-w-0">
+                {selecting && (
+                  <label className="mb-2 flex min-h-11 cursor-pointer items-center gap-2 text-sm text-muted">
+                    <input
+                      type="checkbox"
+                      checked={checked.has(item.id)}
+                      disabled={bulkBusy}
+                      onChange={() => toggleItem(item.id)}
+                      aria-label={`Select ${item.title}`}
+                      className="h-5 w-5 accent-accent"
+                    />{" "}
+                    Select
+                  </label>
+                )}
+                <ItemCard
+                  item={item}
+                  section={section}
+                  index={i}
+                  onClick={() =>
+                    selecting ? toggleItem(item.id) : setSelectedId(item.id)
+                  }
+                  onUpdate={selecting ? undefined : update}
+                  dataTour={i === 0 ? "item-card" : undefined}
+                />
+              </div>
             ))}
           </AnimatePresence>
         </motion.div>
@@ -303,6 +582,7 @@ export default function Library({
           onClose={() => setImportOpen(false)}
           section={section}
           existingIds={new Set(items.map((i) => i.external_id))}
+          existingTitles={items.map((i) => i.title)}
           bulkAdd={bulkAdd}
         />
       )}

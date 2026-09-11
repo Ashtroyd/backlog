@@ -7,7 +7,9 @@ import { test, expect } from "@playwright/test";
  *   delete from auth.users where email like 'claude-%@gmail.com';
  */
 
-test("an in-progress title shows up under Continue on the homescreen", async ({ page }) => {
+test("an in-progress title shows up under Continue on the homescreen", async ({
+  page,
+}) => {
   const stamp = Date.now();
   await page.goto("/");
 
@@ -19,7 +21,9 @@ test("an in-progress title shows up under Continue on the homescreen", async ({ 
   await page.getByLabel("Display name").fill("CI Continue");
   await page.getByLabel("Handle").fill(`cic${String(stamp).slice(-8)}`);
   await page.getByRole("button", { name: "Continue" }).click();
-  await expect(page.getByRole("heading", { name: "Welcome back, CI" })).toBeVisible({
+  await expect(
+    page.getByRole("heading", { name: "Welcome back, CI" }),
+  ).toBeVisible({
     timeout: 15_000,
   });
 
@@ -31,8 +35,12 @@ test("an in-progress title shows up under Continue on the homescreen", async ({ 
     .click();
   await page.getByPlaceholder("Search for an anime…").fill("frieren");
   const firstRow = page.locator('[role="dialog"] li').first();
-  await firstRow.getByRole("button", { name: /Add/ }).click({ timeout: 20_000 });
-  await expect(page.locator('[role="dialog"]').getByText("Added").first()).toBeVisible({
+  await firstRow
+    .getByRole("button", { name: /Add/ })
+    .click({ timeout: 20_000 });
+  await expect(
+    page.locator('[role="dialog"]').getByText("Added").first(),
+  ).toBeVisible({
     timeout: 20_000,
   });
   const title = (await firstRow.locator("p").first().textContent())?.trim();
@@ -40,16 +48,26 @@ test("an in-progress title shows up under Continue on the homescreen", async ({ 
   await page.keyboard.press("Escape");
 
   // Mark it in-progress ("Watching" for anime) and save.
-  await page.locator('main .grid [role="button"]').first().click();
+  await page
+    .getByRole("button", { name: /^Open / })
+    .first()
+    .click();
   await page
     .locator('[role="dialog"]')
     .getByRole("button", { name: "Watching", exact: true })
     .click();
-  await page.locator('[role="dialog"]').getByRole("button", { name: "Save", exact: true }).click();
+  await page
+    .locator('[role="dialog"]')
+    .getByRole("button", { name: "Save changes", exact: true })
+    .click();
   await page.keyboard.press("Escape");
 
   // It should now appear under Continue on the homescreen.
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Continue" })).toBeVisible({ timeout: 10_000 });
-  await expect(page.getByText(title!, { exact: false }).first()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "Continue" })).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect(page.getByText(title!, { exact: false }).first()).toBeVisible({
+    timeout: 10_000,
+  });
 });

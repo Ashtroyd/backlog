@@ -1,6 +1,11 @@
 export type MediaType = "game" | "movie" | "series" | "anime";
 
-export type ItemStatus = "backlog" | "in_progress" | "completed" | "dropped";
+export type ItemStatus =
+  | "backlog"
+  | "in_progress"
+  | "on_hold"
+  | "completed"
+  | "dropped";
 
 /** Extra details captured at add-time, varies by media type. */
 export type ItemMeta = {

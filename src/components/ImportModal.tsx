@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Section } from "@/lib/sections";
 import type { ImportInput } from "@/lib/backlog-store";
+import { importExclusion, normalizedTitle } from "@/lib/import-cleanup";
 import type { SearchResult } from "@/lib/types";
 import type { SteamImportGame } from "@/app/api/import/steam/route";
 import type { MalImportAnime } from "@/app/api/import/mal/route";
@@ -28,6 +29,7 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress: "Watching",
   completed: "Completed",
   dropped: "Dropped",
+  on_hold: "On hold",
 };
 
 export function ImportModal({
@@ -35,12 +37,14 @@ export function ImportModal({
   onClose,
   section,
   existingIds,
+  existingTitles = [],
   bulkAdd,
 }: {
   open: boolean;
   onClose: () => void;
   section: Section;
   existingIds: Set<string>;
+  existingTitles?: string[];
   bulkAdd: (
     inputs: ImportInput[],
   ) => Promise<{ added: number; skipped: number; error: string | null }>;
@@ -48,11 +52,19 @@ export function ImportModal({
   const [steamId, setSteamId] = useState("");
   const [malUsername, setMalUsername] = useState("");
   const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [rows, setRows] = useState<PreviewRow[] | null>(null);
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [importing, setImporting] = useState(false);
+  const [excludeExtras, setExcludeExtras] = useState(true);
+  const [excludeDuplicates, setExcludeDuplicates] = useState(true);
+  const [steamStatus, setSteamStatus] = useState<"backlog" | "in_progress">(
+    "backlog",
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
   function reset() {
@@ -64,6 +76,9 @@ export function ImportModal({
     setRows(null);
     setChecked(new Set());
     setImporting(false);
+    setExcludeExtras(true);
+    setExcludeDuplicates(true);
+    setSteamStatus("backlog");
   }
 
   useEffect(() => {
@@ -85,7 +100,11 @@ export function ImportModal({
     }
     setRows(deduped);
     setChecked(
-      new Set(deduped.filter((r) => r.matched && !r.alreadyInLibrary).map((r) => r.key)),
+      new Set(
+        deduped
+          .filter((r) => r.matched && !r.alreadyInLibrary)
+          .map((r) => r.key),
+      ),
     );
   }
 
@@ -98,7 +117,9 @@ export function ImportModal({
       const res = await fetch(`/api/import/steam?id=${encodeURIComponent(id)}`);
       const data = await res.json();
       if (!res.ok) {
-        setNotice(data.message ?? "Couldn't fetch that Steam library — try again.");
+        setNotice(
+          data.message ?? "Couldn't fetch that Steam library — try again.",
+        );
         setLoading(false);
         return;
       }
@@ -121,7 +142,9 @@ export function ImportModal({
           title: g.name,
           year: null,
           coverUrl: g.coverUrl,
-          subtitle: hours ? `${hours} hr${hours === 1 ? "" : "s"} played` : "Not played yet",
+          subtitle: hours
+            ? `${hours} hr${hours === 1 ? "" : "s"} played`
+            : "Not played yet",
           input,
           alreadyInLibrary: existingIds.has(g.appid),
           matched: true,
@@ -140,10 +163,14 @@ export function ImportModal({
     setLoading(true);
     setNotice(null);
     try {
-      const res = await fetch(`/api/import/mal?username=${encodeURIComponent(username)}`);
+      const res = await fetch(
+        `/api/import/mal?username=${encodeURIComponent(username)}`,
+      );
       const data = await res.json();
       if (!res.ok) {
-        setNotice(data.message ?? "Couldn't fetch that MyAnimeList — try again.");
+        setNotice(
+          data.message ?? "Couldn't fetch that MyAnimeList — try again.",
+        );
         setLoading(false);
         return;
       }
@@ -172,7 +199,10 @@ export function ImportModal({
           matched: true,
         };
       });
-      finishFetch(built, "No anime found for that username — make sure the list is public.");
+      finishFetch(
+        built,
+        "No anime found for that username — make sure the list is public.",
+      );
     } catch {
       setNotice("Couldn't fetch that MyAnimeList — try again.");
       setLoading(false);
@@ -215,7 +245,9 @@ export function ImportModal({
         .select("external_id")
         .eq("user_id", user.id)
         .eq("media_type", fallbackType);
-      existingFallbackIds = new Set((data ?? []).map((r) => r.external_id as string));
+      existingFallbackIds = new Set(
+        (data ?? []).map((r) => r.external_id as string),
+      );
     }
 
     const results: PreviewRow[] = [];
@@ -225,7 +257,12 @@ export function ImportModal({
       while (idx < parsed.length) {
         const i = idx++;
         const row = parsed[i];
-        const match = await matchLetterboxdRow(row.title, row.year, primaryType, fallbackType);
+        const match = await matchLetterboxdRow(
+          row.title,
+          row.year,
+          primaryType,
+          fallbackType,
+        );
         if (match) {
           const { result, mediaType } = match;
           const input: ImportInput = {
@@ -296,28 +333,71 @@ export function ImportModal({
     });
   }
 
-  const selectableRows = rows?.filter((r) => r.matched && !r.alreadyInLibrary) ?? [];
-  const allSelected = selectableRows.length > 0 && selectableRows.every((r) => checked.has(r.key));
+  const titleKeys = new Set(existingTitles.map(normalizedTitle));
+  const seenTitles = new Set<string>();
+  const duplicateKeys = new Set<string>();
+  for (const row of rows ?? []) {
+    const title = normalizedTitle(row.title);
+    if (title && (titleKeys.has(title) || seenTitles.has(title)))
+      duplicateKeys.add(row.key);
+    seenTitles.add(title);
+  }
+  const selectableRows =
+    rows?.filter(
+      (r) =>
+        r.matched &&
+        !r.alreadyInLibrary &&
+        !(
+          section.mediaType === "game" &&
+          excludeExtras &&
+          importExclusion(r.title)
+        ) &&
+        !(excludeDuplicates && duplicateKeys.has(r.key)),
+    ) ?? [];
+  const eligibleKeys = new Set(selectableRows.map((r) => r.key));
+  const selectedCount = selectableRows.filter((r) => checked.has(r.key)).length;
+  const allSelected =
+    selectableRows.length > 0 &&
+    selectableRows.every((r) => checked.has(r.key));
 
   function toggleAll() {
-    setChecked(allSelected ? new Set() : new Set(selectableRows.map((r) => r.key)));
+    setChecked(
+      allSelected ? new Set() : new Set(selectableRows.map((r) => r.key)),
+    );
   }
 
   async function handleImport() {
     if (!rows) return;
-    const inputs = rows
+    const inputs = selectableRows
       .filter((r) => checked.has(r.key) && r.input)
-      .map((r) => r.input as ImportInput);
+      .map((r) => ({
+        ...(r.input as ImportInput),
+        ...(section.mediaType === "game" ? { status: steamStatus } : {}),
+      }));
     if (inputs.length === 0) return;
     setImporting(true);
-    const result = await bulkAdd(inputs);
-    setImporting(false);
-    if (result.error) {
-      toast("error", result.error);
-      return;
+    try {
+      const result = await bulkAdd(inputs);
+      if (result.error) {
+        toast(
+          "error",
+          `${result.added ? `${result.added} imported. ` : ""}${result.error} You can retry the remaining titles.`,
+        );
+        return;
+      }
+      toast(
+        "success",
+        `Imported ${result.added} title${result.added === 1 ? "" : "s"}.`,
+      );
+      onClose();
+    } catch {
+      toast(
+        "error",
+        "Couldn't finish the import. Check your connection and try again.",
+      );
+    } finally {
+      setImporting(false);
     }
-    toast("success", `Imported ${result.added} title${result.added === 1 ? "" : "s"}.`);
-    onClose();
   }
 
   const sourceLabel =
@@ -328,7 +408,13 @@ export function ImportModal({
         : "Letterboxd";
 
   return (
-    <Modal open={open} onClose={onClose} wide>
+    <Modal
+      open={open}
+      onClose={() => {
+        if (!importing) onClose();
+      }}
+      wide
+    >
       <div className="p-6 sm:p-7">
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-serif text-xl font-semibold text-ink">
@@ -337,6 +423,7 @@ export function ImportModal({
           <button
             type="button"
             onClick={onClose}
+            disabled={importing}
             aria-label="Close"
             className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
           >
@@ -363,7 +450,11 @@ export function ImportModal({
                   disabled={loading || !steamId.trim()}
                   className="shrink-0 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
                 >
-                  {loading ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : "Fetch"}
+                  {loading ? (
+                    <SpinnerIcon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Fetch"
+                  )}
                 </button>
               </div>
             )}
@@ -385,12 +476,17 @@ export function ImportModal({
                   disabled={loading || !malUsername.trim()}
                   className="shrink-0 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
                 >
-                  {loading ? <SpinnerIcon className="h-4 w-4 animate-spin" /> : "Fetch"}
+                  {loading ? (
+                    <SpinnerIcon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Fetch"
+                  )}
                 </button>
               </div>
             )}
 
-            {(section.mediaType === "movie" || section.mediaType === "series") && (
+            {(section.mediaType === "movie" ||
+              section.mediaType === "series") && (
               <div>
                 <button
                   type="button"
@@ -413,9 +509,10 @@ export function ImportModal({
                   onChange={handleLetterboxdFile}
                 />
                 <p className="mt-2.5 text-xs leading-relaxed text-muted">
-                  Export your data from Letterboxd (Settings → Import & Export) and upload{" "}
-                  <code>watched.csv</code>, <code>diary.csv</code>, or <code>reviews.csv</code> —
-                  use <code>reviews.csv</code> to bring your written reviews along too.
+                  Export your data from Letterboxd (Settings → Import & Export)
+                  and upload <code>watched.csv</code>, <code>diary.csv</code>,
+                  or <code>reviews.csv</code> — use <code>reviews.csv</code> to
+                  bring your written reviews along too.
                   {section.mediaType === "series"
                     ? " Entries are matched as series first; any that are actually films go to your Movies library."
                     : " Entries that are actually series (K-dramas, TV) go to your Series library."}
@@ -438,21 +535,73 @@ export function ImportModal({
 
         {rows && (
           <>
+            <fieldset
+              disabled={importing}
+              className="mt-4 space-y-3 rounded-xl border border-line bg-ivory/50 p-4 text-sm text-body"
+            >
+              {section.mediaType === "game" && (
+                <>
+                  <label className="flex cursor-pointer items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={excludeExtras}
+                      onChange={(e) => setExcludeExtras(e.target.checked)}
+                      className="h-5 w-5 accent-accent"
+                    />{" "}
+                    Skip playtests, demos & known utilities
+                  </label>
+                  <label className="flex flex-wrap items-center gap-3">
+                    Import games as
+                    <select
+                      aria-label="Import games as"
+                      value={steamStatus}
+                      onChange={(e) =>
+                        setSteamStatus(
+                          e.target.value as "backlog" | "in_progress",
+                        )
+                      }
+                      className="rounded-lg border border-line bg-paper px-3 py-2 text-ink"
+                    >
+                      <option value="backlog">Backlog</option>
+                      <option value="in_progress">Playing</option>
+                    </select>
+                  </label>
+                  <p className="text-xs text-muted">
+                    Playtime is preserved. Having played before doesn&apos;t
+                    have to mean you&apos;re playing now.
+                  </p>
+                </>
+              )}
+              <label className="flex cursor-pointer items-center gap-3">
+                <input
+                  type="checkbox"
+                  checked={excludeDuplicates}
+                  onChange={(e) => setExcludeDuplicates(e.target.checked)}
+                  className="h-5 w-5 accent-accent"
+                />{" "}
+                Skip possible duplicates with the same title
+              </label>
+              <p className="text-xs text-muted">
+                Suggestions stay visible below. Uncheck an option to include
+                them.
+              </p>
+            </fieldset>
             <div className="mt-4 flex items-center justify-between">
               <button
                 type="button"
                 onClick={toggleAll}
+                disabled={importing}
                 className="text-sm font-medium text-accent transition-colors hover:text-accent-hover"
               >
                 {allSelected ? "Deselect all" : "Select all"}
               </button>
-              <p className="text-xs text-muted">{checked.size} selected</p>
+              <p className="text-xs text-muted">{selectedCount} selected</p>
             </div>
 
             <ul className="mt-2 max-h-[50vh] divide-y divide-line/70 overflow-y-auto">
               {rows.map((r) => {
-                const disabled = !r.matched || r.alreadyInLibrary;
-                const isChecked = checked.has(r.key);
+                const disabled = !eligibleKeys.has(r.key) || importing;
+                const isChecked = eligibleKeys.has(r.key) && checked.has(r.key);
                 return (
                   <li
                     key={r.key}
@@ -462,14 +611,23 @@ export function ImportModal({
                       type="button"
                       onClick={() => toggle(r.key)}
                       disabled={disabled}
+                      role="checkbox"
+                      aria-checked={isChecked}
+                      aria-label={`Import ${r.title}`}
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-                        isChecked ? "border-accent bg-accent text-white" : "border-line"
+                        isChecked
+                          ? "border-accent bg-accent text-white"
+                          : "border-line"
                       } ${disabled ? "opacity-40" : ""}`}
                     >
                       {isChecked && <CheckIcon className="h-3 w-3" />}
                     </button>
                     <div className="relative h-14 w-10 shrink-0 overflow-hidden rounded-md bg-ivory">
-                      <CoverImage src={r.coverUrl} title={r.title} sizes="40px" />
+                      <CoverImage
+                        src={r.coverUrl}
+                        title={r.title}
+                        sizes="40px"
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[14px] font-medium text-ink">
@@ -481,7 +639,12 @@ export function ImportModal({
                           ? "Already in your library"
                           : !r.matched
                             ? "No match found — add it manually instead"
-                            : r.subtitle}
+                            : section.mediaType === "game" &&
+                                importExclusion(r.title)
+                              ? `${importExclusion(r.title)} · ${excludeExtras ? "Skipped" : r.subtitle}`
+                              : duplicateKeys.has(r.key)
+                                ? `Possible duplicate · ${excludeDuplicates ? "Skipped" : r.subtitle}`
+                                : r.subtitle}
                       </p>
                     </div>
                   </li>
@@ -493,6 +656,7 @@ export function ImportModal({
               <button
                 type="button"
                 onClick={reset}
+                disabled={importing}
                 className="text-sm font-medium text-muted transition-colors hover:text-ink"
               >
                 Start over
@@ -500,10 +664,10 @@ export function ImportModal({
               <button
                 type="button"
                 onClick={handleImport}
-                disabled={importing || checked.size === 0}
+                disabled={importing || selectedCount === 0}
                 className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
               >
-                {importing ? "Importing…" : `Import ${checked.size}`}
+                {importing ? "Importing…" : `Import ${selectedCount}`}
               </button>
             </div>
           </>
@@ -591,9 +755,10 @@ function parseLetterboxdCsv(text: string): LetterboxdRow[] {
   const reviewIdx = header.indexOf("review");
   // diary.csv has both "Date" (log date) and "Watched Date" (backdated entries) —
   // prefer the more precise one when both are present.
-  const dateIdx = header.indexOf("watched date") !== -1
-    ? header.indexOf("watched date")
-    : header.indexOf("date");
+  const dateIdx =
+    header.indexOf("watched date") !== -1
+      ? header.indexOf("watched date")
+      : header.indexOf("date");
   if (nameIdx === -1) return [];
 
   return rows
@@ -602,10 +767,15 @@ function parseLetterboxdCsv(text: string): LetterboxdRow[] {
       const title = cols[nameIdx]?.trim();
       if (!title) return null;
       const year = yearIdx !== -1 ? Number(cols[yearIdx]) || null : null;
-      const rating = ratingIdx !== -1 && cols[ratingIdx] ? Number(cols[ratingIdx]) || null : null;
+      const rating =
+        ratingIdx !== -1 && cols[ratingIdx]
+          ? Number(cols[ratingIdx]) || null
+          : null;
       const watchedDate = dateIdx !== -1 ? cols[dateIdx]?.trim() || null : null;
       const review =
-        reviewIdx !== -1 && cols[reviewIdx]?.trim() ? stripReviewHtml(cols[reviewIdx]) : null;
+        reviewIdx !== -1 && cols[reviewIdx]?.trim()
+          ? stripReviewHtml(cols[reviewIdx])
+          : null;
       return { title, year, watchedDate, rating, review };
     })
     .filter((r): r is LetterboxdRow => r !== null);
@@ -628,7 +798,9 @@ async function searchAndMatch(
   year: number | null,
 ): Promise<SearchResult | null> {
   try {
-    const res = await fetch(`/api/search?type=${type}&q=${encodeURIComponent(title)}`);
+    const res = await fetch(
+      `/api/search?type=${type}&q=${encodeURIComponent(title)}`,
+    );
     if (!res.ok) return null;
     const data = await res.json();
     const results: SearchResult[] = data.results ?? [];

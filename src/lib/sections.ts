@@ -29,7 +29,8 @@ export const SECTIONS: Record<SectionSlug, Section> = {
     searchPlaceholder: "Search for a game…",
     source: "Steam and IMDb",
     emptyTitle: "No games yet",
-    emptyBody: "Search for a game and it lands in your backlog with cover art and details filled in.",
+    emptyBody:
+      "Search for a game and it lands in your backlog with cover art and details filled in.",
   },
   movies: {
     slug: "movies",
@@ -41,7 +42,8 @@ export const SECTIONS: Record<SectionSlug, Section> = {
     searchPlaceholder: "Search for a movie…",
     source: "IMDb",
     emptyTitle: "No movies yet",
-    emptyBody: "Search for a movie and it lands in your watchlist with its poster and details filled in.",
+    emptyBody:
+      "Search for a movie and it lands in your watchlist with its poster and details filled in.",
   },
   series: {
     slug: "series",
@@ -53,7 +55,8 @@ export const SECTIONS: Record<SectionSlug, Section> = {
     searchPlaceholder: "Search for a series…",
     source: "TVMaze",
     emptyTitle: "No series yet",
-    emptyBody: "Search for a series and it lands in your watchlist with its poster and details filled in.",
+    emptyBody:
+      "Search for a series and it lands in your watchlist with its poster and details filled in.",
   },
   anime: {
     slug: "anime",
@@ -65,7 +68,8 @@ export const SECTIONS: Record<SectionSlug, Section> = {
     searchPlaceholder: "Search for an anime…",
     source: "MyAnimeList",
     emptyTitle: "No anime yet",
-    emptyBody: "Search for an anime and it lands in your watchlist with cover art, episodes and studio details.",
+    emptyBody:
+      "Search for an anime and it lands in your watchlist with cover art, episodes and studio details.",
   },
 };
 
@@ -76,10 +80,19 @@ export const SECTION_BY_MEDIA = Object.fromEntries(
   SECTION_SLUGS.map((slug) => [SECTIONS[slug].mediaType, SECTIONS[slug]]),
 ) as Record<MediaType, Section>;
 
-export const STATUS_ORDER: ItemStatus[] = ["backlog", "in_progress", "completed", "dropped"];
+export const STATUS_ORDER: ItemStatus[] = [
+  "backlog",
+  "in_progress",
+  "on_hold",
+  "completed",
+  "dropped",
+];
 
 /** Status label from a media_type directly, for cross-section contexts. */
-export function statusLabelFor(status: ItemStatus, mediaType: MediaType): string {
+export function statusLabelFor(
+  status: ItemStatus,
+  mediaType: MediaType,
+): string {
   return statusLabel(status, SECTION_BY_MEDIA[mediaType]);
 }
 
@@ -94,6 +107,8 @@ export function statusLabel(status: ItemStatus, section: Section): string {
       return "Backlog";
     case "in_progress":
       return section.inProgressLabel;
+    case "on_hold":
+      return "On hold";
     case "completed":
       return "Completed";
     case "dropped":

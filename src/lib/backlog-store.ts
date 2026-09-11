@@ -9,7 +9,6 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
-import { toast } from "./toast-bus";
 import type {
   BacklogItem,
   ItemMeta,
@@ -121,12 +120,14 @@ function normalizeUpdateFields(
   if (patch.started_at !== undefined) fields.started_at = patch.started_at;
   if (patch.is_favorite !== undefined) fields.is_favorite = patch.is_favorite;
   if (patch.progress !== undefined) fields.progress = patch.progress;
-  if (patch.hours_played !== undefined) fields.hours_played = patch.hours_played;
+  if (patch.hours_played !== undefined)
+    fields.hours_played = patch.hours_played;
   if (patch.notes !== undefined) {
     fields.notes = patch.notes?.trim() ? patch.notes.trim() : null;
   }
   if (patch.pinned_at !== undefined) fields.pinned_at = patch.pinned_at;
-  if (patch.live_service !== undefined) fields.live_service = patch.live_service;
+  if (patch.live_service !== undefined)
+    fields.live_service = patch.live_service;
   if (patch.current_thoughts !== undefined) {
     fields.current_thoughts = patch.current_thoughts?.trim()
       ? patch.current_thoughts.trim()
@@ -215,9 +216,12 @@ export function useBacklog(mediaType: MediaType) {
 
   /** Update state and keep the tab-switch cache in step. */
   const commit = useCallback(
-    (next: BacklogItem[]) => {
-      if (userId) cacheSet(userId, mediaType, next);
-      setItems(next);
+    (next: BacklogItem[] | ((previous: BacklogItem[]) => BacklogItem[])) => {
+      setItems((previous) => {
+        const resolved = typeof next === "function" ? next(previous) : next;
+        if (userId) cacheSet(userId, mediaType, resolved);
+        return resolved;
+      });
     },
     [userId, mediaType],
   );
@@ -317,13 +321,16 @@ export function useBacklog(mediaType: MediaType) {
     async (
       inputs: ImportInput[],
     ): Promise<{ added: number; skipped: number; error: string | null }> => {
-      if (!userId) return { added: 0, skipped: inputs.length, error: "Not signed in." };
+      if (!userId)
+        return { added: 0, skipped: inputs.length, error: "Not signed in." };
 
       // Namespaced by media type: an import batch can carry mixed types (a
       // Letterboxd row might resolve to a series, not a film), and external
       // ids are only unique per (user, media_type) — see migration 0001.
       const key = (mt: string, id: string) => `${mt}:${id}`;
-      const existingKeys = new Set(items.map((i) => key(i.media_type, i.external_id)));
+      const existingKeys = new Set(
+        items.map((i) => key(i.media_type, i.external_id)),
+      );
       const seen = new Set<string>();
       const now = new Date().toISOString();
       const rows: BacklogItem[] = [];
@@ -356,7 +363,9 @@ export function useBacklog(mediaType: MediaType) {
           created_at: now,
           updated_at: now,
           completed_at:
-            status === "completed" ? (input.completedAt ?? input.startedAt ?? now) : null,
+            status === "completed"
+              ? (input.completedAt ?? input.startedAt ?? now)
+              : null,
         });
       }
       const skipped = inputs.length - rows.length;
@@ -374,7 +383,9 @@ export function useBacklog(mediaType: MediaType) {
           .from("items")
           .insert(chunk.map((r) => ({ ...r, user_id: userId })));
         if (error) {
-          const committedSoFar = inserted.filter((r) => r.media_type === mediaType);
+          const committedSoFar = inserted.filter(
+            (r) => r.media_type === mediaType,
+          );
           if (committedSoFar.length) commit([...committedSoFar, ...items]);
           return { added: inserted.length, skipped, error: error.message };
         }
@@ -387,42 +398,34 @@ export function useBacklog(mediaType: MediaType) {
   );
 
   const update = useCallback(
-    (id: string, patch: UpdatePatch) => {
-      const fields = normalizeUpdateFields(
-        items.find((i) => i.id === id),
-        patch,
-      );
-
-      // Only one favourite per section — clear any other before setting this one.
-      const claimingFavorite = patch.is_favorite === true;
-
-      const previous = items;
-      commit(
-        items.map((i) => {
-          if (i.id === id) return { ...i, ...fields } as BacklogItem;
-          if (claimingFavorite && i.is_favorite) return { ...i, is_favorite: false };
-          return i;
-        }),
-      );
-
-      (async () => {
-        if (claimingFavorite && userId) {
-          await supabase
-            .from("items")
-            .update({ is_favorite: false })
-            .eq("user_id", userId)
-            .eq("media_type", mediaType)
-            .eq("is_favorite", true)
-            .neq("id", id);
+    async (
+      id: string,
+      patch: UpdatePatch,
+    ): Promise<{ error: string | null }> => {
+      const item = items.find((i) => i.id === id);
+      if (!item) return { error: "That title is no longer in your library." };
+      try {
+        const result = await updateItemDirect(item, patch);
+        if (result.error) {
+          return result;
         }
-        const { error } = await supabase.from("items").update(fields).eq("id", id);
-        if (error) {
-          commit(previous);
-          toast("error", "Couldn't save your changes — check your connection.");
-        }
-      })();
+        commit((previous) =>
+          previous.map((i) => {
+            if (i.id === id) return { ...i, ...result.fields } as BacklogItem;
+            if (patch.is_favorite === true && i.is_favorite)
+              return { ...i, is_favorite: false };
+            return i;
+          }),
+        );
+        return { error: null };
+      } catch {
+        return {
+          error:
+            "Couldn't save your changes — check your connection and try again.",
+        };
+      }
     },
-    [items, userId, mediaType, commit],
+    [items, commit],
   );
 
   /**
@@ -430,19 +433,27 @@ export function useBacklog(mediaType: MediaType) {
    * scores). Flags `_outNow` when a previously-upcoming title has released.
    */
   const applyDetails = useCallback(
-    (id: string, fresh: { coverUrl: string | null; year: number | null; genres: string[]; meta: ItemMeta }) => {
+    (
+      id: string,
+      fresh: {
+        coverUrl: string | null;
+        year: number | null;
+        genres: string[];
+        meta: ItemMeta;
+      },
+    ) => {
       const existing = items.find((i) => i.id === id);
       if (!existing) return;
       const currentYear = new Date().getFullYear();
       const wasUpcoming =
         existing.release_year != null && existing.release_year > currentYear;
-      const nowReleased =
-        fresh.year != null && fresh.year <= currentYear;
+      const nowReleased = fresh.year != null && fresh.year <= currentYear;
       const meta: ItemMeta = {
         ...existing.meta,
         ...fresh.meta,
         _refreshedAt: new Date().toISOString(),
-        _outNow: (wasUpcoming && nowReleased) || existing.meta?._outNow || undefined,
+        _outNow:
+          (wasUpcoming && nowReleased) || existing.meta?._outNow || undefined,
       };
       const fields = {
         cover_url: fresh.coverUrl ?? existing.cover_url,
@@ -463,24 +474,24 @@ export function useBacklog(mediaType: MediaType) {
   );
 
   const remove = useCallback(
-    (id: string) => {
-      const previous = items;
-      commit(items.filter((i) => i.id !== id));
-      supabase
-        .from("items")
-        .delete()
-        .eq("id", id)
-        .then(({ error }) => {
-          if (error) {
-            commit(previous);
-            toast("error", "Couldn't remove that — check your connection.");
-          }
-        });
+    async (id: string): Promise<{ error: string | null }> => {
+      const { error } = await supabase.from("items").delete().eq("id", id);
+      if (!error) commit((previous) => previous.filter((i) => i.id !== id));
+      return { error: error?.message ?? null };
     },
-    [items, commit],
+    [commit],
   );
 
-  return { items, ready, loadError, add, bulkAdd, update, remove, applyDetails };
+  return {
+    items,
+    ready,
+    loadError,
+    add,
+    bulkAdd,
+    update,
+    remove,
+    applyDetails,
+  };
 }
 
 /**
@@ -500,21 +511,29 @@ export async function updateItemDirect(
       data: { user },
     } = await supabase.auth.getUser();
     if (user) {
-      await supabase
+      const { error } = await supabase
         .from("items")
         .update({ is_favorite: false })
         .eq("user_id", user.id)
         .eq("media_type", item.media_type)
         .eq("is_favorite", true)
         .neq("id", item.id);
+      if (error) return { error: error.message, fields };
     }
   }
-  const { error } = await supabase.from("items").update(fields).eq("id", item.id);
+  const { error } = await supabase
+    .from("items")
+    .update(fields)
+    .eq("id", item.id)
+    .select("id")
+    .single();
   return { error: error?.message ?? null, fields };
 }
 
 /** Deletes a single item outside any section hook (see updateItemDirect). */
-export async function removeItemDirect(id: string): Promise<{ error: string | null }> {
+export async function removeItemDirect(
+  id: string,
+): Promise<{ error: string | null }> {
   const { error } = await supabase.from("items").delete().eq("id", id);
   return { error: error?.message ?? null };
 }

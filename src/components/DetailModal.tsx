@@ -4,7 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { STATUS_ORDER, statusLabel, statusLabelFor, type Section } from "@/lib/sections";
+import {
+  STATUS_ORDER,
+  statusLabel,
+  statusLabelFor,
+  type Section,
+} from "@/lib/sections";
 import { useAuth, type UpdatePatch } from "@/lib/backlog-store";
 import { fetchAlsoHave, type AlsoHave } from "@/lib/social";
 import { hasShareableTake, itemChips } from "@/lib/chips";
@@ -99,8 +104,11 @@ export function DetailModal({
   item: BacklogItem | null;
   section: Section;
   onClose: () => void;
-  onUpdate: (id: string, patch: UpdatePatch) => void;
-  onRemove: (id: string) => void;
+  onUpdate: (
+    id: string,
+    patch: UpdatePatch,
+  ) => Promise<{ error: string | null }>;
+  onRemove: (id: string) => Promise<{ error: string | null }>;
   onRefresh?: (
     id: string,
     fresh: {
@@ -131,6 +139,10 @@ export function DetailModal({
   const [currentThoughts, setCurrentThoughts] = useState("");
   const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
   const [shareOpen, setShareOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [discardRequested, setDiscardRequested] = useState(false);
+  const draftItem = useRef<BacklogItem | null>(null);
 
   // Typed/dated fields default to a read-only display behind an Edit
   // button, to keep the modal calm for titles you're not finished with.
@@ -147,7 +159,16 @@ export function DetailModal({
   const [initialStatus, setInitialStatus] = useState<ItemStatus>("backlog");
 
   useEffect(() => {
-    if (item) {
+    if (!item) {
+      draftItem.current = null;
+      return;
+    }
+    // Source metadata can refresh while typing; only initialise a new editor.
+    if (draftItem.current?.id !== item.id) {
+      draftItem.current = item;
+      setSaving(false);
+      setSaveError(null);
+      setDiscardRequested(false);
       setSnapshot(item);
       setStatus(item.status);
       setInitialStatus(item.status);
@@ -226,41 +247,135 @@ export function DetailModal({
 
   const isEpisodic =
     section.mediaType === "series" || section.mediaType === "anime";
-  const totalEpisodes = current?.meta?.episodes ?? null;
+  const totalEpisodes =
+    current?.meta?.episodes && current.meta.episodes > 0
+      ? current.meta.episodes
+      : null;
+  const original = snapshot;
+  const dirty =
+    !!item &&
+    !!original &&
+    (status !== original.status ||
+      rating !== original.rating ||
+      review !== (original.review ?? "") ||
+      notes !== (original.notes ?? "") ||
+      currentThoughts !== (original.current_thoughts ?? "") ||
+      isPrivate !== original.is_private ||
+      isFavorite !== original.is_favorite ||
+      startedAt !== (original.started_at ?? "") ||
+      episodes !==
+        (original.progress == null ? "" : String(original.progress)) ||
+      hours !==
+        (original.hours_played == null ? "" : String(original.hours_played)) ||
+      liveService !== original.live_service ||
+      pinned !== (original.pinned_at != null));
 
-  function handleSave() {
-    if (!current) return;
+  useEffect(() => {
+    if (!dirty) return;
+    function warn(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  function requestClose() {
+    if (saving) return;
+    if (dirty) setDiscardRequested(true);
+    else onClose();
+  }
+
+  async function handleSave() {
+    if (!current || saving) return;
     const parsedEpisodes =
       episodes.trim() === "" ? null : Math.max(0, Math.floor(Number(episodes)));
-    const parsedHours =
-      hours.trim() === "" ? null : Math.max(0, Number(hours));
-    onUpdate(current.id, {
-      status,
-      rating,
-      review,
-      notes,
-      is_private: isPrivate,
-      is_favorite: isFavorite,
-      started_at: startedAt || null,
-      progress: isEpisodic && !Number.isNaN(parsedEpisodes ?? 0) ? parsedEpisodes : undefined,
-      hours_played:
-        section.mediaType === "game" && !Number.isNaN(parsedHours ?? 0)
-          ? parsedHours
-          : undefined,
-      live_service: section.mediaType === "game" ? liveService : undefined,
-      current_thoughts: section.mediaType === "game" ? currentThoughts : undefined,
-      // Preserve the original pin time so re-saving doesn't bump it to the
-      // front of "Up next" — only a fresh pin gets a new timestamp.
-      pinned_at: pinned ? (current.pinned_at ?? new Date().toISOString()) : null,
-    });
-    onClose();
+    const parsedHours = hours.trim() === "" ? null : Math.max(0, Number(hours));
+    if (
+      isEpisodic &&
+      episodes !== "" &&
+      (!Number.isFinite(Number(episodes)) ||
+        Number(episodes) < 0 ||
+        !Number.isInteger(Number(episodes)) ||
+        (totalEpisodes != null && Number(episodes) > totalEpisodes))
+    ) {
+      setSaveError(
+        `Enter a whole episode number from 0${totalEpisodes != null ? ` to ${totalEpisodes}` : " upwards"}.`,
+      );
+      return;
+    }
+    if (
+      section.mediaType === "game" &&
+      hours !== "" &&
+      (!Number.isFinite(Number(hours)) || Number(hours) < 0)
+    ) {
+      setSaveError("Enter a valid number of hours, zero or more.");
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const draft: UpdatePatch = {
+        status,
+        rating,
+        review,
+        notes,
+        is_private: isPrivate,
+        is_favorite: isFavorite,
+        started_at: startedAt || null,
+        progress:
+          isEpisodic && !Number.isNaN(parsedEpisodes ?? 0)
+            ? parsedEpisodes
+            : undefined,
+        hours_played:
+          section.mediaType === "game" && !Number.isNaN(parsedHours ?? 0)
+            ? parsedHours
+            : undefined,
+        live_service: section.mediaType === "game" ? liveService : undefined,
+        current_thoughts:
+          section.mediaType === "game" ? currentThoughts : undefined,
+        // Preserve the original pin time so re-saving doesn't bump it to the
+        // front of "Up next" — only a fresh pin gets a new timestamp.
+        pinned_at: pinned
+          ? (current.pinned_at ?? new Date().toISOString())
+          : null,
+      };
+      // Send only edited fields; saving progress must not rewrite an existing review or favourite.
+      const patch = Object.fromEntries(
+        Object.entries(draft).filter(([key, value]) => {
+          if (value === undefined) return false;
+          const before = original?.[key as keyof BacklogItem];
+          return typeof value === "string"
+            ? value.trim() !== (before ?? "")
+            : value !== before;
+        }),
+      ) as UpdatePatch;
+      if (!Object.keys(patch).length) {
+        onClose();
+        return;
+      }
+      const result = await onUpdate(current.id, patch);
+      if (result.error)
+        setSaveError(
+          "Your changes are still here. Check your connection and try saving again.",
+        );
+      else onClose();
+    } catch {
+      setSaveError(
+        "Your changes are still here. Check your connection and try saving again.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   /** Step the episode counter, clamped to [0, total] when the total is known. */
   function stepEpisodes(delta: number) {
     setEpisodes((prev) => {
       const next = Math.max(0, (Number(prev) || 0) + delta);
-      return String(totalEpisodes != null ? Math.min(next, totalEpisodes) : next);
+      return String(
+        totalEpisodes != null ? Math.min(next, totalEpisodes) : next,
+      );
     });
   }
 
@@ -273,512 +388,618 @@ export function DetailModal({
       danger: true,
     });
     if (!ok) return;
-    onRemove(current.id);
-    onClose();
+    setSaving(true);
+    try {
+      const result = await onRemove(current.id);
+      if (result.error)
+        setSaveError("Couldn't remove this title. Please try again.");
+      else onClose();
+    } catch {
+      setSaveError(
+        "Couldn't remove this title. Check your connection and try again.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   const chips = itemChips(current);
 
   return (
     <>
-    <Modal open={Boolean(item)} onClose={onClose} wide>
-      {current && (
-        <div className="p-6 sm:p-7">
-          <div className="flex items-start gap-6">
-            <div className="relative hidden aspect-[2/3] w-36 shrink-0 overflow-hidden rounded-xl border border-line bg-ivory sm:block">
-              {current.cover_url && (
-                <Image
-                  src={current.cover_url}
-                  alt=""
-                  fill
-                  sizes="144px"
-                  className="object-cover"
-                />
-              )}
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="font-serif text-2xl font-semibold leading-snug tracking-tight text-ink">
-                  {current.title}
-                </h2>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  aria-label="Close"
-                  className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
-                >
-                  <XIcon className="h-4 w-4" />
-                </button>
-              </div>
-              <p className="mt-1 text-sm text-muted">
-                {[current.release_year, current.genres.join(", ")]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-
-              {(chips.length > 0 || releaseBadge(current)) && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {(() => {
-                    const badge = releaseBadge(current);
-                    return badge ? (
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                          badge.label === "Out now"
-                            ? "bg-sage-soft text-sage"
-                            : "bg-accent-soft text-accent-hover"
-                        }`}
-                      >
-                        {badge.label}
-                      </span>
-                    ) : null;
-                  })()}
-                  {chips.map((c) => (
-                    <span
-                      key={c}
-                      className="rounded-full bg-ivory px-2.5 py-1 text-xs text-body"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              <div className="mt-5">
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                  Status
+      <Modal open={Boolean(item)} onClose={requestClose} wide>
+        {current && (
+          <fieldset disabled={saving} className="min-w-0 p-5 sm:p-6">
+            {discardRequested && (
+              <div
+                role="alert"
+                className="mb-5 rounded-xl border border-line bg-ivory p-4"
+              >
+                <p className="text-sm font-medium text-ink">
+                  Discard your unsaved changes?
                 </p>
-                {/* Pills wrap on narrow screens, so soften the corners rather
-                    than keeping a full pill shape around two rows. */}
-                <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-ivory p-1 sm:rounded-full">
-                  {STATUS_ORDER.map((s) => {
-                    const active = status === s;
-                    return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => chooseStatus(s)}
-                        className={`relative rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
-                          active ? "text-ink" : "text-muted hover:text-ink"
-                        }`}
-                      >
-                        {active && (
-                          <motion.span
-                            layoutId={`status-thumb-${current.id}`}
-                            className="absolute inset-0 rounded-full bg-surface shadow-sm"
-                            transition={{
-                              type: "spring",
-                              duration: 0.4,
-                              bounce: 0.15,
-                            }}
-                          />
-                        )}
-                        <span className="relative">{statusLabel(s, section)}</span>
-                      </button>
-                    );
-                  })}
+                <div className="mt-3 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDiscardRequested(false)}
+                    className="rounded-full bg-ink px-4 py-2 text-sm text-paper"
+                  >
+                    Keep editing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-full px-4 py-2 text-sm text-accent-hover"
+                  >
+                    Discard changes
+                  </button>
                 </div>
               </div>
-
-              <AnimatePresence initial={false}>
-                {status !== "backlog" && (
-                  <motion.div
-                    key="started"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-5 pt-1">
-                      <EditableField
-                        label={section.startedLabel}
-                        open={justCompleted || editingStarted}
-                        onEdit={() => setEditingStarted(true)}
-                        editor={
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="date"
-                              value={startedAt}
-                              max={todayISODate()}
-                              onChange={(e) => setStartedAt(e.target.value)}
-                              aria-label={section.startedLabel}
-                              className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
-                            />
-                            {startedAt && (
-                              <button
-                                type="button"
-                                onClick={() => setStartedAt("")}
-                                className="rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
-                              >
-                                Clear
-                              </button>
-                            )}
-                          </div>
-                        }
-                        display={
-                          <p className="text-[15px] text-ink">
-                            {startedAt ? formatDate(startedAt) : "Not set"}
-                          </p>
-                        }
-                      />
-                    </div>
-                  </motion.div>
+            )}
+            <div className="flex items-start gap-6">
+              <div className="relative hidden aspect-[2/3] w-36 shrink-0 overflow-hidden rounded-xl border border-line bg-ivory sm:block">
+                {current.cover_url && (
+                  <Image
+                    src={current.cover_url}
+                    alt=""
+                    fill
+                    sizes="144px"
+                    className="object-cover"
+                  />
                 )}
-              </AnimatePresence>
+              </div>
 
-              <AnimatePresence initial={false}>
-                {status !== "backlog" && (isEpisodic || section.mediaType === "game") && (
-                  <motion.div
-                    key="progress"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                    className="overflow-hidden"
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="font-serif text-2xl font-semibold leading-snug tracking-tight text-ink">
+                    {current.title}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={requestClose}
+                    aria-label="Close"
+                    className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
                   >
-                    <div className="mt-5 pt-1">
-                      <EditableField
-                        label={isEpisodic ? "Episodes watched" : "Hours played"}
-                        open={isEpisodic || justCompleted || editingHours}
-                        onEdit={() => setEditingHours(true)}
-                        editor={
-                          isEpisodic ? (
-                            <div className="flex items-center gap-3">
-                              <button
-                                type="button"
-                                onClick={() => stepEpisodes(-1)}
-                                aria-label="Decrease episodes watched"
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
-                              >
-                                −
-                              </button>
-                              <span className="min-w-[6rem] text-center text-[15px] tabular-nums text-ink">
-                                {episodes || "0"}
-                                {totalEpisodes != null ? ` of ${totalEpisodes}` : ""}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => stepEpisodes(1)}
-                                aria-label="Increase episodes watched"
-                                className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
-                              >
-                                +
-                              </button>
-                            </div>
-                          ) : (
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.5"
-                              value={hours}
-                              onChange={(e) => setHours(e.target.value)}
-                              placeholder="0"
-                              aria-label="Hours played"
-                              className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
-                            />
-                          )
-                        }
-                        display={
-                          <p className="text-[15px] text-ink">
-                            {hours ? `${hours} hrs` : "Not tracked"}
-                          </p>
-                        }
-                      />
-                    </div>
-                  </motion.div>
+                    <XIcon className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-1 text-sm text-muted">
+                  {[current.release_year, current.genres.join(", ")]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+
+                {(chips.length > 0 || releaseBadge(current)) && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {(() => {
+                      const badge = releaseBadge(current);
+                      return badge ? (
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            badge.label === "Out now"
+                              ? "bg-sage-soft text-sage"
+                              : "bg-accent-soft text-accent-hover"
+                          }`}
+                        >
+                          {badge.label}
+                        </span>
+                      ) : null;
+                    })()}
+                    {chips.map((c) => (
+                      <span
+                        key={c}
+                        className="rounded-full bg-ivory px-2.5 py-1 text-xs text-body"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
                 )}
-              </AnimatePresence>
 
-              <AnimatePresence initial={false}>
-                {section.mediaType === "game" && status === "in_progress" && (
-                  <motion.div
-                    key="current-thoughts"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-5 pt-1">
-                      <EditableField
-                        label="Current thoughts"
-                        open={editingThoughts}
-                        onEdit={() => setEditingThoughts(true)}
-                        editor={
-                          <>
-                            <textarea
-                              value={currentThoughts}
-                              onChange={(e) => setCurrentThoughts(e.target.value)}
-                              rows={3}
-                              placeholder={
-                                liveService
-                                  ? "This one doesn't really end — what's your take right now?"
-                                  : "Not finished yet, but what's the verdict so far?"
-                              }
-                              aria-label="Current thoughts"
-                              autoFocus
-                              className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                <div className="mt-5">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
+                    Status
+                  </p>
+                  {/* Pills wrap on narrow screens, so soften the corners rather
+                    than keeping a full pill shape around two rows. */}
+                  <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-ivory p-1 sm:rounded-full">
+                    {STATUS_ORDER.map((s) => {
+                      const active = status === s;
+                      return (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => chooseStatus(s)}
+                          className={`relative rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                            active ? "text-ink" : "text-muted hover:text-ink"
+                          }`}
+                        >
+                          {active && (
+                            <motion.span
+                              layoutId={`status-thumb-${current.id}`}
+                              className="absolute inset-0 rounded-full bg-surface shadow-sm"
+                              transition={{
+                                type: "spring",
+                                duration: 0.4,
+                                bounce: 0.15,
+                              }}
                             />
-                            <p className="mt-1.5 text-xs text-muted">
-                              Visible to friends, like a review — unless you hide this title below.
-                            </p>
-                          </>
-                        }
-                        display={
-                          <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
-                            {currentThoughts || "Nothing yet"}
-                          </p>
-                        }
-                      />
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                          )}
+                          <span className="relative">
+                            {statusLabel(s, section)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
-              <AnimatePresence initial={false}>
-                {status === "completed" && (
-                  <motion.div
-                    key="review"
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                    className="overflow-hidden"
-                  >
-                    <div className="mt-5 space-y-4 pt-1">
-                      <div>
+                <AnimatePresence initial={false}>
+                  {status !== "backlog" && (
+                    <motion.div
+                      key="started"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-4">
                         <EditableField
-                          label="Your rating"
-                          open={justCompleted || editingRating}
-                          onEdit={() => setEditingRating(true)}
-                          editor={<StarRating value={rating} onChange={setRating} size={26} />}
-                          display={<StarRating value={rating} size={26} />}
-                        />
-                      </div>
-                      <div>
-                        <EditableField
-                          label="Your review"
-                          open={justCompleted || editingReview}
-                          onEdit={() => setEditingReview(true)}
+                          label={section.startedLabel}
+                          open={justCompleted || editingStarted}
+                          onEdit={() => setEditingStarted(true)}
                           editor={
-                            <textarea
-                              value={review}
-                              onChange={(e) => setReview(e.target.value)}
-                              rows={4}
-                              placeholder="What did you think?"
-                              aria-label="Your review"
-                              autoFocus={editingReview}
-                              className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                            />
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="date"
+                                value={startedAt}
+                                max={todayISODate()}
+                                onChange={(e) => setStartedAt(e.target.value)}
+                                aria-label={section.startedLabel}
+                                className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                              />
+                              {startedAt && (
+                                <button
+                                  type="button"
+                                  onClick={() => setStartedAt("")}
+                                  className="rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
+                                >
+                                  Clear
+                                </button>
+                              )}
+                            </div>
                           }
                           display={
-                            <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-body">
-                              {review || "No review yet"}
+                            <p className="text-[15px] text-ink">
+                              {startedAt ? formatDate(startedAt) : "Not set"}
                             </p>
                           }
                         />
                       </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-              <div className="mt-5">
-                <EditableField
-                  label="Private notes"
-                  icon={<EyeOffIcon className="h-3 w-3" />}
-                  open={justCompleted || editingNotes}
-                  onEdit={() => setEditingNotes(true)}
-                  editor={
-                    <textarea
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={3}
-                      placeholder="Only you can see this — jot down anything worth remembering."
-                      aria-label="Private notes"
-                      autoFocus={editingNotes}
-                      className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                    />
-                  }
-                  display={
-                    <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
-                      {notes || "No notes yet"}
+                <AnimatePresence initial={false}>
+                  {status !== "backlog" &&
+                    (isEpisodic || section.mediaType === "game") && (
+                      <motion.div
+                        key="progress"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="mt-4">
+                          <EditableField
+                            label={
+                              isEpisodic ? "Episodes watched" : "Hours played"
+                            }
+                            open={isEpisodic || justCompleted || editingHours}
+                            onEdit={() => setEditingHours(true)}
+                            editor={
+                              isEpisodic ? (
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => stepEpisodes(-1)}
+                                    aria-label="Decrease episodes watched"
+                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
+                                  >
+                                    −
+                                  </button>
+                                  <input
+                                    type="number"
+                                    inputMode="numeric"
+                                    min={0}
+                                    max={totalEpisodes ?? undefined}
+                                    step={1}
+                                    value={episodes}
+                                    onChange={(e) =>
+                                      setEpisodes(e.target.value)
+                                    }
+                                    aria-label="Episodes watched"
+                                    placeholder="0"
+                                    className="w-24 rounded-xl border border-line bg-paper px-3 py-2.5 text-center text-base tabular-nums text-ink"
+                                  />
+                                  {totalEpisodes != null && (
+                                    <span className="text-sm text-muted">
+                                      of {totalEpisodes}
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => stepEpisodes(1)}
+                                    aria-label="Increase episodes watched"
+                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
+                                  >
+                                    +
+                                  </button>
+                                </div>
+                              ) : (
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="0.5"
+                                  value={hours}
+                                  onChange={(e) => setHours(e.target.value)}
+                                  placeholder="0"
+                                  aria-label="Hours played"
+                                  className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                                />
+                              )
+                            }
+                            display={
+                              <p className="text-[15px] text-ink">
+                                {hours ? `${hours} hrs` : "Not tracked"}
+                              </p>
+                            }
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence initial={false}>
+                  {section.mediaType === "game" && status === "in_progress" && (
+                    <motion.div
+                      key="current-thoughts"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-4">
+                        <EditableField
+                          label="Current thoughts"
+                          open={editingThoughts}
+                          onEdit={() => setEditingThoughts(true)}
+                          editor={
+                            <>
+                              <textarea
+                                value={currentThoughts}
+                                onChange={(e) =>
+                                  setCurrentThoughts(e.target.value)
+                                }
+                                rows={3}
+                                placeholder={
+                                  liveService
+                                    ? "This one doesn't really end — what's your take right now?"
+                                    : "Not finished yet, but what's the verdict so far?"
+                                }
+                                aria-label="Current thoughts"
+                                autoFocus
+                                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                              />
+                              <p className="mt-1.5 text-xs text-muted">
+                                Visible to friends, like a review — unless you
+                                hide this title below.
+                              </p>
+                            </>
+                          }
+                          display={
+                            <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
+                              {currentThoughts || "Nothing yet"}
+                            </p>
+                          }
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <AnimatePresence initial={false}>
+                  {status === "completed" && (
+                    <motion.div
+                      key="review"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-5 space-y-4 pt-1">
+                        <div>
+                          <EditableField
+                            label="Your rating"
+                            open={justCompleted || editingRating}
+                            onEdit={() => setEditingRating(true)}
+                            editor={
+                              <StarRating
+                                value={rating}
+                                onChange={setRating}
+                                size={26}
+                              />
+                            }
+                            display={<StarRating value={rating} size={26} />}
+                          />
+                        </div>
+                        <div>
+                          <EditableField
+                            label="Your review"
+                            open={justCompleted || editingReview}
+                            onEdit={() => setEditingReview(true)}
+                            editor={
+                              <textarea
+                                value={review}
+                                onChange={(e) => setReview(e.target.value)}
+                                rows={4}
+                                placeholder="What did you think?"
+                                aria-label="Your review"
+                                autoFocus={editingReview}
+                                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                              />
+                            }
+                            display={
+                              <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-body">
+                                {review || "No review yet"}
+                              </p>
+                            }
+                          />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <div className="mt-5">
+                  <EditableField
+                    label="Private notes"
+                    icon={<EyeOffIcon className="h-3 w-3" />}
+                    open={justCompleted || editingNotes}
+                    onEdit={() => setEditingNotes(true)}
+                    editor={
+                      <textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        rows={3}
+                        placeholder="Only you can see this — jot down anything worth remembering."
+                        aria-label="Private notes"
+                        autoFocus={editingNotes}
+                        className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                      />
+                    }
+                    display={
+                      <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
+                        {notes || "No notes yet"}
+                      </p>
+                    }
+                  />
+                </div>
+
+                {/* Friends who also have this title */}
+                {alsoHave.length > 0 && (
+                  <div className="mt-6 border-t border-line pt-4">
+                    <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
+                      {alsoHave.length === 1
+                        ? "A friend also has this"
+                        : "Friends also have this"}
                     </p>
-                  }
-                />
-              </div>
-
-              {/* Friends who also have this title */}
-              {alsoHave.length > 0 && (
-                <div className="mt-6 border-t border-line pt-4">
-                  <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
-                    {alsoHave.length === 1 ? "A friend also has this" : "Friends also have this"}
-                  </p>
-                  <ul className="space-y-3">
-                    {alsoHave.map(({ profile, item: it }) => (
-                      <li key={profile.id} className="flex items-start gap-2.5">
-                        {/* The name link right after this repeats the same
+                    <ul className="space-y-3">
+                      {alsoHave.map(({ profile, item: it }) => (
+                        <li
+                          key={profile.id}
+                          className="flex items-start gap-2.5"
+                        >
+                          {/* The name link right after this repeats the same
                             destination with a real accessible name, so this
                             one is hidden from assistive tech to avoid a
                             duplicate stop. */}
-                        <Link
-                          href={`/friends/${profile.username}`}
-                          onClick={onClose}
-                          aria-hidden="true"
-                          tabIndex={-1}
-                        >
-                          <Avatar profile={profile} size={34} />
-                        </Link>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-                            <Link
-                              href={`/friends/${profile.username}`}
-                              onClick={onClose}
-                              className="font-medium text-ink hover:text-accent"
-                            >
-                              {profile.display_name}
-                            </Link>
-                            <span className="inline-flex items-center gap-1 text-xs text-muted">
-                              <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[it.status]}`} />
-                              {statusLabelFor(it.status, it.media_type)}
-                            </span>
-                            {it.rating != null && <StarRating value={it.rating} size={12} />}
-                          </div>
-                          {it.review ? (
-                            <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body">
-                              {it.review}
-                            </p>
-                          ) : (
-                            it.current_thoughts && (
-                              <p className="mt-1 whitespace-pre-wrap text-sm italic leading-relaxed text-body">
-                                {it.current_thoughts}
+                          <Link
+                            href={`/friends/${profile.username}`}
+                            onClick={(event) => {
+                              if (dirty || saving) event.preventDefault();
+                              requestClose();
+                            }}
+                            aria-hidden="true"
+                            tabIndex={-1}
+                          >
+                            <Avatar profile={profile} size={34} />
+                          </Link>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+                              <Link
+                                href={`/friends/${profile.username}`}
+                                onClick={(event) => {
+                                  if (dirty || saving) event.preventDefault();
+                                  requestClose();
+                                }}
+                                className="font-medium text-ink hover:text-accent"
+                              >
+                                {profile.display_name}
+                              </Link>
+                              <span className="inline-flex items-center gap-1 text-xs text-muted">
+                                <span
+                                  className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[it.status]}`}
+                                />
+                                {statusLabelFor(it.status, it.media_type)}
+                              </span>
+                              {it.rating != null && (
+                                <StarRating value={it.rating} size={12} />
+                              )}
+                            </div>
+                            {it.review ? (
+                              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body">
+                                {it.review}
                               </p>
-                            )
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+                            ) : (
+                              it.current_thoughts && (
+                                <p className="mt-1 whitespace-pre-wrap text-sm italic leading-relaxed text-body">
+                                  {it.current_thoughts}
+                                </p>
+                              )
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-              {hasShareableTake(current) && myId && (
-                <div className="mt-6 border-t border-line pt-4">
-                  <CommentThread itemId={current.id} ownerId={myId} onClose={onClose} />
-                </div>
-              )}
+                {hasShareableTake(current) && myId && (
+                  <div className="mt-6 border-t border-line pt-4">
+                    <CommentThread
+                      itemId={current.id}
+                      ownerId={myId}
+                      onClose={onClose}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="mt-7 flex items-center justify-between gap-3 border-t border-line pt-5">
-            <div className="flex flex-wrap items-center gap-1">
-              <button
-                type="button"
-                onClick={handleRemove}
-                className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-accent-soft hover:text-accent-hover"
+            {saveError && (
+              <p
+                role="alert"
+                className="mt-4 rounded-xl bg-accent-soft p-3 text-sm text-accent-hover"
               >
-                <TrashIcon className="h-4 w-4" />
-                Remove
-              </button>
-              <button
-                type="button"
-                onClick={() => setShareOpen(true)}
-                title="Recommend to a friend"
-                className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
-              >
-                <SendIcon className="h-4 w-4" />
-                Recommend
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsFavorite((v) => !v)}
-                title={
-                  isFavorite
-                    ? `Your favourite ${section.singular} — click to unset`
-                    : `Set as your favourite ${section.singular}`
-                }
-                className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                  isFavorite
-                    ? "bg-accent-soft text-accent-hover"
-                    : "text-muted hover:bg-ivory hover:text-ink"
-                }`}
-              >
-                <HeartIcon
-                  className="h-4 w-4"
-                  fill={isFavorite ? "currentColor" : "none"}
-                />
-                {isFavorite ? "Favourite" : "Favourite"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setPinned((v) => !v)}
-                title={
-                  pinned
-                    ? "Pinned to Up next — click to unpin"
-                    : "Pin to Up next"
-                }
-                className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                  pinned
-                    ? "bg-accent-soft text-accent-hover"
-                    : "text-muted hover:bg-ivory hover:text-ink"
-                }`}
-              >
-                <PinIcon className="h-4 w-4" fill={pinned ? "currentColor" : "none"} />
-                {pinned ? "Pinned" : "Pin"}
-              </button>
-              {section.mediaType === "game" && (
+                {saveError}
+              </p>
+            )}
+            <div className="sticky bottom-0 mt-5 flex items-center justify-between gap-3 border-t border-line bg-surface pt-4 pb-1">
+              <details className="relative">
+                <summary className="cursor-pointer rounded-full border border-line px-4 py-2.5 text-sm text-ink">
+                  More actions
+                </summary>
+                <div className="absolute bottom-full left-0 z-10 mb-2 flex w-56 flex-col items-stretch rounded-xl border border-line bg-surface p-2 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={handleRemove}
+                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-accent-soft hover:text-accent-hover"
+                  >
+                    <TrashIcon className="h-4 w-4" />
+                    Remove
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShareOpen(true)}
+                    title="Recommend to a friend"
+                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
+                  >
+                    <SendIcon className="h-4 w-4" />
+                    Recommend
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsFavorite((v) => !v)}
+                    title={
+                      isFavorite
+                        ? `Your favourite ${section.singular} — click to unset`
+                        : `Set as your favourite ${section.singular}`
+                    }
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                      isFavorite
+                        ? "bg-accent-soft text-accent-hover"
+                        : "text-muted hover:bg-ivory hover:text-ink"
+                    }`}
+                  >
+                    <HeartIcon
+                      className="h-4 w-4"
+                      fill={isFavorite ? "currentColor" : "none"}
+                    />
+                    {isFavorite ? "Favourite" : "Favourite"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPinned((v) => !v)}
+                    title={
+                      pinned
+                        ? "Pinned to Up next — click to unpin"
+                        : "Pin to Up next"
+                    }
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                      pinned
+                        ? "bg-accent-soft text-accent-hover"
+                        : "text-muted hover:bg-ivory hover:text-ink"
+                    }`}
+                  >
+                    <PinIcon
+                      className="h-4 w-4"
+                      fill={pinned ? "currentColor" : "none"}
+                    />
+                    {pinned ? "Pinned" : "Pin"}
+                  </button>
+                  {section.mediaType === "game" && (
+                    <button
+                      type="button"
+                      onClick={() => setLiveService((v) => !v)}
+                      title={
+                        liveService
+                          ? "Tagged as live service — click to unset"
+                          : 'Tag as a live-service game with no real "completed" state'
+                      }
+                      className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                        liveService
+                          ? "bg-accent-soft text-accent-hover"
+                          : "text-muted hover:bg-ivory hover:text-ink"
+                      }`}
+                    >
+                      <InfinityIcon className="h-4 w-4" />
+                      Live Service
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsPrivate((v) => !v)}
+                    title={
+                      isPrivate
+                        ? "Hidden from friends — click to make visible"
+                        : "Visible to friends — click to hide"
+                    }
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                      isPrivate
+                        ? "bg-ivory text-ink"
+                        : "text-muted hover:bg-ivory hover:text-ink"
+                    }`}
+                  >
+                    <EyeOffIcon className="h-4 w-4" />
+                    {isPrivate ? "Private" : "Hide"}
+                  </button>
+                </div>
+              </details>
+              <div className="flex items-center gap-3">
+                <span aria-live="polite" className="text-xs text-muted">
+                  {saving ? "Saving…" : dirty ? "Unsaved changes" : "Saved"}
+                </span>
                 <button
                   type="button"
-                  onClick={() => setLiveService((v) => !v)}
-                  title={
-                    liveService
-                      ? "Tagged as live service — click to unset"
-                      : "Tag as a live-service game with no real \"completed\" state"
-                  }
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                    liveService
-                      ? "bg-accent-soft text-accent-hover"
-                      : "text-muted hover:bg-ivory hover:text-ink"
-                  }`}
+                  onClick={handleSave}
+                  className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
                 >
-                  <InfinityIcon className="h-4 w-4" />
-                  Live Service
+                  {saving ? "Saving…" : "Save changes"}
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setIsPrivate((v) => !v)}
-                title={
-                  isPrivate
-                    ? "Hidden from friends — click to make visible"
-                    : "Visible to friends — click to hide"
-                }
-                className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                  isPrivate
-                    ? "bg-ivory text-ink"
-                    : "text-muted hover:bg-ivory hover:text-ink"
-                }`}
-              >
-                <EyeOffIcon className="h-4 w-4" />
-                {isPrivate ? "Private" : "Hide"}
-              </button>
+              </div>
             </div>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
-            >
-              Save
-            </button>
-          </div>
-        </div>
-      )}
-    </Modal>
-    <ShareToFriendModal
-      item={shareOpen ? current : null}
-      onClose={() => setShareOpen(false)}
-    />
+          </fieldset>
+        )}
+      </Modal>
+      <ShareToFriendModal
+        item={shareOpen ? current : null}
+        onClose={() => setShareOpen(false)}
+      />
     </>
   );
 }

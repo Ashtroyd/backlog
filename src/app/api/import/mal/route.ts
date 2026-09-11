@@ -23,7 +23,7 @@ export type MalImportAnime = {
 const STATUS_MAP: Record<number, ItemStatus> = {
   1: "in_progress", // currently watching
   2: "completed",
-  3: "in_progress", // on hold — still nominally in progress, just paused
+  3: "on_hold", // preserve paused titles instead of adding them to Continue
   4: "dropped",
   6: "backlog", // plan to watch
 };
@@ -44,13 +44,15 @@ interface MalListEntry {
 
 export async function GET(request: NextRequest) {
   const username = request.nextUrl.searchParams.get("username")?.trim() ?? "";
-  if (!username) return NextResponse.json({ error: "missing_username" }, { status: 400 });
+  if (!username)
+    return NextResponse.json({ error: "missing_username" }, { status: 400 });
 
   const notFound = () =>
     NextResponse.json(
       {
         error: "not_found",
-        message: "Couldn't find that MyAnimeList user, or their list isn't public.",
+        message:
+          "Couldn't find that MyAnimeList user, or their list isn't public.",
       },
       { status: 404 },
     );
@@ -62,7 +64,8 @@ export async function GET(request: NextRequest) {
       const res = await fetch(url, {
         cache: "no-store",
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; BacklogApp/1.0; +https://backlog-liart.vercel.app)",
+          "User-Agent":
+            "Mozilla/5.0 (compatible; BacklogApp/1.0; +https://backlog-liart.vercel.app)",
           Accept: "application/json",
         },
       });
@@ -84,20 +87,25 @@ export async function GET(request: NextRequest) {
 
     const results: MalImportAnime[] = entries
       .filter((e) => e && e.anime_id != null)
-      .map((e): MalImportAnime => ({
-        malId: String(e.anime_id),
-        title: e.anime_title_eng?.trim() || e.anime_title || "Untitled",
-        coverUrl: e.anime_image_path
-          ? String(e.anime_image_path).replace(/\/r\/\d+x\d+\//, "/")
-          : null,
-        episodes:
-          typeof e.anime_num_episodes === "number" && e.anime_num_episodes > 0
-            ? e.anime_num_episodes
+      .map(
+        (e): MalImportAnime => ({
+          malId: String(e.anime_id),
+          title: e.anime_title_eng?.trim() || e.anime_title || "Untitled",
+          coverUrl: e.anime_image_path
+            ? String(e.anime_image_path).replace(/\/r\/\d+x\d+\//, "/")
             : null,
-        watchedEpisodes: typeof e.num_watched_episodes === "number" ? e.num_watched_episodes : 0,
-        status: STATUS_MAP[e.status] ?? "backlog",
-        score: typeof e.score === "number" && e.score > 0 ? e.score : null,
-      }));
+          episodes:
+            typeof e.anime_num_episodes === "number" && e.anime_num_episodes > 0
+              ? e.anime_num_episodes
+              : null,
+          watchedEpisodes:
+            typeof e.num_watched_episodes === "number"
+              ? e.num_watched_episodes
+              : 0,
+          status: STATUS_MAP[e.status] ?? "backlog",
+          score: typeof e.score === "number" && e.score > 0 ? e.score : null,
+        }),
+      );
 
     return NextResponse.json({ results });
   } catch (err) {
