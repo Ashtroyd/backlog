@@ -31,10 +31,12 @@ test("signup → onboarding → add an anime → rate it", async ({ page }) => {
   // Onboarding lands on the homescreen now, not /games — "CI" is the first
   // word of the display name set above, so this is deterministic.
   await expect(
-    page.getByRole("heading", { name: "Welcome back, CI" }),
+    page.getByRole("heading", { name: "Up Next", level: 1 }),
   ).toBeVisible({
     timeout: 15_000,
   });
+  // New accounts see the welcome sheet once.
+  await page.getByRole("dialog").getByRole("button", { name: "Continue" }).click();
 
   // Add an anime (Jikan needs no key, so this exercises real search)
   await page.getByRole("link", { name: "Anime" }).click();
@@ -59,10 +61,10 @@ test("signup → onboarding → add an anime → rate it", async ({ page }) => {
     .click();
   await page
     .locator('[role="dialog"]')
-    .getByRole("button", { name: "Completed", exact: true })
+    .getByRole("button", { name: "Backlog", exact: true })
     .click();
+  await page.getByRole("menuitemcheckbox", { name: "Completed" }).click();
   await page.getByLabel("4 stars").click();
-  await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByLabel("Rated 4 out of 5")).toBeVisible({
     timeout: 10_000,
   });

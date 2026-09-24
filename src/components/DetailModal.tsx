@@ -20,7 +20,6 @@ import { PopoverMenu, useMenu } from "./PopoverMenu";
 import { StarRating } from "./StarRating";
 import { Avatar } from "./Avatar";
 import { CommentThread } from "./CommentThread";
-import { useConfirm } from "./ConfirmDialog";
 import { ShareToFriendModal } from "./ShareToFriendModal";
 import { releaseBadge, STATUS_DOT } from "./ItemCard";
 import {
@@ -117,7 +116,6 @@ export function DetailModal({
 }) {
   const { session } = useAuth();
   const myId = session?.user?.id ?? null;
-  const confirm = useConfirm();
 
   // Keep the last item around so the close animation still has content.
   const [snapshot, setSnapshot] = useState<BacklogItem | null>(item);
@@ -419,15 +417,9 @@ export function DetailModal({
     });
   }
 
+  /** Parents remove with an Undo toast, so there's no confirmation here. */
   async function handleRemove() {
     if (!current) return;
-    const ok = await confirm({
-      title: `Remove ${current.title}?`,
-      message: "It comes off your library along with its rating and review.",
-      confirmLabel: "Remove",
-      danger: true,
-    });
-    if (!ok) return;
     setSaving(true);
     try {
       const result = await onRemove(current.id);

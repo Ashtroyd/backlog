@@ -3,7 +3,7 @@
 /**
  * Tiny pub/sub so the command palette can be opened from anywhere (the Nav
  * button, a future keyboard shortcut hint, …) without threading state through
- * every layout. Mirrors tour-bus.ts.
+ * every layout. Mirrors welcome-bus.ts.
  */
 
 type Listener = () => void;

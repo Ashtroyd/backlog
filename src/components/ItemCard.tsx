@@ -103,7 +103,6 @@ export function ItemCard({
   onClick,
   onUpdate,
   onRemove,
-  dataTour,
   sharedCover = true,
 }: {
   item: BacklogItem;
@@ -116,8 +115,6 @@ export function ItemCard({
     patch: UpdatePatch,
   ) => Promise<{ error: string | null }>;
   onRemove?: (item: BacklogItem) => void;
-  /** Tags this card as a feature-tour target — set on the first card of the main grid only. */
-  dataTour?: string;
   /** Animate this cover into the detail sheet. Off for duplicate copies of a
       title (the pinned shelf) — two live elements can't share one layoutId. */
   sharedCover?: boolean;
@@ -227,7 +224,6 @@ export function ItemCard({
 
   return (
     <motion.div
-      data-tour={dataTour}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, scale: lifted ? 1.04 : 1 }}
       exit={{ opacity: 0, transition: { duration: 0.12 } }}

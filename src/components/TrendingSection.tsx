@@ -82,12 +82,12 @@ export function TrendingSection({
   }
 
   return (
-    <section className="mt-10">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 font-display text-xl font-semibold text-ink">
+    <section className="mt-9">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex min-h-11 items-center gap-1.5 font-display text-xl font-bold tracking-tight text-ink">
           {dragHandle}
           <TrendingUpIcon className="h-4.5 w-4.5 text-accent" />
-          Currently trending
+          Trending Now
         </h2>
         <div className="flex flex-wrap gap-1.5">
           {SECTION_SLUGS.map((s) => {

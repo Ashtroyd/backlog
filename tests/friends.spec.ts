@@ -27,10 +27,12 @@ async function signUp(
   // Onboarding lands on the homescreen now, not /games — "CI" is the first
   // word of every display name passed in here, so this is deterministic.
   await expect(
-    page.getByRole("heading", { name: "Welcome back, CI" }),
+    page.getByRole("heading", { name: "Up Next", level: 1 }),
   ).toBeVisible({
     timeout: 15_000,
   });
+  // New accounts see the welcome sheet once.
+  await page.getByRole("dialog").getByRole("button", { name: "Continue" }).click();
 }
 
 test("two accounts become friends and see each other's library", async ({
@@ -101,12 +103,10 @@ test("two accounts become friends and see each other's library", async ({
   await firstCard.click();
   await pageA
     .locator('[role="dialog"]')
-    .getByRole("button", { name: "Completed", exact: true })
+    .getByRole("button", { name: "Backlog", exact: true })
     .click();
+  await pageA.getByRole("menuitemcheckbox", { name: "Completed" }).click();
   await pageA.getByLabel("4 stars").click();
-  await pageA
-    .getByRole("button", { name: "Save changes", exact: true })
-    .click();
   await expect(pageA.getByLabel("Rated 4 out of 5")).toBeVisible({
     timeout: 10_000,
   });

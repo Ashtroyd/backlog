@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Reorder, useDragControls } from "motion/react";
+import Image from "next/image";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchAllMyItems,
   fetchContinueItems,
@@ -27,6 +27,7 @@ import {
 } from "@/lib/top-picks";
 import { SECTION_BY_MEDIA, SECTIONS, type Section } from "@/lib/sections";
 import { toast } from "@/lib/toast-bus";
+import { removeWithUndo } from "@/lib/undo";
 import type { BacklogItem, Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { CoverImage } from "./CoverImage";
@@ -36,7 +37,8 @@ import { FriendItemModal } from "./friends/FriendItemModal";
 import { RecommendationModal } from "./friends/RecommendationModal";
 import { TopPicksPicker } from "./TopPicksPicker";
 import { TrendingSection } from "./TrendingSection";
-import { GripIcon, PlusIcon } from "./icons";
+import { EditUpNextSheet } from "./EditUpNextSheet";
+import { ChevronRightIcon, PlusIcon } from "./icons";
 
 type FriendPicks = { profile: Profile; picks: TopPick[] };
 
@@ -63,33 +65,47 @@ const DEFAULT_ORDER = [
 ] as const;
 type SectionKey = (typeof DEFAULT_ORDER)[number];
 
-/** Merges a saved order with the current default set: drops keys the app no
-    longer knows about, and appends any new ones the user has never arranged. */
-function normalizeOrder(saved: string[] | null | undefined): SectionKey[] {
+const SHELF_LABELS: Record<SectionKey, string> = {
+  continue: "Continue",
+  reviews: "Recent Reviews",
+  friends: "From Your Friends",
+  picks: "Top Picks",
+  trending: "Trending",
+};
+
+/** Saved layouts are a list of keys; hidden shelves are stored as
+    "hidden:<key>" so older saves (no prefix) still read as all-visible. */
+const HIDDEN_PREFIX = "hidden:";
+
+/** Merges a saved layout with the current default set: drops keys the app
+    no longer knows about, and appends any new ones the user has never arranged. */
+function parseLayout(saved: string[] | null | undefined): {
+  order: SectionKey[];
+  hidden: Set<SectionKey>;
+} {
   const known = new Set<string>(DEFAULT_ORDER);
-  const kept = (saved ?? []).filter((k): k is SectionKey => known.has(k));
+  const hidden = new Set<SectionKey>();
+  const kept: SectionKey[] = [];
+  for (const raw of saved ?? []) {
+    const isHidden = raw.startsWith(HIDDEN_PREFIX);
+    const key = isHidden ? raw.slice(HIDDEN_PREFIX.length) : raw;
+    if (!known.has(key) || kept.includes(key as SectionKey)) continue;
+    kept.push(key as SectionKey);
+    if (isHidden) hidden.add(key as SectionKey);
+  }
   const missing = DEFAULT_ORDER.filter((k) => !kept.includes(k));
-  return [...kept, ...missing];
+  return { order: [...kept, ...missing], hidden };
 }
 
-/** Re-applies a reordering of the *visible* subset onto the full key list,
-    leaving currently-hidden sections exactly where they were. */
-function mergeReorder(
-  fullOrder: SectionKey[],
-  reorderedVisible: SectionKey[],
-): SectionKey[] {
-  const visible = new Set(reorderedVisible);
-  let vi = 0;
-  return fullOrder.map((key) =>
-    visible.has(key) ? reorderedVisible[vi++] : key,
-  );
+function serializeLayout(order: SectionKey[], hidden: Set<SectionKey>): string[] {
+  return order.map((k) => (hidden.has(k) ? `${HIDDEN_PREFIX}${k}` : k));
 }
 
 /**
  * The app's landing page: a few quiet, high-signal shelves rather than a
  * dashboard — what you're mid-way through, recent reviews, what friends are
- * loving, and a personal highlight reel the user curates each month. The
- * user can drag shelves into whatever order suits them.
+ * loving, and a personal highlight reel the user curates each month.
+ * "Edit Up Next" reorders and hides shelves.
  */
 export default function Home() {
   const { session, profile, setProfile } = useAuth();
@@ -119,15 +135,15 @@ export default function Home() {
 
   // Seeded from the profile's saved layout once it arrives (profile loads
   // asynchronously, so this can't just be a lazy useState initializer).
-  const [order, setOrder] = useState<SectionKey[]>(() => normalizeOrder(null));
-  const orderInitialized = useRef(false);
-  const orderRef = useRef(order);
+  const [layout, setLayout] = useState(() => parseLayout(null));
+  const [editOpen, setEditOpen] = useState(false);
+  // Bumped on each open so the edit sheet starts from the saved layout.
+  const [editSession, setEditSession] = useState(0);
+  const layoutInitialized = useRef(false);
   useEffect(() => {
-    if (profile && !orderInitialized.current) {
-      orderInitialized.current = true;
-      const next = normalizeOrder(profile.home_layout);
-      orderRef.current = next;
-      setOrder(next);
+    if (profile && !layoutInitialized.current) {
+      layoutInitialized.current = true;
+      setLayout(parseLayout(profile.home_layout));
     }
   }, [profile]);
 
@@ -173,14 +189,26 @@ export default function Home() {
     return saveItem(openItem, patch);
   }
 
+  /** Remove with an Undo toast: off the shelves now, deleted after the window. */
   async function handleModalRemove(id: string) {
-    const result = await removeItemDirect(id);
-    if (!result.error) {
-      setContinueItems((prev) => prev?.filter((i) => i.id !== id) ?? prev);
-      setReviews((prev) => prev?.filter((i) => i.id !== id) ?? prev);
-      setPicks((prev) => prev?.filter((p) => p.item.id !== id) ?? prev);
-    }
-    return result;
+    const title = openItem?.id === id ? openItem.title : "title";
+    // This handler is recreated each render, so these are the current shelves.
+    const before = { c: continueItems, r: reviews, p: picks };
+    removeWithUndo({
+      message: `Removed ${title}`,
+      hide: () => {
+        setContinueItems((prev) => prev?.filter((i) => i.id !== id) ?? prev);
+        setReviews((prev) => prev?.filter((i) => i.id !== id) ?? prev);
+        setPicks((prev) => prev?.filter((p) => p.item.id !== id) ?? prev);
+      },
+      restore: () => {
+        setContinueItems(before.c);
+        setReviews(before.r);
+        setPicks(before.p);
+      },
+      commit: () => removeItemDirect(id),
+    });
+    return { error: null };
   }
 
   const loadPicks = useCallback(async () => {
@@ -230,29 +258,21 @@ export default function Home() {
     }
   }
 
-  function handleReorder(reorderedVisible: SectionKey[]) {
-    const next = mergeReorder(orderRef.current, reorderedVisible);
-    orderRef.current = next;
-    setOrder(next);
-  }
-
-  function persistOrder() {
+  function saveLayout(order: SectionKey[], hidden: Set<SectionKey>) {
+    setLayout({ order, hidden });
     if (!myId) return;
-    updateProfile(myId, { home_layout: orderRef.current }).then(
+    updateProfile(myId, { home_layout: serializeLayout(order, hidden) }).then(
       ({ profile: updated }) => {
         if (updated) setProfile(updated);
       },
     );
   }
 
-  function renderSection(
-    key: SectionKey,
-    dragHandle: React.ReactNode,
-  ): React.ReactNode {
+  function renderSection(key: SectionKey): React.ReactNode {
     switch (key) {
       case "continue":
         return continueItems && continueItems.length > 0 ? (
-          <HomeSection title="Continue" dragHandle={dragHandle}>
+          <HomeSection title="Continue">
             <Shelf>
               {continueItems.map((item) => (
                 <ContinueCard
@@ -268,7 +288,7 @@ export default function Home() {
 
       case "reviews":
         return reviews && reviews.length > 0 ? (
-          <HomeSection title="Recent reviews" dragHandle={dragHandle}>
+          <HomeSection title="Recent Reviews">
             <Shelf>
               {reviews.map((item) => (
                 <button
@@ -306,14 +326,15 @@ export default function Home() {
       case "friends":
         return recs && recs.length > 0 ? (
           <HomeSection
-            title="From your friends"
-            dragHandle={dragHandle}
+            title="From Your Friends"
+           
             action={
               <Link
                 href="/friends"
-                className="text-sm font-medium text-accent hover:text-accent-hover"
+                className="flex min-h-11 items-center gap-0.5 text-subhead text-accent hover:text-accent-hover"
               >
-                See all
+                See All
+                <ChevronRightIcon className="h-4 w-4" />
               </Link>
             }
           >
@@ -342,14 +363,14 @@ export default function Home() {
       case "picks":
         return (
           <HomeSection
-            title={`Top picks · ${monthLabel(month)}`}
-            dragHandle={dragHandle}
+            title={`Top Picks · ${monthLabel(month)}`}
+           
             action={
               picks && picks.length > 0 ? (
                 <button
                   type="button"
                   onClick={openPicker}
-                  className="text-sm font-medium text-accent hover:text-accent-hover"
+                  className="min-h-11 text-subhead text-accent hover:text-accent-hover"
                 >
                   Edit
                 </button>
@@ -417,33 +438,57 @@ export default function Home() {
 
       case "trending":
         return myId ? (
-          <TrendingSection userId={myId} dragHandle={dragHandle} />
+          <TrendingSection userId={myId} />
         ) : null;
     }
   }
 
   if (!profile) return null;
 
-  const visibleOrder = order.filter(hasContent);
+  const visible = layout.order.filter(
+    (k) => !layout.hidden.has(k) && hasContent(k),
+  );
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 
   return (
-    <div className="pt-12 pb-4">
-      <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
-        Welcome back, {profile.display_name.split(" ")[0]}
+    <div className="pb-4 pt-10 sm:pt-12">
+      <p className="text-footnote font-semibold uppercase tracking-wide text-muted">
+        {today}
+      </p>
+      <h1 className="mt-0.5 font-display text-4xl font-bold tracking-tight text-ink">
+        Up Next
       </h1>
 
-      <Reorder.Group
-        as="div"
-        axis="y"
-        values={visibleOrder}
-        onReorder={handleReorder}
-      >
-        {visibleOrder.map((key) => (
-          <DraggableSection key={key} value={key} onDragEnd={persistOrder}>
-            {(handle) => renderSection(key, handle)}
-          </DraggableSection>
-        ))}
-      </Reorder.Group>
+      {visible.map((key) => (
+        <Fragment key={key}>{renderSection(key)}</Fragment>
+      ))}
+
+      <div className="mt-14 flex justify-center">
+        <button
+          type="button"
+          onClick={() => {
+            setEditSession((n) => n + 1);
+            setEditOpen(true);
+          }}
+          className="min-h-11 rounded-full bg-ivory px-5 text-subhead font-medium text-accent transition-colors hover:bg-line"
+        >
+          Edit Up Next
+        </button>
+      </div>
+
+      <EditUpNextSheet
+        key={editSession}
+        open={editOpen}
+        order={layout.order}
+        hidden={layout.hidden}
+        labels={SHELF_LABELS}
+        onClose={() => setEditOpen(false)}
+        onSave={saveLayout}
+      />
 
       <DetailModal
         item={openItem}
@@ -491,61 +536,21 @@ export default function Home() {
   );
 }
 
-/** Wraps one homescreen shelf as a drag-reorderable item; the drag handle it
-    hands back only starts a drag when grabbed directly, so shelf scrolling
-    and card clicks are untouched. */
-function DraggableSection({
-  value,
-  onDragEnd,
-  children,
-}: {
-  value: SectionKey;
-  onDragEnd: () => void;
-  children: (handle: React.ReactNode) => React.ReactNode;
-}) {
-  const controls = useDragControls();
-  const handle = (
-    <button
-      type="button"
-      onPointerDown={(e) => controls.start(e)}
-      aria-label="Drag to reorder"
-      style={{ touchAction: "none" }}
-      className="-ml-1 mr-0.5 flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted transition-colors hover:bg-ivory hover:text-muted active:cursor-grabbing"
-    >
-      <GripIcon className="h-4 w-4" />
-    </button>
-  );
-  return (
-    <Reorder.Item
-      value={value}
-      as="div"
-      dragListener={false}
-      dragControls={controls}
-      onDragEnd={onDragEnd}
-    >
-      {children(handle)}
-    </Reorder.Item>
-  );
-}
-
 function HomeSection({
   title,
   action,
-  dragHandle,
   children,
 }: {
   title: string;
   action?: React.ReactNode;
-  dragHandle?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-10">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center">
-          {dragHandle}
-          <h2 className="font-display text-xl font-semibold text-ink">{title}</h2>
-        </div>
+    <section className="mt-9">
+      <div className="mb-3 flex min-h-11 items-center justify-between gap-3">
+        <h2 className="font-display text-xl font-bold tracking-tight text-ink">
+          {title}
+        </h2>
         {action}
       </div>
       {children}
@@ -647,27 +652,65 @@ function ContinueCard({
       setBusy(false);
     }
   }
+  const fraction =
+    episodic && total ? Math.min(1, Math.max(0, watched / total)) : null;
+  const caughtUp = total != null && watched >= total;
+
+  // TV-app "Up Next" card: landscape, the poster over a blurred wash of
+  // itself, progress along the bottom, +1 right on the artwork.
   return (
-    <div className="w-28 shrink-0 snap-start sm:w-32">
-      <ShelfCard
+    <div className="group relative aspect-video w-72 shrink-0 snap-start overflow-hidden rounded-xl bg-ink shadow-[0_2px_10px_rgba(0,0,0,0.18)] sm:w-80">
+      <button
+        type="button"
         onClick={onOpen}
-        coverUrl={item.cover_url}
-        title={item.title}
-        subtitle={label}
+        aria-label={`Open ${item.title}`}
+        className="absolute inset-0 z-10 rounded-xl focus-visible:outline-offset-4"
       />
+      {item.cover_url && (
+        <Image
+          src={item.cover_url}
+          alt=""
+          aria-hidden
+          fill
+          sizes="320px"
+          className="scale-125 object-cover opacity-80 blur-xl saturate-150"
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/5" />
+      <div className="absolute inset-3 flex gap-3.5">
+        <div className="relative aspect-[2/3] h-full shrink-0 overflow-hidden rounded-md bg-ivory shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+          <CoverImage src={item.cover_url} title={item.title} sizes="96px" />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col justify-end pr-8 text-white">
+        <p className="line-clamp-2 text-subhead font-semibold leading-snug">
+          {item.title}
+        </p>
+        <p className="mt-0.5 text-footnote tabular-nums text-white/75">{label}</p>
+        {fraction != null && (
+          <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/30">
+            <span
+              className="block h-full rounded-full bg-white"
+              style={{ width: `${Math.max(fraction * 100, 3)}%` }}
+            />
+          </span>
+        )}
+        </div>
+      </div>
       {episodic && (
         <button
           type="button"
-          disabled={busy || (total != null && watched >= total)}
+          disabled={busy || caughtUp}
           onClick={increment}
-          aria-label={`Add one episode watched for ${item.title}`}
-          className="mt-2 min-h-11 w-full rounded-lg border border-line px-2 text-xs font-medium text-ink transition-colors hover:bg-ivory disabled:opacity-50"
+          aria-label={
+            caughtUp
+              ? `${item.title}: caught up`
+              : `Add one episode watched for ${item.title}`
+          }
+          className="absolute right-2 top-2 z-20 flex h-11 w-11 items-center justify-center rounded-full disabled:opacity-60"
         >
-          {busy
-            ? "Saving…"
-            : total != null && watched >= total
-              ? "Caught up"
-              : "+1 episode"}
+          <span className="flex h-8 min-w-8 items-center justify-center rounded-full bg-white/25 px-2 text-footnote font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/40">
+            {busy ? "…" : caughtUp ? "✓" : "+1"}
+          </span>
         </button>
       )}
     </div>

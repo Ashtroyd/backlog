@@ -23,9 +23,11 @@ async function signUp(
   await page.getByRole("button", { name: "Continue" }).click();
   // "CI" is the first word of every display name passed in here, so this is
   // deterministic regardless of which test is running.
-  await expect(page.getByRole("heading", { name: "Welcome back, CI" })).toBeVisible({
+  await expect(page.getByRole("heading", { name: "Up Next", level: 1 })).toBeVisible({
     timeout: 15_000,
   });
+  // New accounts see the welcome sheet once.
+  await page.getByRole("dialog").getByRole("button", { name: "Continue" }).click();
 }
 
 test("a friend's top picks and a shared-backlog entry are both visible to them", async ({ browser }) => {

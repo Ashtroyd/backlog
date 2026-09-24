@@ -181,7 +181,6 @@ export function NotificationCenter({
       <button
         type="button"
         title="Notifications"
-        data-tour="notifications"
         onClick={openPanel}
         className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink ${
           open ? "bg-ivory text-ink" : "text-muted"

@@ -28,7 +28,7 @@ import {
   UploadIcon,
 } from "./icons";
 import { PopoverMenu, useMenu } from "./PopoverMenu";
-import { useConfirm } from "./ConfirmDialog";
+import { removeWithUndo } from "@/lib/undo";
 
 /** Sections with a supported bulk-import source (Steam, MyAnimeList, Letterboxd). */
 const IMPORTABLE_MEDIA_TYPES = new Set(["game", "anime", "movie", "series"]);
@@ -82,7 +82,7 @@ export default function Library({
   const router = useRouter();
   const pathname = usePathname();
   const {
-    items,
+    items: loadedItems,
     ready,
     loadError,
     add,
@@ -91,6 +91,15 @@ export default function Library({
     remove,
     applyDetails,
   } = useBacklog(section.mediaType);
+  // Titles removed but still inside their Undo window: hidden here, deleted
+  // for real only once the window closes.
+  const [pendingRemoval, setPendingRemoval] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const items = useMemo(
+    () => loadedItems.filter((i) => !pendingRemoval.has(i.id)),
+    [loadedItems, pendingRemoval],
+  );
   const params = useSearchParams();
   const rawFilter = params.get("status") ?? "all";
   const filter: Filter = STATUS_ORDER.includes(rawFilter as ItemStatus)
@@ -156,17 +165,31 @@ export default function Library({
     );
   }
   const viewMenu = useMenu();
-  const confirm = useConfirm();
-  async function confirmRemove(item: BacklogItem) {
-    const ok = await confirm({
-      title: `Remove ${item.title}?`,
-      message: "It comes off your library along with its rating and review.",
-      confirmLabel: "Remove",
-      danger: true,
+  /** Remove now, with an Undo toast — no confirmation dialog. */
+  function removeTitle(item: BacklogItem) {
+    const setPending = (on: boolean) =>
+      setPendingRemoval((prev) => {
+        const next = new Set(prev);
+        if (on) next.add(item.id);
+        else next.delete(item.id);
+        return next;
+      });
+    removeWithUndo({
+      message: `Removed ${item.title}`,
+      hide: () => setPending(true),
+      restore: () => setPending(false),
+      commit: async () => {
+        const result = await remove(item.id);
+        setPending(false);
+        return result;
+      },
     });
-    if (!ok) return;
-    const result = await remove(item.id);
-    if (result.error) toast("error", "Couldn't remove that title. Try again.");
+  }
+  /** DetailModal's Remove: same Undo flow, keyed by id. */
+  async function removeById(id: string) {
+    const item = loadedItems.find((i) => i.id === id);
+    if (item) removeTitle(item);
+    return { error: null };
   }
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -260,7 +283,6 @@ export default function Library({
         </p>
         <button
           type="button"
-          data-tour="import-button"
           aria-label="View options"
           aria-haspopup="menu"
           disabled={bulkBusy}
@@ -271,7 +293,6 @@ export default function Library({
         </button>
         <button
           type="button"
-          data-tour="add-button"
           onClick={() => setAddOpen(true)}
           className="flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
         >
@@ -354,7 +375,7 @@ export default function Library({
                   index={i}
                   onClick={() => setSelectedId(item.id)}
                   onUpdate={update}
-                  onRemove={confirmRemove}
+                  onRemove={removeTitle}
                   sharedCover={false}
                 />
               </div>
@@ -372,7 +393,6 @@ export default function Library({
       {items.length > 0 && (
         <div
           className="-mx-4 mt-5 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
-          data-tour="filter-tabs"
         >
           {filters.map((f) => {
             const active = filter === f;
@@ -594,8 +614,7 @@ export default function Library({
                     selecting ? toggleItem(item.id) : setSelectedId(item.id)
                   }
                   onUpdate={selecting ? undefined : update}
-                  onRemove={confirmRemove}
-                  dataTour={i === 0 ? "item-card" : undefined}
+                  onRemove={removeTitle}
                 />
               </div>
             ))}
@@ -625,7 +644,7 @@ export default function Library({
         section={section}
         onClose={closeDetail}
         onUpdate={update}
-        onRemove={remove}
+        onRemove={removeById}
         onRefresh={applyDetails}
       />
     </>

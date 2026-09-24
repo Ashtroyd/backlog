@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef } from "react";
 import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
 import { supabase } from "@/lib/supabase";
-import { startTour } from "@/lib/tour-bus";
+import { openWelcome } from "@/lib/welcome-bus";
 import { toast } from "@/lib/toast-bus";
 import { Avatar } from "./Avatar";
 import { useConfirm } from "./ConfirmDialog";
@@ -37,11 +37,10 @@ export function AccountSheet({
   const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
 
-  function handleTakeTour() {
+  function handleWelcome() {
     onClose();
-    // The tour spotlights elements on the page — let the sheet's exit
-    // animation clear before it measures positions.
-    setTimeout(() => startTour(), 300);
+    // Let this sheet slide away before the welcome sheet rises.
+    setTimeout(() => openWelcome(), 300);
   }
 
   async function handleExport() {
@@ -140,9 +139,9 @@ export function AccountSheet({
             <UploadIcon className="h-[18px] w-[18px] text-accent" />
             Import Backup
           </button>
-          <button type="button" onClick={handleTakeTour} className={row}>
+          <button type="button" onClick={handleWelcome} className={row}>
             <CompassIcon className="h-[18px] w-[18px] text-accent" />
-            Take a Tour
+            What&apos;s in Backlog
           </button>
         </div>
 

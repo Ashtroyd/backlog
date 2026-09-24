@@ -22,10 +22,12 @@ test("an in-progress title shows up under Continue on the homescreen", async ({
   await page.getByLabel("Handle").fill(`cic${String(stamp).slice(-8)}`);
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(
-    page.getByRole("heading", { name: "Welcome back, CI" }),
+    page.getByRole("heading", { name: "Up Next", level: 1 }),
   ).toBeVisible({
     timeout: 15_000,
   });
+  // New accounts see the welcome sheet once.
+  await page.getByRole("dialog").getByRole("button", { name: "Continue" }).click();
 
   // Add an anime (Jikan needs no key, so this exercises real search).
   await page.getByRole("link", { name: "Anime" }).click();
@@ -54,12 +56,11 @@ test("an in-progress title shows up under Continue on the homescreen", async ({
     .click();
   await page
     .locator('[role="dialog"]')
-    .getByRole("button", { name: "Watching", exact: true })
+    .getByRole("button", { name: "Start Watching" })
     .click();
-  await page
-    .locator('[role="dialog"]')
-    .getByRole("button", { name: "Save changes", exact: true })
-    .click();
+  await expect(
+    page.locator('[role="dialog"]').getByRole("button", { name: "Watching", exact: true }),
+  ).toBeVisible();
   await page.keyboard.press("Escape");
 
   // It should now appear under Continue on the homescreen.

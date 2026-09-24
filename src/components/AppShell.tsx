@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AuthContext, useSession } from "@/lib/backlog-store";
 import { fetchProfile } from "@/lib/social";
-import { startTour } from "@/lib/tour-bus";
+import { openWelcome } from "@/lib/welcome-bus";
 import { NavContext } from "@/lib/nav-context";
 import { useUnreadMessages } from "@/lib/use-unread-messages";
 import type { Profile } from "@/lib/types";
@@ -11,7 +11,7 @@ import { AuthScreen } from "./AuthScreen";
 import { Onboarding } from "./Onboarding";
 import { CommandPalette } from "./CommandPalette";
 import { ConfirmProvider } from "./ConfirmDialog";
-import { FeatureTour } from "./FeatureTour";
+import { WelcomeSheet } from "./WelcomeSheet";
 import { Toaster } from "./Toaster";
 import Nav from "./Nav";
 import { BottomNav } from "./BottomNav";
@@ -30,23 +30,23 @@ export default function AppShell({
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const tourChecked = useRef(false);
+  const welcomeChecked = useRef(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const unread = useUnreadMessages(profile ? userId : null);
 
-  // First-ever visit: auto-run the tour once (edits to profile re-fire this
+  // First-ever visit: show the welcome sheet once (edits to profile re-fire this
   // effect with a new object reference, so guard with a ref, not a flag in
-  // state). Manual replays go through the Nav menu's "Take a tour" instead.
+  // state). It can be reopened from the account sheet.
   useEffect(() => {
-    if (!profile || tourChecked.current) return;
-    tourChecked.current = true;
+    if (!profile || welcomeChecked.current) return;
+    welcomeChecked.current = true;
     try {
       if (localStorage.getItem("backlog:tourSeen")) return;
       localStorage.setItem("backlog:tourSeen", "true");
     } catch {
       return;
     }
-    const t = setTimeout(() => startTour(), 800);
+    const t = setTimeout(() => openWelcome(), 600);
     return () => clearTimeout(t);
   }, [profile]);
 
@@ -99,7 +99,7 @@ export default function AppShell({
             onClose={() => setAccountOpen(false)}
           />
           <Toaster />
-          <FeatureTour />
+          <WelcomeSheet />
           <CommandPalette />
         </NavContext.Provider>
       </ConfirmProvider>
