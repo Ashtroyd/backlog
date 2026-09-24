@@ -10,6 +10,7 @@ import type { Profile } from "@/lib/types";
 import { AuthScreen } from "./AuthScreen";
 import { Onboarding } from "./Onboarding";
 import { CommandPalette } from "./CommandPalette";
+import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { ConfirmProvider } from "./ConfirmDialog";
 import { WelcomeSheet } from "./WelcomeSheet";
 import { Toaster } from "./Toaster";
@@ -104,6 +105,7 @@ export default function AppShell({
           <Toaster />
           <WelcomeSheet />
           <CommandPalette />
+          <KeyboardShortcuts />
         </NavContext.Provider>
       </ConfirmProvider>
     </AuthContext.Provider>

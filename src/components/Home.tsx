@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
 import {
   fetchAllMyItems,
   fetchContinueItems,
@@ -64,6 +65,12 @@ const DEFAULT_ORDER = [
   "trending",
 ] as const;
 type SectionKey = (typeof DEFAULT_ORDER)[number];
+
+/** One title can sit on several shelves at once, so each card's cover gets
+    its own layoutId; the detail sheet borrows the one that was tapped. */
+function shelfCoverId(shelf: SectionKey, itemId: string) {
+  return `cover-${shelf}-${itemId}`;
+}
 
 const SHELF_LABELS: Record<SectionKey, string> = {
   continue: "Continue",
@@ -147,7 +154,12 @@ export default function Home() {
     }
   }, [profile]);
 
-  function openItemModal(item: BacklogItem) {
+  // Which shelf the open title came from, so its cover grows out of that
+  // card (and back into it on close — hence not cleared with openItem).
+  const [openCoverId, setOpenCoverId] = useState<string | undefined>(undefined);
+
+  function openItemModal(item: BacklogItem, shelf: SectionKey) {
+    setOpenCoverId(shelfCoverId(shelf, item.id));
     setOpenSection(SECTION_BY_MEDIA[item.media_type]);
     setOpenItem(item);
   }
@@ -278,7 +290,7 @@ export default function Home() {
                 <ContinueCard
                   key={item.id}
                   item={item}
-                  onOpen={() => openItemModal(item)}
+                  onOpen={() => openItemModal(item, "continue")}
                   onSave={saveItem}
                 />
               ))}
@@ -294,16 +306,19 @@ export default function Home() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => openItemModal(item)}
+                  onClick={() => openItemModal(item, "reviews")}
                   className="flex w-80 shrink-0 snap-start gap-4 rounded-xl border border-line bg-surface p-4 text-left transition-colors hover:border-line-strong"
                 >
-                  <div className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-ivory">
+                  <motion.div
+                    layoutId={shelfCoverId("reviews", item.id)}
+                    className="relative h-28 w-20 shrink-0 overflow-hidden rounded-lg bg-ivory"
+                  >
                     <CoverImage
                       src={item.cover_url}
                       title={item.title}
                       sizes="80px"
                     />
-                  </div>
+                  </motion.div>
                   <div className="min-w-0">
                     <p className="line-clamp-2 text-sm font-medium text-ink">
                       {item.title}
@@ -391,7 +406,8 @@ export default function Home() {
                 {picks.map((p) => (
                   <ShelfCard
                     key={p.id}
-                    onClick={() => openItemModal(p.item)}
+                    onClick={() => openItemModal(p.item, "picks")}
+                    coverLayoutId={shelfCoverId("picks", p.item.id)}
                     coverUrl={p.item.cover_url}
                     title={p.item.title}
                     ratingValue={p.item.rating}
@@ -494,6 +510,7 @@ export default function Home() {
         item={openItem}
         section={openSection ?? SECTIONS.games}
         onClose={() => setOpenItem(null)}
+        coverLayoutId={openCoverId}
         onUpdate={handleModalUpdate}
         onRemove={handleModalRemove}
       />
@@ -573,9 +590,11 @@ function ShelfCard({
   title,
   subtitle,
   ratingValue,
+  coverLayoutId,
 }: {
   href?: string;
   onClick?: () => void;
+  coverLayoutId?: string;
   coverUrl: string | null;
   title: string;
   subtitle?: React.ReactNode;
@@ -583,14 +602,17 @@ function ShelfCard({
 }) {
   const content = (
     <>
-      <div className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-ivory shadow-[0_1px_2px_rgba(38,37,33,0.06)] transition-shadow duration-300 group-hover:shadow-[0_12px_28px_rgba(38,37,33,0.14)]">
+      <motion.div
+        layoutId={coverLayoutId}
+        className="relative aspect-[2/3] overflow-hidden rounded-xl border border-line bg-ivory shadow-[0_1px_2px_rgba(38,37,33,0.06)] transition-shadow duration-300 group-hover:shadow-[0_12px_28px_rgba(38,37,33,0.14)]"
+      >
         <CoverImage
           src={coverUrl}
           title={title}
           sizes="144px"
           className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
-      </div>
+      </motion.div>
       <p className="mt-2.5 truncate px-0.5 text-sm font-medium text-ink">
         {title}
       </p>
@@ -678,9 +700,12 @@ function ContinueCard({
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/5" />
       <div className="absolute inset-3 flex gap-3.5">
-        <div className="relative aspect-[2/3] h-full shrink-0 overflow-hidden rounded-md bg-ivory shadow-[0_8px_20px_rgba(0,0,0,0.35)]">
+        <motion.div
+          layoutId={shelfCoverId("continue", item.id)}
+          className="relative aspect-[2/3] h-full shrink-0 overflow-hidden rounded-md bg-ivory shadow-[0_8px_20px_rgba(0,0,0,0.35)]"
+        >
           <CoverImage src={item.cover_url} title={item.title} sizes="96px" />
-        </div>
+        </motion.div>
         <div className="flex min-w-0 flex-1 flex-col justify-end pr-8 text-white">
         <p className="line-clamp-2 text-subhead font-semibold leading-snug">
           {item.title}

@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { exportBacklog, importBacklog, useAuth } from "@/lib/backlog-store";
 import { supabase } from "@/lib/supabase";
 import { openWelcome } from "@/lib/welcome-bus";
+import { openShortcuts } from "@/lib/shortcut-bus";
 import { toast } from "@/lib/toast-bus";
 import { Avatar } from "./Avatar";
 import { useConfirm } from "./ConfirmDialog";
@@ -14,6 +15,7 @@ import {
   ChevronRightIcon,
   CompassIcon,
   DownloadIcon,
+  KeyboardIcon,
   UploadIcon,
   XIcon,
 } from "./icons";
@@ -36,6 +38,11 @@ export function AccountSheet({
   const { session, profile } = useAuth();
   const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleShortcuts() {
+    onClose();
+    setTimeout(() => openShortcuts(), 300);
+  }
 
   function handleWelcome() {
     onClose();
@@ -142,6 +149,15 @@ export function AccountSheet({
           <button type="button" onClick={handleWelcome} className={row}>
             <CompassIcon className="h-[18px] w-[18px] text-accent" />
             What&apos;s in Backlog
+          </button>
+          {/* Only where there's likely a keyboard (a mouse or trackpad). */}
+          <button
+            type="button"
+            onClick={handleShortcuts}
+            className={`${row.replace(/^flex /, "")} hidden pointer-fine:flex`}
+          >
+            <KeyboardIcon className="h-[18px] w-[18px] text-accent" />
+            Keyboard Shortcuts
           </button>
         </div>
 

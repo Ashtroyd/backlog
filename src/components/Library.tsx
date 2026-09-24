@@ -10,7 +10,7 @@ import {
   statusLabel,
   type SectionSlug,
 } from "@/lib/sections";
-import { useBacklog } from "@/lib/backlog-store";
+import { useBacklog, type UpdatePatch } from "@/lib/backlog-store";
 import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { AddModal } from "./AddModal";
 import { DetailModal } from "./DetailModal";
@@ -22,14 +22,20 @@ import { SegmentedNav } from "./SegmentedNav";
 import { CoverImage } from "./CoverImage";
 import { StarRating } from "./StarRating";
 import { rememberSection } from "@/lib/last-section";
+import { onAddTitle } from "@/lib/shortcut-bus";
 import {
+  CheckIcon,
   ChevronRightIcon,
   EllipsisCircleIcon,
   PinIcon,
   PlusIcon,
+  PlayIcon,
   SearchIcon,
+  TrashIcon,
   UploadIcon,
 } from "./icons";
+import { SwipeRow, type SwipeAction } from "./SwipeRow";
+import { todayISODate } from "@/lib/format";
 import { PopoverMenu, useMenu } from "./PopoverMenu";
 import { removeWithUndo } from "@/lib/undo";
 
@@ -188,6 +194,54 @@ export default function Library({
       },
     });
   }
+  /** One-swipe save from the list view; failures surface as a toast. */
+  async function quickSave(item: BacklogItem, patch: UpdatePatch) {
+    try {
+      const result = await update(item.id, patch);
+      if (result.error) toast("error", "Couldn't save that change. Try again.");
+    } catch {
+      toast("error", "Couldn't save that change. Try again.");
+    }
+  }
+
+  /** The swipe-right action for a list row: whatever comes next for it. */
+  function nextStep(item: BacklogItem): SwipeAction | null {
+    const episodic = section.mediaType === "series" || section.mediaType === "anime";
+    if (item.status === "in_progress") {
+      if (item.live_service) return null;
+      const total = item.meta?.episodes;
+      const watched = item.progress ?? 0;
+      if (episodic && !(total != null && watched >= total)) {
+        return {
+          label: "+1 Ep",
+          icon: <PlusIcon className="h-5 w-5" />,
+          tone: "accent",
+          onAction: () => {
+            void quickSave(item, { progress: watched + 1 });
+            toast("success", `${item.title}: episode ${watched + 1}`);
+          },
+        };
+      }
+      return {
+        label: "Done",
+        icon: <CheckIcon className="h-5 w-5" />,
+        tone: "accent",
+        onAction: () => void quickSave(item, { status: "completed" }),
+      };
+    }
+    if (item.status === "completed") return null;
+    return {
+      label: "Start",
+      icon: <PlayIcon className="h-5 w-5" />,
+      tone: "accent",
+      onAction: () =>
+        void quickSave(item, {
+          status: "in_progress",
+          ...(item.started_at ? {} : { started_at: todayISODate() }),
+        }),
+    };
+  }
+
   /** DetailModal's Remove: same Undo flow, keyed by id. */
   async function removeById(id: string) {
     const item = loadedItems.find((i) => i.id === id);
@@ -195,6 +249,8 @@ export default function Library({
     return { error: null };
   }
   const [addOpen, setAddOpen] = useState(false);
+  // N (see KeyboardShortcuts) opens this section's Add sheet.
+  useEffect(() => onAddTitle(() => setAddOpen(true)), []);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(
     initialItemId ?? null,
@@ -533,7 +589,7 @@ export default function Library({
           )}
         </motion.div>
       ) : view === "list" ? (
-        <ul className="mt-6 divide-y divide-line overflow-hidden rounded-xl bg-ivory/60">
+        <ul className="mt-6 divide-y divide-line overflow-hidden rounded-xl">
           {visible.map((item) => {
             const detail = [
               item.live_service && item.status === "in_progress"
@@ -549,40 +605,53 @@ export default function Library({
               .filter(Boolean)
               .join(" · ");
             return (
-              <li key={item.id} className="flex items-center gap-3 pl-3 pr-2">
-                {selecting && (
-                  <input
-                    type="checkbox"
-                    aria-label={`Select ${item.title}`}
-                    checked={checked.has(item.id)}
-                    disabled={bulkBusy}
-                    onChange={() => toggleItem(item.id)}
-                    className="h-5 w-5 shrink-0 accent-accent"
-                  />
-                )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    selecting ? toggleItem(item.id) : setSelectedId(item.id)
-                  }
-                  className="flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 py-2 text-left"
+              <li key={item.id}>
+                <SwipeRow
+                  disabled={selecting}
+                  leading={nextStep(item)}
+                  trailing={{
+                    label: "Remove",
+                    icon: <TrashIcon className="h-5 w-5" />,
+                    tone: "danger",
+                    onAction: () => removeTitle(item),
+                  }}
                 >
-                  <span className="relative h-[3.75rem] w-10 shrink-0 overflow-hidden rounded-md bg-ivory shadow-[0_1px_3px_rgba(0,0,0,0.12)]">
-                    <CoverImage src={item.cover_url} title={item.title} sizes="40px" />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-subhead font-medium text-ink">
-                      {item.title}
-                    </span>
-                    <span className="block truncate text-footnote tabular-nums text-muted">
-                      {detail}
-                    </span>
-                  </span>
-                  {item.rating != null && (
-                    <StarRating value={item.rating} size={12} />
-                  )}
-                  <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted" />
-                </button>
+                  <div className="flex items-center gap-3 bg-ivory/60 pl-3 pr-2">
+                    {selecting && (
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${item.title}`}
+                        checked={checked.has(item.id)}
+                        disabled={bulkBusy}
+                        onChange={() => toggleItem(item.id)}
+                        className="h-5 w-5 shrink-0 accent-accent"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        selecting ? toggleItem(item.id) : setSelectedId(item.id)
+                      }
+                      className="flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 py-2 text-left"
+                    >
+                      <span className="relative h-[3.75rem] w-10 shrink-0 overflow-hidden rounded-md bg-ivory shadow-[0_1px_3px_rgba(0,0,0,0.12)]">
+                        <CoverImage src={item.cover_url} title={item.title} sizes="40px" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-subhead font-medium text-ink">
+                          {item.title}
+                        </span>
+                        <span className="block truncate text-footnote tabular-nums text-muted">
+                          {detail}
+                        </span>
+                      </span>
+                      {item.rating != null && (
+                        <StarRating value={item.rating} size={12} />
+                      )}
+                      <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted" />
+                    </button>
+                  </div>
+                </SwipeRow>
               </li>
             );
           })}

@@ -95,8 +95,13 @@ export function DetailModal({
   onUpdate,
   onRemove,
   onRefresh,
+  coverLayoutId,
 }: {
   item: BacklogItem | null;
+  /** The opening card's cover layoutId, when it isn't the default
+      `cover-<id>` (a page showing one title in several places gives each
+      its own, so the cover grows out of the one that was tapped). */
+  coverLayoutId?: string;
   section: Section;
   onClose: () => void;
   onUpdate: (
@@ -511,7 +516,7 @@ export function DetailModal({
               </button>
               <SheetDragArea className="relative flex flex-col items-center px-5 pb-5 pt-9 text-center sm:flex-row sm:items-end sm:gap-6 sm:px-6 sm:pt-7 sm:text-left">
                 <motion.div
-                  layoutId={`cover-${current.id}`}
+                  layoutId={coverLayoutId ?? `cover-${current.id}`}
                   className="relative aspect-[2/3] w-32 shrink-0 overflow-hidden rounded-lg bg-ivory shadow-[0_14px_36px_rgba(0,0,0,0.35)] sm:w-36"
                 >
                   {current.cover_url ? (
