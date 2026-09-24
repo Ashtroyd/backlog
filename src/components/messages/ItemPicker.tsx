@@ -38,7 +38,7 @@ export function ItemPicker({
   );
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} sheet>
       <div className="flex items-center gap-3 border-b border-line px-5 py-4">
         <SearchIcon className="h-5 w-5 shrink-0 text-muted" />
         <input
@@ -47,7 +47,7 @@ export function ItemPicker({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Recommend a title from your library…"
           aria-label="Recommend a title from your library"
-          className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70"
+          className="w-full bg-transparent text-lg text-ink placeholder:text-muted"
         />
       </div>
       <div className="max-h-[55vh] overflow-y-auto p-2">

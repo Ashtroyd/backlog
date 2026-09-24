@@ -150,7 +150,7 @@ export function CommandPalette() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search games, movies, series, anime…"
           aria-label="Quick search"
-          className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70"
+          className="w-full bg-transparent text-lg text-ink placeholder:text-muted"
         />
         {searching && <SpinnerIcon className="h-4 w-4 shrink-0 animate-spin text-muted" />}
         <kbd className="hidden shrink-0 rounded-md border border-line px-1.5 py-0.5 text-caption2 text-muted sm:block">

@@ -64,7 +64,7 @@ export function TopPicksPicker({
   const visible = items.filter((i) => !q || i.title.toLowerCase().includes(q));
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} sheet>
       <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
         <div>
           <h2 className="font-display text-lg font-semibold text-ink">This month&apos;s top picks</h2>
@@ -115,7 +115,7 @@ export function TopPicksPicker({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search your library…"
           aria-label="Search your library"
-          className="w-full bg-transparent text-sm text-ink placeholder:text-muted/70"
+          className="w-full bg-transparent text-sm text-ink placeholder:text-muted"
         />
       </div>
 

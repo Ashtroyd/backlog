@@ -84,7 +84,7 @@ export function AccountSheet({
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} sheet>
       <div className="p-5 sm:p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-display text-xl font-bold tracking-tight text-ink">

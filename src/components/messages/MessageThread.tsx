@@ -168,7 +168,7 @@ export function MessageThread({ friend }: { friend: Profile }) {
               send();
             }
           }}
-          className="max-h-32 min-h-[44px] w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+          className="max-h-32 min-h-[44px] w-full resize-none rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted transition-colors focus:border-accent/40"
         />
         <button
           type="button"

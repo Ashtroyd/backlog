@@ -70,7 +70,7 @@ export function TrendingDetailModal({
   }
 
   return (
-    <Modal open={Boolean(result)} onClose={onClose} wide>
+    <Modal open={Boolean(result)} onClose={onClose} wide sheet>
       <div className="p-6 sm:p-7">
         <div className="flex items-start gap-6">
           <div className="relative hidden aspect-[2/3] w-36 shrink-0 overflow-hidden rounded-xl border border-line bg-ivory sm:block">
@@ -83,7 +83,7 @@ export function TrendingDetailModal({
                 <p className="text-xs font-medium uppercase tracking-wide text-accent">
                   {s.label} · trending
                 </p>
-                <h2 className="mt-1 font-display text-2xl font-semibold leading-snug tracking-tight text-ink">
+                <h2 className="mt-1 font-display text-2xl font-bold leading-snug tracking-tight text-ink">
                   {r.title}
                 </h2>
               </div>

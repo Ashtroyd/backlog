@@ -160,7 +160,7 @@ export default function SharedBacklogPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ivory font-display text-2xl text-accent">
             ✦
           </div>
-          <h2 className="mt-5 font-display text-xl font-semibold text-ink">
+          <h2 className="mt-5 font-display text-xl font-bold text-ink">
             {entries.length === 0 ? "Nothing planned yet" : "Nothing here"}
           </h2>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">

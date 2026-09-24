@@ -79,7 +79,7 @@ export default function FriendProfile({ username }: { username: string }) {
   if (view === "missing") {
     return (
       <div className="pt-24 text-center">
-        <h1 className="font-display text-2xl font-semibold text-ink">No such handle</h1>
+        <h1 className="font-display text-2xl font-bold text-ink">No such handle</h1>
         <p className="mt-2 text-sm text-muted">
           There&apos;s no one here with the handle @{username}.
         </p>
@@ -183,7 +183,7 @@ export default function FriendProfile({ username }: { username: string }) {
         <div className="mt-10 space-y-10">
           {theirFavorites.length > 0 && (
             <section>
-              <h2 className="mb-4 font-display text-xl font-semibold text-ink">
+              <h2 className="mb-4 font-display text-xl font-bold text-ink">
                 Favourites
               </h2>
               <FavouritesRow favorites={theirFavorites} />

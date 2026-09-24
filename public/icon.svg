@@ -1,7 +1,15 @@
-
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="116" fill="#faf9f5"/>
-  <text x="50%" y="54%" text-anchor="middle" dominant-baseline="middle"
-        font-family="Georgia, 'Times New Roman', serif" font-weight="700"
-        font-size="300" fill="#262521">B<tspan fill="#c96442">.</tspan></text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff9b54"/><stop offset="1" stop-color="#dc4f1c"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="230" fill="url(#g)"/>
+  
+  <g transform="translate(512 528) scale(1) translate(-512 -528)">
+    <rect x="352" y="244" width="320" height="46" rx="23" fill="#fff" fill-opacity=".5"/>
+    <rect x="292" y="322" width="440" height="52" rx="26" fill="#fff" fill-opacity=".78"/>
+    <rect x="232" y="406" width="560" height="394" rx="76" fill="#fff"/>
+    <path d="M466 512 L466 694 Q466 712 482 703 L622 622 Q638 612 622 602 L482 521 Q466 512 466 530 Z" fill="url(#g)"/>
+  </g>
 </svg>

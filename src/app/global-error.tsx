@@ -39,7 +39,7 @@ export default function GlobalError({
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ivory font-display text-2xl text-accent">
             !
           </div>
-          <h1 className="mt-5 font-display text-2xl font-semibold text-ink">
+          <h1 className="mt-5 font-display text-2xl font-bold text-ink">
             Something went wrong
           </h1>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">

@@ -96,6 +96,21 @@ body {
   outline-offset: 2px;
 }
 
+/* Text fields: a soft glow that follows the field's rounded corners, not a
+   square outline. Bare inputs (no rounded class) sit inside a styled field
+   that shows focus-within instead, or are free text in a grouped list,
+   where the caret is the indicator — as in iOS. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+input[class*="rounded"]:not([type="checkbox"]):not([type="radio"]):focus-visible,
+textarea[class*="rounded"]:focus-visible,
+select[class*="rounded"]:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
 /* Dialogs take focus themselves on open (so screen readers announce them);
    that programmatic focus shouldn't draw a ring around the whole panel. */
 [role="dialog"][tabindex="-1"]:focus-visible {

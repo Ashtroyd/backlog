@@ -414,10 +414,11 @@ export function ImportModal({
         if (!importing) onClose();
       }}
       wide
+      sheet
     >
       <div className="p-6 sm:p-7">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="font-display text-xl font-semibold text-ink">
+          <h2 className="font-display text-xl font-bold text-ink">
             Import from {sourceLabel}
           </h2>
           <button
@@ -442,7 +443,7 @@ export function ImportModal({
                   onKeyDown={(e) => e.key === "Enter" && fetchSteam()}
                   placeholder="Steam ID, vanity name, or profile URL"
                   aria-label="Steam ID, vanity name, or profile URL"
-                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                  className="w-full rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted transition-colors focus:border-accent/40"
                 />
                 <button
                   type="button"
@@ -468,7 +469,7 @@ export function ImportModal({
                   onKeyDown={(e) => e.key === "Enter" && fetchMal()}
                   placeholder="MyAnimeList username"
                   aria-label="MyAnimeList username"
-                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                  className="w-full rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted transition-colors focus:border-accent/40"
                 />
                 <button
                   type="button"
@@ -560,7 +561,7 @@ export function ImportModal({
                           e.target.value as "backlog" | "in_progress",
                         )
                       }
-                      className="rounded-lg border border-line bg-paper px-3 py-2 text-ink"
+                      className="rounded-lg border border-transparent bg-ivory px-3 py-2 text-ink"
                     >
                       <option value="backlog">Backlog</option>
                       <option value="in_progress">Playing</option>

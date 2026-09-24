@@ -65,7 +65,7 @@ export function SharedItemDetailModal({
   }
 
   return (
-    <Modal open={Boolean(entry)} onClose={onClose} wide>
+    <Modal open={Boolean(entry)} onClose={onClose} wide sheet>
       {current && (
         <div className="p-6 sm:p-7">
           <div className="flex items-start gap-6">
@@ -84,7 +84,7 @@ export function SharedItemDetailModal({
                   <p className="text-xs font-medium uppercase tracking-wide text-accent">
                     {SECTION_BY_MEDIA[current.item.media_type].label} · shared
                   </p>
-                  <h2 className="mt-1 font-display text-2xl font-semibold leading-snug tracking-tight text-ink">
+                  <h2 className="mt-1 font-display text-2xl font-bold leading-snug tracking-tight text-ink">
                     {current.item.title}
                   </h2>
                 </div>

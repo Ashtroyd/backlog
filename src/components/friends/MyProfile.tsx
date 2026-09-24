@@ -124,7 +124,7 @@ export default function MyProfile() {
 
       <section className="mt-10">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-xl font-semibold text-ink">About you</h2>
+          <h2 className="font-display text-xl font-bold text-ink">About you</h2>
           {!editingAbout && (
             <button
               type="button"
@@ -147,7 +147,7 @@ export default function MyProfile() {
                 value={displayName}
                 maxLength={40}
                 onChange={(e) => setDisplayName(e.target.value)}
-                className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink transition-colors focus:border-line-strong"
+                className="w-full rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5 text-subhead text-ink transition-colors focus:border-accent/40"
               />
             </div>
             <div>
@@ -161,7 +161,7 @@ export default function MyProfile() {
                 rows={3}
                 onChange={(e) => setBio(e.target.value)}
                 placeholder="A line or two about your taste…"
-                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                className="w-full resize-none rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted transition-colors focus:border-accent/40"
               />
               <p className="mt-1 text-right text-xs text-muted">{bio.length}/280</p>
             </div>
@@ -205,7 +205,7 @@ export default function MyProfile() {
       {allItems.length > 0 && (
         <section className="mt-10">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-xl font-semibold text-ink">
+            <h2 className="font-display text-xl font-bold text-ink">
               Your stats
             </h2>
             <button
@@ -231,7 +231,7 @@ export default function MyProfile() {
       </div>
 
       <section className="mt-10">
-        <h2 className="mb-1 font-display text-xl font-semibold text-ink">Favourites</h2>
+        <h2 className="mb-1 font-display text-xl font-bold text-ink">Favourites</h2>
         <p className="mb-4 text-sm text-muted">
           One pick per list. Set them with the heart on any item.
         </p>

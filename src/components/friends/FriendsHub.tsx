@@ -149,7 +149,7 @@ function Section({
 }) {
   return (
     <section className="mt-10">
-      <h2 className="mb-4 font-display text-xl font-semibold text-ink">{title}</h2>
+      <h2 className="mb-4 font-display text-xl font-bold text-ink">{title}</h2>
       {children}
     </section>
   );
@@ -211,7 +211,7 @@ function AddFriend({
 
   return (
     <div className="mt-8 rounded-2xl border border-line bg-surface p-4">
-      <div className="flex items-center gap-2.5 rounded-xl border border-line bg-paper px-3.5 py-2.5">
+      <div className="flex items-center gap-2.5 rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5">
         <SearchIcon className="h-5 w-5 shrink-0 text-muted" />
         <input
           value={query}
@@ -220,7 +220,7 @@ function AddFriend({
           aria-label="Add a friend by their handle"
           autoCapitalize="none"
           autoCorrect="off"
-          className="w-full bg-transparent text-subhead text-ink placeholder:text-muted/70"
+          className="w-full bg-transparent text-subhead text-ink placeholder:text-muted"
         />
         {searching && <SpinnerIcon className="h-4 w-4 shrink-0 animate-spin text-muted" />}
       </div>

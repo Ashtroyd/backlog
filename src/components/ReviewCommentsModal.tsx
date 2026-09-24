@@ -33,7 +33,7 @@ export function ReviewCommentsModal({
   }, [itemId]);
 
   return (
-    <Modal open={Boolean(itemId)} onClose={onClose} wide>
+    <Modal open={Boolean(itemId)} onClose={onClose} wide sheet>
       {item ? (
         <div className="p-6 sm:p-7">
           <div className="flex items-start gap-4">
@@ -44,7 +44,7 @@ export function ReviewCommentsModal({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="font-display text-xl font-semibold leading-snug tracking-tight text-ink">
+                <h2 className="font-display text-xl font-bold leading-snug tracking-tight text-ink">
                   {item.title}
                 </h2>
                 <button

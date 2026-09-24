@@ -43,7 +43,7 @@ export function TopPicksMonthSection({
   return (
     <section>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-display text-xl font-semibold text-ink">Top picks</h2>
+        <h2 className="font-display text-xl font-bold text-ink">Top picks</h2>
         <div className="flex items-center gap-0.5 rounded-full border border-line bg-surface p-1">
           <button
             type="button"

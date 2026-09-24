@@ -43,8 +43,8 @@ export function Onboarding({
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-6 py-16">
-      <div className="fixed right-4 top-4">
+    <main className="flex min-h-[100dvh] flex-col items-center justify-center px-6 pb-16 pt-[max(4rem,calc(env(safe-area-inset-top)+1rem))]">
+      <div className="fixed right-4 top-[max(1rem,env(safe-area-inset-top))]">
         <ThemeToggle />
       </div>
 
@@ -64,7 +64,7 @@ export function Onboarding({
           </div>
         </div>
 
-        <h1 className="mt-6 font-display text-2xl font-semibold tracking-tight text-ink">
+        <h1 className="mt-6 font-display text-2xl font-bold tracking-tight text-ink">
           Set up your profile
         </h1>
         <p className="mt-1.5 text-sm text-muted">
@@ -82,7 +82,7 @@ export function Onboarding({
               onChange={(e) => setDisplayName(e.target.value)}
               maxLength={40}
               required
-              className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+              className="w-full rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted transition-colors focus:border-accent/40"
               placeholder="Your name"
             />
           </div>
@@ -90,7 +90,7 @@ export function Onboarding({
             <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-ink">
               Handle
             </label>
-            <div className="flex items-center rounded-xl border border-line bg-paper pl-3.5 transition-colors focus-within:border-line-strong">
+            <div className="flex items-center rounded-[10px] border border-transparent bg-ivory pl-3.5 transition-colors focus-within:border-line-strong">
               <span className="text-subhead text-muted">@</span>
               <input
                 id="username"
@@ -99,7 +99,7 @@ export function Onboarding({
                 required
                 autoCapitalize="none"
                 autoCorrect="off"
-                className="w-full bg-transparent px-1 py-2.5 text-subhead text-ink placeholder:text-muted/70 focus:outline-none"
+                className="w-full bg-transparent px-1 py-2.5 text-subhead text-ink placeholder:text-muted focus:outline-none"
                 placeholder="handle"
               />
             </div>

@@ -28,7 +28,7 @@ export function FriendItemModal({
   const chips = itemChips(item);
 
   return (
-    <Modal open={Boolean(item)} onClose={onClose} wide>
+    <Modal open={Boolean(item)} onClose={onClose} wide sheet>
       {item && (
         <div className="p-6 sm:p-7">
           <div className="flex items-start gap-6">
@@ -40,7 +40,7 @@ export function FriendItemModal({
 
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="font-display text-2xl font-semibold leading-snug tracking-tight text-ink">
+                <h2 className="font-display text-2xl font-bold leading-snug tracking-tight text-ink">
                   {item.title}
                 </h2>
                 <button

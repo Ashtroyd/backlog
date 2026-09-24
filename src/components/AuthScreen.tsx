@@ -74,8 +74,8 @@ export function AuthScreen() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-6 py-12">
-      <div className="fixed right-4 top-4">
+    <main className="flex min-h-[100dvh] items-center justify-center px-6 pb-12 pt-[max(3rem,calc(env(safe-area-inset-top)+1rem))]">
+      <div className="fixed right-4 top-[max(1rem,env(safe-area-inset-top))]">
         <ThemeToggle />
       </div>
 
@@ -90,7 +90,7 @@ export function AuthScreen() {
           <p className="font-brand text-2xl font-semibold tracking-tight text-ink">
             Backlog<span className="text-accent">.</span>
           </p>
-          <h1 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-ink sm:text-5xl">
+          <h1 className="mt-4 font-display text-4xl font-bold leading-tight tracking-tight text-ink sm:text-5xl">
             Every game, film and show you{" "}
             <span className="text-accent">mean to get to.</span>
           </h1>
@@ -124,7 +124,7 @@ export function AuthScreen() {
           transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           className="w-full max-w-sm justify-self-center rounded-2xl border border-line bg-surface p-8 shadow-[0_2px_12px_rgba(38,37,33,0.05)] lg:justify-self-end"
         >
-          <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
+          <h2 className="font-display text-2xl font-bold tracking-tight text-ink">
             {mode === "login" ? "Welcome back" : "Create your account"}
           </h2>
           <p className="mt-1.5 text-sm text-muted">
@@ -153,7 +153,7 @@ export function AuthScreen() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                  className="w-full rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted transition-colors focus:border-accent/40"
                   placeholder="you@example.com"
                 />
               </div>
@@ -174,7 +174,7 @@ export function AuthScreen() {
                   minLength={mode === "signup" ? 8 : undefined}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink transition-colors focus:border-line-strong"
+                  className="w-full rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5 text-subhead text-ink transition-colors focus:border-accent/40"
                   placeholder={
                     mode === "signup" ? "At least 8 characters" : "••••••••"
                   }

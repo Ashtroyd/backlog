@@ -122,7 +122,7 @@ export function AddSharedModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal open={open} onClose={onClose} sheet>
       {!picked ? (
         <>
           <div className="flex flex-wrap items-center gap-1 border-b border-line px-5 py-3">
@@ -155,7 +155,7 @@ export function AddSharedModal({
               onChange={(e) => setQuery(e.target.value)}
               placeholder={section.searchPlaceholder}
               aria-label={section.searchPlaceholder}
-              className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70"
+              className="w-full bg-transparent text-lg text-ink placeholder:text-muted"
             />
             {searching && (
               <SpinnerIcon className="h-4 w-4 shrink-0 animate-spin text-muted" />

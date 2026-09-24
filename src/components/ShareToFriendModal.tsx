@@ -51,7 +51,7 @@ export function ShareToFriendModal({
   }
 
   return (
-    <Modal open={Boolean(item)} onClose={onClose}>
+    <Modal open={Boolean(item)} onClose={onClose} sheet>
       {current && (
         <div className="p-5">
           <h2 className="font-display text-lg font-semibold text-ink">
@@ -65,7 +65,7 @@ export function ShareToFriendModal({
             rows={2}
             placeholder="Add a note (optional)…"
             aria-label="Add a note (optional)"
-            className="mt-4 w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+            className="mt-4 w-full resize-none rounded-[10px] border border-transparent bg-ivory px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted transition-colors focus:border-accent/40"
           />
 
           <div className="mt-4 max-h-[45vh] overflow-y-auto">

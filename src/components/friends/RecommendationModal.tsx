@@ -69,7 +69,7 @@ export function RecommendationModal({
   }
 
   return (
-    <Modal open={Boolean(rec)} onClose={onClose} wide>
+    <Modal open={Boolean(rec)} onClose={onClose} wide sheet>
       <div className="p-6 sm:p-7">
         <div className="flex items-start gap-6">
           <div className="relative hidden aspect-[2/3] w-36 shrink-0 overflow-hidden rounded-xl border border-line bg-ivory sm:block">
@@ -84,7 +84,7 @@ export function RecommendationModal({
                 <p className="text-xs font-medium uppercase tracking-wide text-accent">
                   {section.label} · recommended
                 </p>
-                <h2 className="mt-1 font-display text-2xl font-semibold leading-snug tracking-tight text-ink">
+                <h2 className="mt-1 font-display text-2xl font-bold leading-snug tracking-tight text-ink">
                   {item.title}
                 </h2>
               </div>

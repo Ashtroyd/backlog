@@ -19,8 +19,11 @@ import { importExclusion } from "@/lib/import-cleanup";
 import { toast } from "@/lib/toast-bus";
 import { ItemCard } from "./ItemCard";
 import { SegmentedNav } from "./SegmentedNav";
+import { CoverImage } from "./CoverImage";
+import { StarRating } from "./StarRating";
 import { rememberSection } from "@/lib/last-section";
 import {
+  ChevronRightIcon,
   EllipsisCircleIcon,
   PinIcon,
   PlusIcon,
@@ -302,7 +305,7 @@ export default function Library({
       </header>
 
       {items.length > 0 && (
-        <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-ivory px-3 py-2 sm:max-w-sm">
+        <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-ivory px-3 py-2 focus-within:ring-2 focus-within:ring-accent/25 sm:max-w-sm">
           <SearchIcon className="h-4 w-4 shrink-0 text-muted" />
           <input
             type="search"
@@ -452,7 +455,7 @@ export default function Library({
             aria-label="Status for selected titles"
             value={bulkStatus}
             onChange={(e) => setBulkStatus(e.target.value as ItemStatus)}
-            className="rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink"
+            className="rounded-lg border border-transparent bg-ivory px-3 py-2 text-sm text-ink"
           >
             {STATUS_ORDER.map((status) => (
               <option key={status} value={status}>
@@ -496,7 +499,7 @@ export default function Library({
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ivory font-display text-2xl text-accent">
             ✦
           </div>
-          <h2 className="mt-5 font-display text-xl font-semibold text-ink">
+          <h2 className="mt-5 font-display text-xl font-bold text-ink">
             {items.length === 0 ? section.emptyTitle : "Nothing here"}
           </h2>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">
@@ -530,60 +533,60 @@ export default function Library({
           )}
         </motion.div>
       ) : view === "list" ? (
-        <div className="mt-6 overflow-x-auto rounded-xl border border-line">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-ivory text-muted">
-              <tr>
-                <th className="p-3">Title</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Progress</th>
-                <th className="p-3">Rating</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {visible.map((item) => (
-                <tr key={item.id} className="bg-surface hover:bg-ivory/50">
-                  <td className="p-3">
-                    <div className="flex items-center gap-3">
-                      {selecting && (
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${item.title}`}
-                          checked={checked.has(item.id)}
-                          disabled={bulkBusy}
-                          onChange={() => toggleItem(item.id)}
-                          className="h-5 w-5 accent-accent"
-                        />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedId(item.id)}
-                        className="text-left font-medium text-ink hover:text-accent"
-                      >
-                        {item.title}
-                      </button>
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap p-3 text-muted">
-                    {item.live_service && item.status === "in_progress"
-                      ? "Live service"
-                      : statusLabel(item.status, section)}
-                  </td>
-                  <td className="whitespace-nowrap p-3 tabular-nums text-muted">
-                    {item.progress != null
-                      ? `${item.progress} episodes`
-                      : item.hours_played != null
-                        ? `${item.hours_played} hrs`
-                        : "—"}
-                  </td>
-                  <td className="p-3 tabular-nums text-muted">
-                    {item.rating != null ? `${item.rating}/5` : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="mt-6 divide-y divide-line overflow-hidden rounded-xl bg-ivory/60">
+          {visible.map((item) => {
+            const detail = [
+              item.live_service && item.status === "in_progress"
+                ? "Live Service"
+                : statusLabel(item.status, section),
+              item.progress != null
+                ? `${item.progress}${item.meta?.episodes ? ` of ${item.meta.episodes}` : ""} episodes`
+                : item.hours_played != null
+                  ? `${item.hours_played} h`
+                  : null,
+              item.release_year,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <li key={item.id} className="flex items-center gap-3 pl-3 pr-2">
+                {selecting && (
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${item.title}`}
+                    checked={checked.has(item.id)}
+                    disabled={bulkBusy}
+                    onChange={() => toggleItem(item.id)}
+                    className="h-5 w-5 shrink-0 accent-accent"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    selecting ? toggleItem(item.id) : setSelectedId(item.id)
+                  }
+                  className="flex min-h-[4.5rem] min-w-0 flex-1 items-center gap-3 py-2 text-left"
+                >
+                  <span className="relative h-[3.75rem] w-10 shrink-0 overflow-hidden rounded-md bg-ivory shadow-[0_1px_3px_rgba(0,0,0,0.12)]">
+                    <CoverImage src={item.cover_url} title={item.title} sizes="40px" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-subhead font-medium text-ink">
+                      {item.title}
+                    </span>
+                    <span className="block truncate text-footnote tabular-nums text-muted">
+                      {detail}
+                    </span>
+                  </span>
+                  {item.rating != null && (
+                    <StarRating value={item.rating} size={12} />
+                  )}
+                  <ChevronRightIcon className="h-4 w-4 shrink-0 text-muted" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       ) : (
         <motion.div
           key="grid"

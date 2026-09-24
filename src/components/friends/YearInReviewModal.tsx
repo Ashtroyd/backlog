@@ -115,11 +115,11 @@ export function YearInReviewModal({
   const stats = useMemo(() => computeYearStats(items, year), [items, year]);
 
   return (
-    <Modal open={open} onClose={onClose} wide>
+    <Modal open={open} onClose={onClose} wide sheet>
       <div className="max-h-[85vh] overflow-y-auto p-6 sm:p-7">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-display text-2xl font-semibold text-ink">Your year in review</h2>
+            <h2 className="font-display text-2xl font-bold text-ink">Your year in review</h2>
             {years.length > 1 && (
               <select
                 value={year}
@@ -174,7 +174,7 @@ export function YearInReviewModal({
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {stats.totalHours > 0 && (
                 <motion.div {...fadeUp(0.05)} className="rounded-2xl border border-line bg-surface p-4">
-                  <p className="font-display text-2xl font-semibold text-ink">
+                  <p className="font-display text-2xl font-bold text-ink">
                     {Math.round(stats.totalHours)}
                   </p>
                   <p className="text-xs text-muted">hours played</p>
@@ -182,7 +182,7 @@ export function YearInReviewModal({
               )}
               {stats.totalEpisodes > 0 && (
                 <motion.div {...fadeUp(0.1)} className="rounded-2xl border border-line bg-surface p-4">
-                  <p className="font-display text-2xl font-semibold text-ink">{stats.totalEpisodes}</p>
+                  <p className="font-display text-2xl font-bold text-ink">{stats.totalEpisodes}</p>
                   <p className="text-xs text-muted">episodes watched</p>
                 </motion.div>
               )}
@@ -196,14 +196,14 @@ export function YearInReviewModal({
                   </>
                 ) : (
                   <>
-                    <p className="font-display text-2xl font-semibold text-muted">–</p>
+                    <p className="font-display text-2xl font-bold text-muted">–</p>
                     <p className="text-xs text-muted">avg rating</p>
                   </>
                 )}
               </motion.div>
               {stats.busiestMonthIdx != null && (
                 <motion.div {...fadeUp(0.2)} className="rounded-2xl border border-line bg-surface p-4">
-                  <p className="font-display text-2xl font-semibold text-ink">
+                  <p className="font-display text-2xl font-bold text-ink">
                     {MONTH_NAMES[stats.busiestMonthIdx]}
                   </p>
                   <p className="text-xs text-muted">

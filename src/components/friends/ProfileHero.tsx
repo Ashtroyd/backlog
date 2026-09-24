@@ -84,7 +84,7 @@ export function ProfileHero({
         </div>
 
         <div className="min-w-0 flex-1 pb-1">
-          <h1 className="truncate font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+          <h1 className="truncate font-display text-2xl font-bold tracking-tight text-ink sm:text-3xl">
             {profile.display_name}
           </h1>
           <p className="truncate text-sm text-muted">@{profile.username}</p>

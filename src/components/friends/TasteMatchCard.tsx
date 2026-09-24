@@ -22,7 +22,7 @@ export function TasteMatchCard({
     <div className="rounded-2xl border border-line bg-surface p-5">
       <div className="flex items-center gap-5">
         <div className="flex flex-col items-center">
-          <span className="font-display text-4xl font-semibold text-accent">
+          <span className="font-display text-4xl font-bold text-accent">
             {match.score != null ? `${match.score}%` : "—"}
           </span>
           <span className="text-xs text-muted">taste match</span>

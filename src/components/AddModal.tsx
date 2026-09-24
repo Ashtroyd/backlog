@@ -115,9 +115,11 @@ export function AddModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <div className="flex items-center gap-3 border-b border-line px-5 py-4">
-        <SearchIcon className="h-5 w-5 shrink-0 text-muted" />
+    <Modal open={open} onClose={onClose} sheet>
+      {/* iOS search bar: filled field + Cancel. */}
+      <div className="flex items-center gap-3 border-b border-line px-4 pb-3 pt-6 sm:px-5 sm:pt-4">
+        <div className="flex min-h-11 flex-1 items-center gap-2 rounded-[10px] bg-ivory px-3 focus-within:ring-2 focus-within:ring-accent/25">
+        <SearchIcon className="h-4 w-4 shrink-0 text-muted" />
         <input
           autoFocus
           value={query}
@@ -133,14 +135,22 @@ export function AddModal({
           }}
           placeholder={section.searchPlaceholder}
           aria-label={section.searchPlaceholder}
-          className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70"
+          className="w-full bg-transparent text-base text-ink outline-none placeholder:text-muted"
         />
         {searching && (
           <SpinnerIcon className="h-4 w-4 shrink-0 animate-spin text-muted" />
         )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="min-h-11 shrink-0 text-subhead text-accent"
+        >
+          Done
+        </button>
       </div>
 
-      <div className="max-h-[55vh] overflow-y-auto p-2">
+      <div className="overflow-y-auto p-2 sm:max-h-[55vh]">
         {notice && (
           <div className="m-2 rounded-xl bg-accent-soft px-4 py-3 text-sm leading-relaxed text-accent-hover">
             {notice}
