@@ -8,6 +8,7 @@ import { fetchConversations, type Conversation } from "@/lib/messages";
 import { timeAgo } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
 import { SpinnerIcon } from "@/components/icons";
+import { FriendsTabs } from "../FriendsTabs";
 
 function preview(c: Conversation, myId: string): string {
   const m = c.lastMessage;
@@ -33,10 +34,9 @@ export default function MessagesList() {
   }, [load]);
 
   return (
-    <div className="pt-12">
-      <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
-        Messages
-      </h1>
+    <div>
+      <FriendsTabs active="messages" />
+      <h2 className="sr-only">Messages</h2>
 
       {convos === null ? (
         <div className="flex justify-center pt-16">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useAuth } from "@/lib/backlog-store";
 import {
@@ -35,9 +35,17 @@ const CLEARED_KEY = "backlog:activityClearedBefore";
 
 type Tab = "requests" | "activity";
 
-export function NotificationCenter() {
+export function NotificationCenter({
+  align = "right",
+}: {
+  /** Which edge the panel hangs from — "left" when the bell sits in the sidebar. */
+  align?: "left" | "right";
+} = {}) {
   const { session } = useAuth();
   const myId = session?.user?.id ?? null;
+  // The bell renders in both the top bar and the sidebar (one hidden by CSS);
+  // Supabase dedupes channels by name, so each instance needs its own.
+  const instanceId = useId();
 
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("requests");
@@ -76,7 +84,7 @@ export function NotificationCenter() {
     if (!myId) return undefined;
     // New notifications arrive live once the 0007 realtime migration is run.
     const channel = supabase
-      .channel(`notifs-${myId}`)
+      .channel(`notifs-${myId}-${instanceId}`)
       .on(
         "postgres_changes",
         {
@@ -91,7 +99,7 @@ export function NotificationCenter() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [load, myId]);
+  }, [load, myId, instanceId]);
 
   // Fresh data each time the panel opens.
   useEffect(() => {
@@ -200,7 +208,7 @@ export function NotificationCenter() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -6, scale: 0.97 }}
               transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-              className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_12px_32px_rgba(38,37,33,0.16)]"
+              className={`absolute ${align === "left" ? "left-0" : "right-0"} top-12 z-50 w-80 overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_12px_32px_rgba(38,37,33,0.16)]`}
             >
               <div className="flex gap-1 border-b border-line p-1.5">
                 <TabButton

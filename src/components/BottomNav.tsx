@@ -3,30 +3,16 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { SECTION_SLUGS, SECTIONS } from "@/lib/sections";
-import { HomeIcon, GamepadIcon, FilmIcon, TvIcon, SparklesIcon, SharedIcon } from "./icons";
-
-const SECTION_ICONS = {
-  games: GamepadIcon,
-  movies: FilmIcon,
-  series: TvIcon,
-  anime: SparklesIcon,
-} as const;
-
-const ITEMS = [
-  { href: "/", label: "Home", Icon: HomeIcon },
-  ...SECTION_SLUGS.map((slug) => ({
-    href: `/${slug}`,
-    label: SECTIONS[slug].label,
-    Icon: SECTION_ICONS[slug],
-  })),
-  { href: "/shared", label: "Shared", Icon: SharedIcon },
-];
+import { openCommandPalette } from "@/lib/command-palette-bus";
+import { activeTab, useLibraryHref, type TabKey } from "@/lib/last-section";
+import { useUnread } from "@/lib/nav-context";
+import { LibraryIcon, SearchIcon, UpNextIcon, UsersIcon } from "./icons";
 
 type Rect = { left: number; width: number };
 
 /**
- * Mobile-only floating glass capsule tab bar. Supports iOS-style
+ * Mobile-only floating glass capsule tab bar — Up Next, Library, Friends —
+ * with Search as its own glass circle beside it, as in iOS 26. Supports iOS-style
  * press-and-hold-and-drag: touch down anywhere on the bar and a glass
  * pill tracks your finger, snapping between tabs, and lifts to navigate
  * wherever it lands — a normal tap still navigates instantly.
@@ -34,8 +20,16 @@ type Rect = { left: number; width: number };
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const libraryHref = useLibraryHref();
+  const unread = useUnread();
+  const current = activeTab(pathname);
+  const ITEMS: { key: TabKey; href: string; label: string; Icon: typeof UpNextIcon; badge?: number }[] = [
+    { key: "upnext", href: "/", label: "Up Next", Icon: UpNextIcon },
+    { key: "library", href: libraryHref, label: "Library", Icon: LibraryIcon },
+    { key: "friends", href: "/friends", label: "Friends", Icon: UsersIcon, badge: unread },
+  ];
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+    ITEMS.find((i) => i.href === href)?.key === current;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<Map<string, HTMLAnchorElement>>(new Map());
@@ -103,12 +97,13 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-4 z-30 sm:hidden"
+      aria-label="Main"
+      className="fixed inset-x-4 z-30 mx-auto flex max-w-sm items-center gap-2.5 sm:hidden"
       style={{ bottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
     >
       <div
         ref={containerRef}
-        className="relative mx-auto flex max-w-sm touch-none items-stretch justify-around rounded-full border border-line/70 bg-surface/75 px-1.5 py-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl backdrop-saturate-150"
+        className="relative flex flex-1 touch-none items-stretch justify-around rounded-full border border-line/70 bg-surface/75 px-1.5 py-1.5 shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl backdrop-saturate-150"
         onPointerMove={handlePointerMove}
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
@@ -125,14 +120,15 @@ export function BottomNav() {
           )}
         </AnimatePresence>
 
-        {ITEMS.map(({ href, label, Icon }) => (
+        {ITEMS.map(({ href, label, Icon, badge }) => (
           <a
             key={href}
             ref={(el) => {
               if (el) itemRefs.current.set(href, el);
             }}
             href={href}
-            aria-label={label}
+            aria-label={badge ? `${label}, ${badge} unread` : label}
+            aria-current={isActive(href) ? "page" : undefined}
             onPointerDown={(e) => handlePointerDown(e, href)}
             onClick={(e) => {
               e.preventDefault();
@@ -144,11 +140,27 @@ export function BottomNav() {
                 : "text-muted"
             }`}
           >
-            <Icon className="h-[22px] w-[22px]" />
+            <span className="relative">
+              <Icon className="h-[22px] w-[22px]" />
+              {!!badge && (
+                <span className="absolute -right-1.5 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-caption2 font-semibold leading-none text-white">
+                  {badge > 9 ? "9+" : badge}
+                </span>
+              )}
+            </span>
             {label}
           </a>
         ))}
       </div>
+
+      <button
+        type="button"
+        aria-label="Search"
+        onClick={() => openCommandPalette()}
+        className="flex h-[3.75rem] w-[3.75rem] shrink-0 items-center justify-center rounded-full border border-line/70 bg-surface/75 text-ink shadow-[0_16px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl backdrop-saturate-150"
+      >
+        <SearchIcon className="h-[22px] w-[22px]" />
+      </button>
     </nav>
   );
 }

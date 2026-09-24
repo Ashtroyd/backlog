@@ -20,6 +20,7 @@
   --star: #ff9500;
   --sage: #1f7a35;
   --sage-soft: #e3f5e8;
+  --danger: #d70015;
 }
 
 :root[data-theme="dark"] {
@@ -39,6 +40,7 @@
   --star: #ff9f0a;
   --sage: #30d158;
   --sage-soft: #0f2e18;
+  --danger: #ff453a;
 }
 
 @theme inline {
@@ -56,6 +58,7 @@
   --color-star: var(--star);
   --color-sage: var(--sage);
   --color-sage-soft: var(--sage-soft);
+  --color-danger: var(--danger);
   --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui,
     "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   /* Headings: SF Pro Display on Apple devices, system UI elsewhere. */

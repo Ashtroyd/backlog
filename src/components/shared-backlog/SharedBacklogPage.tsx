@@ -9,6 +9,7 @@ import { PlusIcon } from "@/components/icons";
 import { AddSharedModal } from "./AddSharedModal";
 import { SharedItemCard } from "./SharedItemCard";
 import { SharedItemDetailModal } from "./SharedItemDetailModal";
+import { FriendsTabs } from "../FriendsTabs";
 
 type MediaFilter = "all" | SectionSlug;
 type StatusFilter = "all" | SharedStatus;
@@ -65,11 +66,12 @@ export default function SharedBacklogPage() {
 
   return (
     <>
-      <header className="flex flex-wrap items-end justify-between gap-4 pt-12">
+      <FriendsTabs active="shared" />
+      <header className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">
+          <h2 className="font-display text-xl font-bold tracking-tight text-ink">
             Shared Backlog
-          </h1>
+          </h2>
           <p className="mt-1.5 text-sm text-muted">
             {entries === null
               ? " "

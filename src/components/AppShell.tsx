@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { AuthContext, useSession } from "@/lib/backlog-store";
 import { fetchProfile } from "@/lib/social";
 import { startTour } from "@/lib/tour-bus";
+import { NavContext } from "@/lib/nav-context";
+import { useUnreadMessages } from "@/lib/use-unread-messages";
 import type { Profile } from "@/lib/types";
 import { AuthScreen } from "./AuthScreen";
 import { Onboarding } from "./Onboarding";
@@ -13,6 +15,8 @@ import { FeatureTour } from "./FeatureTour";
 import { Toaster } from "./Toaster";
 import Nav from "./Nav";
 import { BottomNav } from "./BottomNav";
+import { Sidebar } from "./Sidebar";
+import { AccountSheet } from "./AccountSheet";
 
 /**
  * Client-side gate: login screen when signed out, an onboarding step until a
@@ -27,6 +31,8 @@ export default function AppShell({
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const tourChecked = useRef(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const unread = useUnreadMessages(profile ? userId : null);
 
   // First-ever visit: auto-run the tour once (edits to profile re-fire this
   // effect with a new object reference, so guard with a ref, not a flag in
@@ -77,14 +83,25 @@ export default function AppShell({
   return (
     <AuthContext.Provider value={{ session, profile, setProfile }}>
       <ConfirmProvider>
-        <Nav />
-        <main className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6 sm:pb-24">
-          {children}
-        </main>
-        <BottomNav />
-        <Toaster />
-        <FeatureTour />
-        <CommandPalette />
+        <NavContext.Provider
+          value={{ unread, openAccount: () => setAccountOpen(true) }}
+        >
+          <Sidebar />
+          <div className="lg:pl-60">
+            <Nav />
+            <main className="mx-auto w-full max-w-6xl px-4 pb-32 sm:px-6 sm:pb-24 lg:px-10">
+              {children}
+            </main>
+          </div>
+          <BottomNav />
+          <AccountSheet
+            open={accountOpen}
+            onClose={() => setAccountOpen(false)}
+          />
+          <Toaster />
+          <FeatureTour />
+          <CommandPalette />
+        </NavContext.Provider>
       </ConfirmProvider>
     </AuthContext.Provider>
   );

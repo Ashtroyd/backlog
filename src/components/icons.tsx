@@ -331,3 +331,23 @@ export function GripIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Play button in a circle, like SF Symbols' "play.circle" — the Up Next tab. */
+export function UpNextIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M10.2 8.8v6.4l5-3.2Z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Stacked rectangles, like SF Symbols' "rectangle.stack" — the Library tab. */
+export function LibraryIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="3.5" y="9" width="17" height="11" rx="2" />
+      <path d="M5.5 6h13M7.5 3.3h9" />
+    </svg>
+  );
+}

@@ -19,6 +19,7 @@ import {
 } from "@/lib/social";
 import type { Profile } from "@/lib/types";
 import { Avatar } from "@/components/Avatar";
+import { FriendsTabs } from "@/components/FriendsTabs";
 import { StarRating } from "@/components/StarRating";
 import { RecommendationModal } from "./RecommendationModal";
 import {
@@ -63,17 +64,8 @@ export default function FriendsHub() {
   if (!profile) return null;
 
   return (
-    <div className="pt-12">
-      {/* Your profile */}
-      <header className="flex items-center gap-4">
-        <Avatar profile={profile} size={56} />
-        <div className="min-w-0">
-          <h1 className="truncate font-display text-3xl font-semibold tracking-tight text-ink">
-            {profile.display_name}
-          </h1>
-          <p className="truncate text-sm text-muted">@{profile.username}</p>
-        </div>
-      </header>
+    <div>
+      <FriendsTabs active="people" />
 
       <AddFriend myId={myId!} onChanged={load} existing={friends} outgoing={outgoing} />
 

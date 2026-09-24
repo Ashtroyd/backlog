@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import {
   SECTIONS,
+  SECTION_SLUGS,
   STATUS_ORDER,
   statusLabel,
   type SectionSlug,
@@ -17,6 +18,8 @@ import { ImportModal } from "./ImportModal";
 import { importExclusion } from "@/lib/import-cleanup";
 import { toast } from "@/lib/toast-bus";
 import { ItemCard } from "./ItemCard";
+import { SegmentedNav } from "./SegmentedNav";
+import { rememberSection } from "@/lib/last-section";
 import { PinIcon, PlusIcon, SearchIcon, UploadIcon } from "./icons";
 
 /** Sections with a supported bulk-import source (Steam, MyAnimeList, Letterboxd). */
@@ -58,6 +61,8 @@ export default function Library({
   initialItemId?: string;
 }) {
   const section = SECTIONS[slug];
+  // The Library tab reopens whichever type you last had open.
+  useEffect(() => rememberSection(slug), [slug]);
   const router = useRouter();
   const pathname = usePathname();
   const {
@@ -199,12 +204,26 @@ export default function Library({
 
   return (
     <>
-      <header className="flex flex-wrap items-end justify-between gap-4 pt-12">
+      <div className="pt-10 sm:pt-12">
+        <h1 className="font-display text-4xl font-bold tracking-tight text-ink">
+          Library
+        </h1>
+        <div className="mt-4">
+          <SegmentedNav
+            id="library"
+            label="Library type"
+            segments={SECTION_SLUGS.map((s) => ({
+              href: `/${s}`,
+              label: SECTIONS[s].label,
+              active: s === slug,
+            }))}
+          />
+        </div>
+      </div>
+      <header className="mt-6 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">
-            {section.label}
-          </h1>
-          <p className="mt-1.5 text-sm text-muted">
+          <h2 className="sr-only">{section.label}</h2>
+          <p className="text-sm text-muted">
             {!ready
               ? " "
               : items.length === 0

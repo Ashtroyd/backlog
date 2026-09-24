@@ -42,6 +42,14 @@ const STEPS: TourStep[] = [
 const TOOLTIP_WIDTH = 320;
 const PADDING = 8;
 
+/** First *visible* element for a tour target — some (the notification bell)
+    render in both the top bar and the sidebar, with one hidden by CSS. */
+function findTarget(target: string): HTMLElement | null {
+  const all = document.querySelectorAll<HTMLElement>(`[data-tour="${target}"]`);
+  for (const el of all) if (el.getClientRects().length > 0) return el;
+  return null;
+}
+
 export function FeatureTour() {
   const [steps, setSteps] = useState<TourStep[] | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
@@ -51,7 +59,7 @@ export function FeatureTour() {
   const measure = useCallback(() => {
     if (!steps) return;
     const step = steps[stepIndex];
-    const el = step && document.querySelector(`[data-tour="${step.target}"]`);
+    const el = step && findTarget(step.target);
     setRect(el ? el.getBoundingClientRect() : null);
   }, [steps, stepIndex]);
 
@@ -60,7 +68,7 @@ export function FeatureTour() {
     () =>
       onTourStart(() => {
         const available = STEPS.filter((s) =>
-          document.querySelector(`[data-tour="${s.target}"]`),
+          findTarget(s.target),
         );
         if (available.length === 0) return;
         setSteps(available);
@@ -73,7 +81,7 @@ export function FeatureTour() {
   useEffect(() => {
     if (!steps) return undefined;
     const step = steps[stepIndex];
-    const el = document.querySelector(`[data-tour="${step.target}"]`);
+    const el = findTarget(step.target);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
 
     const tick = () => {
