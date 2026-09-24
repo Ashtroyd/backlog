@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AuthContext, useSession } from "@/lib/backlog-store";
 import { fetchProfile } from "@/lib/social";
 import { openWelcome } from "@/lib/welcome-bus";
@@ -28,8 +28,19 @@ export default function AppShell({
   const { session, ready } = useSession();
   const userId = session?.user?.id ?? null;
 
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [profileLoaded, setProfileLoaded] = useState(false);
+  // Tagged with the user it was fetched for, so a sign-out or account switch
+  // reads as "not loaded yet" without resetting anything by hand.
+  const [loaded, setLoaded] = useState<{ userId: string; profile: Profile | null } | null>(
+    null,
+  );
+  const profileLoaded = userId !== null && loaded?.userId === userId;
+  const profile = profileLoaded ? loaded.profile : null;
+  const setProfile = useCallback(
+    (p: Profile) => {
+      if (userId) setLoaded({ userId, profile: p });
+    },
+    [userId],
+  );
   const welcomeChecked = useRef(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const unread = useUnreadMessages(profile ? userId : null);
@@ -51,22 +62,14 @@ export default function AppShell({
   }, [profile]);
 
   useEffect(() => {
-    if (!userId) {
-      setProfile(null);
-      setProfileLoaded(false);
-      return undefined;
-    }
+    if (!userId) return;
     let alive = true;
-    setProfileLoaded(false);
     fetchProfile(userId)
       .then((p) => {
-        if (alive) {
-          setProfile(p);
-          setProfileLoaded(true);
-        }
+        if (alive) setLoaded({ userId, profile: p });
       })
       .catch(() => {
-        if (alive) setProfileLoaded(true);
+        if (alive) setLoaded({ userId, profile: null });
       });
     return () => {
       alive = false;

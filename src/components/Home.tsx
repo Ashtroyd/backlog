@@ -211,10 +211,10 @@ export default function Home() {
     return { error: null };
   }
 
-  const loadPicks = useCallback(async () => {
-    if (!myId) return;
-    setPicks(await fetchTopPicks(myId, month));
-  }, [myId, month]);
+  const loadPicks = useCallback(
+    () => (myId ? fetchTopPicks(myId, month).then(setPicks) : Promise.resolve()),
+    [myId, month],
+  );
 
   useEffect(() => {
     if (!myId) return;

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { SECTIONS, type SectionSlug } from "./sections";
+import { useIsClient } from "./use-is-client";
 
 const KEY = "backlog:lastSection";
 
@@ -10,7 +10,7 @@ const KEY = "backlog:lastSection";
 export function readLastSection(): SectionSlug {
   try {
     const v = localStorage.getItem(KEY);
-    if (v && v in SECTIONS) return v as SectionSlug;
+    if (v && Object.hasOwn(SECTIONS, v)) return v as SectionSlug;
   } catch {
     // storage unavailable — fall through to the default
   }
@@ -27,12 +27,13 @@ export function rememberSection(slug: SectionSlug) {
 
 /** Href for the Library tab: `/games` until a visit says otherwise. */
 export function useLibraryHref(): string {
+  // On a section, that's the answer (Library saves it in an effect, after
+  // this renders); anywhere else, re-read storage after each navigation.
   const pathname = usePathname();
-  const [slug, setSlug] = useState<SectionSlug>("games");
-  useEffect(() => {
-    setSlug(readLastSection());
-  }, [pathname]);
-  return `/${slug}`;
+  const isClient = useIsClient();
+  const here = pathname.split("/")[1];
+  if (Object.hasOwn(SECTIONS, here)) return `/${here}`;
+  return `/${isClient ? readLastSection() : "games"}`;
 }
 
 /** Top-level destinations, shared by the tab bar, top bar and sidebar. */

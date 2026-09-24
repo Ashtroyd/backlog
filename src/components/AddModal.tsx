@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { searchTitles, useDebouncedSearch } from "@/lib/use-debounced-search";
 import type { Section } from "@/lib/sections";
 import type { AddInput } from "@/lib/backlog-store";
 import type { SearchResult } from "@/lib/types";
@@ -23,62 +24,31 @@ export function AddModal({
   onAdd: (input: AddInput) => Promise<{ error: string | null }>;
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
+  const [addError, setAddError] = useState<string | null>(null);
 
-
-  // Fresh slate every time the dialog opens.
-  useEffect(() => {
+  // Fresh slate every time the dialog opens — adjusted during render rather
+  // than in an effect, so the last session's query never paints.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setQuery("");
-      setResults([]);
-      setNotice(null);
       setAdded(new Set());
+      setAddError(null);
     }
-  }, [open]);
+  }
 
   // Debounced search against our proxy.
-  useEffect(() => {
-    if (!open) return;
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setSearching(false);
-      setNotice(null);
-      return;
-    }
-    setSearching(true);
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/search?type=${section.mediaType}&q=${encodeURIComponent(q)}`,
-          { signal: controller.signal },
-        );
-        const data = await res.json();
-        if (!res.ok) {
-          setNotice(data.message ?? "Search failed — try again.");
-          setResults([]);
-        } else {
-          setNotice(null);
-          setResults(data.results);
-        }
-        setSearching(false);
-      } catch (err) {
-        if (!(err instanceof DOMException && err.name === "AbortError")) {
-          setNotice("Search failed — try again.");
-          setSearching(false);
-        }
-      }
-    }, 350);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query, open, section.mediaType]);
+  const q = query.trim();
+  const search = useDebouncedSearch(
+    open && q.length >= 2 ? `${section.mediaType}:${q}` : null,
+    (_, signal) => searchTitles(section.mediaType, q, signal),
+  );
+  const results = search.value ?? [];
+  const searching = search.loading;
+  const notice = addError ?? search.error;
 
   async function handleAdd(r: SearchResult) {
     setAddingId(r.externalId);
@@ -110,7 +80,7 @@ export function AddModal({
     if (!error || error === "duplicate") {
       setAdded((prev) => new Set(prev).add(r.externalId));
     } else {
-      setNotice(error);
+      setAddError(error);
     }
   }
 
@@ -123,7 +93,10 @@ export function AddModal({
         <input
           autoFocus
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setAddError(null);
+          }}
           onKeyDown={(e) => {
             // Enter adds the top result that isn't already in the library.
             if (e.key === "Enter" && results.length > 0) {

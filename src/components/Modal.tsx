@@ -73,8 +73,6 @@ export function Modal({
   const asSheet = sheet && isPhone;
   const dragControls = useDragControls();
   const panelRef = useRef<HTMLDivElement>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
-  const wasOpen = useRef(false);
   const generatedId = useId();
   const [labelledBy, setLabelledBy] = useState<string | undefined>(undefined);
 
@@ -82,11 +80,16 @@ export function Modal({
   // render — not in an effect. A consumer's autoFocus (e.g. AddModal's
   // search input) applies during commit, before any passive effect of ours
   // would run, so by the time an effect checked document.activeElement it
-  // was already the wrong element.
-  if (open && !wasOpen.current && typeof document !== "undefined") {
-    previouslyFocused.current = document.activeElement as HTMLElement | null;
+  // was already the wrong element. (Starts "closed" so a dialog mounted
+  // open captures too.)
+  const [wasOpen, setWasOpen] = useState(false);
+  const [returnFocus, setReturnFocus] = useState<HTMLElement | null>(null);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open && typeof document !== "undefined") {
+      setReturnFocus(document.activeElement as HTMLElement | null);
+    }
   }
-  wasOpen.current = open;
 
   useEffect(() => {
     if (!open) return;
@@ -136,10 +139,9 @@ export function Modal({
         (firstFocusable ?? panel).focus({ preventScroll: true });
       }
     } else {
-      previouslyFocused.current?.focus?.();
-      previouslyFocused.current = null;
+      returnFocus?.focus?.();
     }
-  }, [open, sheet]);
+  }, [open, sheet, returnFocus]);
 
   // Label the dialog with whatever heading the content renders, so a screen
   // reader announces more than just "dialog".

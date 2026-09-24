@@ -29,12 +29,13 @@ export function MessageThread({ friend }: { friend: Profile }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     if (!myId) return;
-    const msgs = await fetchThread(myId, friend.id);
-    setMessages(msgs);
-    setReady(true);
-    markThreadRead(myId, friend.id);
+    fetchThread(myId, friend.id).then((msgs) => {
+      setMessages(msgs);
+      setReady(true);
+      markThreadRead(myId, friend.id);
+    });
   }, [myId, friend.id]);
 
   // Load once, then listen for the friend's messages in realtime (needs the

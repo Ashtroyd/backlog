@@ -33,6 +33,14 @@ const SEEN_KEY = "backlog:activitySeen";
 // updates from friends still show up afterward.
 const CLEARED_KEY = "backlog:activityClearedBefore";
 
+function readStoredTime(key: string): number {
+  try {
+    return Number(localStorage.getItem(key) ?? 0);
+  } catch {
+    return 0; // no storage (SSR, private mode)
+  }
+}
+
 type Tab = "requests" | "activity";
 
 export function NotificationCenter({
@@ -53,33 +61,28 @@ export function NotificationCenter({
   const [friends, setFriends] = useState<Connection[]>([]);
   const [activity, setActivity] = useState<ActivityEntry[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [lastSeen, setLastSeen] = useState<number>(0);
-  const [clearedBefore, setClearedBefore] = useState<number>(0);
+  // Both only matter once activity has loaded (client-side), so reading
+  // storage up front can't change the server-rendered markup.
+  const [lastSeen, setLastSeen] = useState(() => readStoredTime(SEEN_KEY));
+  const [clearedBefore, setClearedBefore] = useState(() => readStoredTime(CLEARED_KEY));
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
 
   useDismissableMenu(open, () => setOpen(false));
 
-  const load = useCallback(async () => {
+  const load = useCallback(() => {
     if (!myId) return;
-    const [conns, notifs] = await Promise.all([
-      fetchConnections(myId),
-      fetchNotifications(myId),
-    ]);
-    setIncoming(conns.incoming);
-    setFriends(conns.friends);
-    setNotifications(notifs);
-    const feed = await fetchActivity(conns.friends);
-    setActivity(feed);
+    Promise.all([fetchConnections(myId), fetchNotifications(myId)])
+      .then(([conns, notifs]) => {
+        setIncoming(conns.incoming);
+        setFriends(conns.friends);
+        setNotifications(notifs);
+        return fetchActivity(conns.friends);
+      })
+      .then(setActivity);
   }, [myId]);
 
   useEffect(() => {
-    try {
-      setLastSeen(Number(localStorage.getItem(SEEN_KEY) ?? 0));
-      setClearedBefore(Number(localStorage.getItem(CLEARED_KEY) ?? 0));
-    } catch {
-      // ignore
-    }
     load();
     if (!myId) return undefined;
     // New notifications arrive live once the 0007 realtime migration is run.

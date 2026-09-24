@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { SECTION_BY_MEDIA } from "@/lib/sections";
 import { saveTopPicks, type TopPick } from "@/lib/top-picks";
 import { toast } from "@/lib/toast-bus";
@@ -33,12 +33,14 @@ export function TopPicksPicker({
   const [saving, setSaving] = useState(false);
 
   // Fresh slate every time the dialog opens, seeded from the current picks.
-  useEffect(() => {
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setSelected(initial.map((p) => p.item));
       setQuery("");
     }
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   function toggle(item: BacklogItem) {
     setSelected((prev) => {

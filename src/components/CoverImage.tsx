@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 /**
  * Cover art that degrades to the title's initial when the image is missing.
@@ -19,11 +19,9 @@ export function CoverImage({
   sizes: string;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setFailed(false);
-  }, [src]);
+  // Which src failed, so a new src gets its own chance to load.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = failedSrc !== null && failedSrc === src;
 
   if (!src || failed) {
     return (
@@ -40,7 +38,7 @@ export function CoverImage({
       fill
       sizes={sizes}
       className={className}
-      onError={() => setFailed(true)}
+      onError={() => setFailedSrc(src)}
     />
   );
 }

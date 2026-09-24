@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/backlog-store";
 import { fetchConnections } from "@/lib/social";
 import { fetchConversations, type Conversation } from "@/lib/messages";
@@ -23,15 +23,16 @@ export default function MessagesList() {
   const myId = session?.user?.id ?? null;
   const [convos, setConvos] = useState<Conversation[] | null>(null);
 
-  const load = useCallback(async () => {
-    if (!myId) return;
-    const conns = await fetchConnections(myId);
-    setConvos(await fetchConversations(myId, conns.friends));
-  }, [myId]);
-
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!myId) return;
+    let alive = true;
+    fetchConnections(myId)
+      .then((conns) => fetchConversations(myId, conns.friends))
+      .then((c) => alive && setConvos(c));
+    return () => {
+      alive = false;
+    };
+  }, [myId]);
 
   return (
     <div>

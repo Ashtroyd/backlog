@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/backlog-store";
 import {
@@ -35,29 +35,37 @@ export default function FriendProfile({ username }: { username: string }) {
   const [theirFavorites, setTheirFavorites] = useState<BacklogItem[]>([]);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!myId) return;
-    const v = await fetchFriendByUsername(username, myId);
-    if (!v) {
-      setView("missing");
-      return;
-    }
-    setView(v);
-    if (v.relation === "friends" || v.relation === "self") {
-      const [theirs, mine, favs] = await Promise.all([
-        fetchUserItems(v.profile.id),
-        v.relation === "friends" ? fetchUserItems(myId) : Promise.resolve([]),
-        fetchFavorites(v.profile.id),
-      ]);
-      setTheirItems(theirs);
-      setMyItems(mine);
-      setTheirFavorites(favs);
-    }
-  }, [username, myId]);
+  // Bumped after any friendship action; the effect below refetches.
+  const [version, setVersion] = useState(0);
+  const load = () => setVersion((v) => v + 1);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!myId) return;
+    let alive = true;
+    (async () => {
+      const v = await fetchFriendByUsername(username, myId);
+      if (!alive) return;
+      if (!v) {
+        setView("missing");
+        return;
+      }
+      setView(v);
+      if (v.relation === "friends" || v.relation === "self") {
+        const [theirs, mine, favs] = await Promise.all([
+          fetchUserItems(v.profile.id),
+          v.relation === "friends" ? fetchUserItems(myId) : Promise.resolve([]),
+          fetchFavorites(v.profile.id),
+        ]);
+        if (!alive) return;
+        setTheirItems(theirs);
+        setMyItems(mine);
+        setTheirFavorites(favs);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [username, myId, version]);
 
   const myItemsByKey = useMemo(
     () => new Map(myItems.map((i) => [`${i.media_type}:${i.external_id}`, i])),

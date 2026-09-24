@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useAuth } from "@/lib/backlog-store";
+import { useDebouncedSearch } from "@/lib/use-debounced-search";
 import {
   acceptRequest,
   fetchConnections,
@@ -42,24 +43,32 @@ export default function FriendsHub() {
   const [openRec, setOpenRec] = useState<Recommendation | null>(null);
   const [loaded, setLoaded] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!myId) return;
-    const conns = await fetchConnections(myId);
-    setFriends(conns.friends);
-    setIncoming(conns.incoming);
-    setOutgoing(conns.outgoing);
-    setLoaded(true);
-    const [s, r] = await Promise.all([
-      fetchFriendStats(conns.friends),
-      fetchRecommendations(myId, conns.friends),
-    ]);
-    setStats(s);
-    setRecs(r);
-  }, [myId]);
+  // Bumped by anything that changes a friendship; the effect below refetches.
+  const [version, setVersion] = useState(0);
+  const load = useCallback(() => setVersion((v) => v + 1), []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (!myId) return;
+    let alive = true;
+    (async () => {
+      const conns = await fetchConnections(myId);
+      if (!alive) return;
+      setFriends(conns.friends);
+      setIncoming(conns.incoming);
+      setOutgoing(conns.outgoing);
+      setLoaded(true);
+      const [s, r] = await Promise.all([
+        fetchFriendStats(conns.friends),
+        fetchRecommendations(myId, conns.friends),
+      ]);
+      if (!alive) return;
+      setStats(s);
+      setRecs(r);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [myId, version]);
 
   if (!profile) return null;
 
@@ -167,8 +176,6 @@ function AddFriend({
   outgoing: Connection[];
 }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Profile[]>([]);
-  const [searching, setSearching] = useState(false);
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [note, setNote] = useState<string | null>(null);
 
@@ -177,21 +184,14 @@ function AddFriend({
     ...outgoing.map((c) => c.profile.id),
   ]);
 
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    const t = setTimeout(async () => {
-      const r = await searchProfiles(q, myId);
-      setResults(r);
-      setSearching(false);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query, myId]);
+  const q = query.trim();
+  const search = useDebouncedSearch(
+    q.length >= 2 ? q : null,
+    (key) => searchProfiles(key, myId),
+    300,
+  );
+  const results = search.value ?? [];
+  const searching = search.loading;
 
   async function add(p: Profile) {
     setNote(null);

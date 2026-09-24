@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { addItemToLibrary } from "@/lib/backlog-store";
 import { SECTION_BY_MEDIA } from "@/lib/sections";
 import { itemChips } from "@/lib/chips";
@@ -30,14 +30,18 @@ export function RecommendationModal({
   const [done, setDone] = useState(false);
   const [note, setNote] = useState<string | null>(null);
 
-  useEffect(() => {
+  // A new recommendation starts fresh; the snapshot keeps the last one on
+  // screen while the sheet animates closed.
+  const [prevRec, setPrevRec] = useState(rec);
+  if (rec !== prevRec) {
+    setPrevRec(rec);
     if (rec) {
       setSnapshot(rec);
       setAdding(false);
       setDone(false);
       setNote(null);
     }
-  }, [rec]);
+  }
 
   const current = rec ?? snapshot;
   if (!current) return null;

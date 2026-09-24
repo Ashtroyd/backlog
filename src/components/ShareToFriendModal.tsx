@@ -25,16 +25,28 @@ export function ShareToFriendModal({
   const [sentTo, setSentTo] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (item && myId) {
+  // A new item starts fresh; the snapshot keeps the last one on screen
+  // while the sheet animates closed.
+  const [prevItem, setPrevItem] = useState(item);
+  if (item !== prevItem) {
+    setPrevItem(item);
+    if (item) {
       setSnapshot(item);
       setNote("");
       setSentTo(new Set());
       setFriends(null);
-      fetchConnections(myId)
-        .then((c) => setFriends(c.friends))
-        .catch(() => setFriends([]));
     }
+  }
+
+  useEffect(() => {
+    if (!item || !myId) return;
+    let alive = true;
+    fetchConnections(myId)
+      .then((c) => alive && setFriends(c.friends))
+      .catch(() => alive && setFriends([]));
+    return () => {
+      alive = false;
+    };
   }, [item, myId]);
 
   const current = item ?? snapshot;

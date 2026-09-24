@@ -55,17 +55,24 @@ export function ImageCropper({
 
   const frameH = frameW / aspect;
 
+  // A new file clears the old one straight away.
+  const [prevFile, setPrevFile] = useState(file);
+  if (file !== prevFile) {
+    setPrevFile(file);
+    setImg(null);
+    setError(null);
+  }
+
   // Decode the picked file. The `alive` guard stops a superseded load (the
   // cleanup revokes its URL, firing onerror) from clobbering current state.
   useEffect(() => {
     let alive = true;
     const objectUrl = URL.createObjectURL(file);
-    setUrl(objectUrl);
-    setImg(null);
-    setError(null);
     const image = new Image();
     image.onload = () => {
-      if (alive) setImg(image);
+      if (!alive) return;
+      setUrl(objectUrl);
+      setImg(image);
     };
     image.onerror = () => {
       if (alive) setError("That file isn't a readable image.");
@@ -88,9 +95,13 @@ export function ImageCropper({
     return () => ro.disconnect();
   }, [url]);
 
-  // Start centred, scaled just enough to cover the frame.
-  useEffect(() => {
-    if (!img || !frameW) return;
+  // Start centred, scaled just enough to cover the frame — again whenever the
+  // image or the frame's size changes.
+  const [fittedTo, setFittedTo] = useState<{ img: HTMLImageElement; frameW: number } | null>(
+    null,
+  );
+  if (img && frameW && (fittedTo?.img !== img || fittedTo.frameW !== frameW)) {
+    setFittedTo({ img, frameW });
     const cover = Math.max(
       frameW / img.naturalWidth,
       frameH / img.naturalHeight,
@@ -101,7 +112,7 @@ export function ImageCropper({
       x: (frameW - img.naturalWidth * cover) / 2,
       y: (frameH - img.naturalHeight * cover) / 2,
     });
-  }, [img, frameW, frameH]);
+  }
 
   /** Keep the image covering the frame — no gaps at any edge. */
   const clamp = useCallback(

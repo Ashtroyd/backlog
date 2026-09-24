@@ -22,14 +22,23 @@ export function ReviewCommentsModal({
 }) {
   const { session } = useAuth();
   const myId = session?.user?.id ?? null;
-  const [item, setItem] = useState<BacklogItem | null>(null);
+  // Tagged with its id so a different review shows the spinner, not the
+  // last one; on close (id → null) the last item stays up while the sheet
+  // animates away.
+  const [loaded, setLoaded] = useState<{ id: string; item: BacklogItem | null } | null>(
+    null,
+  );
+  const item = loaded && (itemId === null || loaded.id === itemId) ? loaded.item : null;
 
   useEffect(() => {
     if (!itemId) return;
-    setItem(null);
+    let alive = true;
     fetchItemById(itemId)
-      .then(setItem)
-      .catch(() => setItem(null));
+      .then((it) => alive && setLoaded({ id: itemId, item: it }))
+      .catch(() => alive && setLoaded({ id: itemId, item: null }));
+    return () => {
+      alive = false;
+    };
   }, [itemId]);
 
   return (

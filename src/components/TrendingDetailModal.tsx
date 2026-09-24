@@ -28,13 +28,16 @@ export function TrendingDetailModal({
   const [note, setNote] = useState<string | null>(null);
   const [detail, setDetail] = useState<Detail | null>(null);
 
-  useEffect(() => {
+  // Keep the last title on screen while the sheet animates closed.
+  const [prev, setPrev] = useState({ result, section });
+  if (result !== prev.result || section !== prev.section) {
+    setPrev({ result, section });
     if (result && section) {
       setSnapshot({ result, section });
       setAdding(false);
       setNote(null);
     }
-  }, [result, section]);
+  }
 
   // Tagged by id, same as the trending list's own load state — a response
   // for a title the user has since navigated away from is just ignored.

@@ -131,7 +131,10 @@ export function DetailModal({
   const [pinned, setPinned] = useState(false);
   const [notes, setNotes] = useState("");
   const [currentThoughts, setCurrentThoughts] = useState("");
-  const [alsoHave, setAlsoHave] = useState<AlsoHave[]>([]);
+  // Tagged with the title it was fetched for; anything else reads as none.
+  const [alsoHaveFor, setAlsoHaveFor] = useState<{ key: string; rows: AlsoHave[] } | null>(
+    null,
+  );
   const [shareOpen, setShareOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -262,15 +265,16 @@ export function DetailModal({
   }, [item, onRefresh]);
 
   // Which friends also have this title?
+  const alsoHaveKey = item && myId ? `${item.media_type}:${item.external_id}` : null;
+  const alsoHave =
+    alsoHaveKey && alsoHaveFor?.key === alsoHaveKey ? alsoHaveFor.rows : [];
   useEffect(() => {
-    if (!item || !myId) {
-      setAlsoHave([]);
-      return;
-    }
+    if (!item || !myId) return;
+    const key = `${item.media_type}:${item.external_id}`;
     let alive = true;
     fetchAlsoHave(item.media_type, item.external_id, myId)
-      .then((rows) => alive && setAlsoHave(rows))
-      .catch(() => alive && setAlsoHave([]));
+      .then((rows) => alive && setAlsoHaveFor({ key, rows }))
+      .catch(() => alive && setAlsoHaveFor({ key, rows: [] }));
     return () => {
       alive = false;
     };

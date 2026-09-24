@@ -30,12 +30,15 @@ export default function MyProfile() {
   const [allItems, setAllItems] = useState<BacklogItem[]>([]);
   const [yearInReviewOpen, setYearInReviewOpen] = useState(false);
 
-  useEffect(() => {
+  // Re-seed the fields whenever the saved profile changes.
+  const [prevProfile, setPrevProfile] = useState<typeof profile>(null);
+  if (profile !== prevProfile) {
+    setPrevProfile(profile);
     if (profile) {
       setDisplayName(profile.display_name);
       setBio(profile.bio ?? "");
     }
-  }, [profile]);
+  }
 
   useEffect(() => {
     if (myId) {

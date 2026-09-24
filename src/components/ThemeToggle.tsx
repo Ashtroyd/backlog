@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { THEME_KEY } from "@/lib/theme-script";
+import { useIsClient } from "@/lib/use-is-client";
 import { AutoThemeIcon, MoonIcon, SunIcon } from "./icons";
 
 type Appearance = "system" | "light" | "dark";
@@ -58,12 +59,11 @@ export function ThemeToggle({
   variant?: "icon" | "row";
   onToggled?: () => void;
 } = {}) {
-  // Default "system" matches the SSR render; the real value is read on mount.
-  const [appearance, setAppearance] = useState<Appearance>("system");
-
-  useEffect(() => {
-    setAppearance(readAppearance());
-  }, []);
+  // "system" matches the SSR render; the stored choice takes over once
+  // hydrated, and a pick made here wins after that.
+  const isClient = useIsClient();
+  const [picked, setAppearance] = useState<Appearance | null>(null);
+  const appearance = picked ?? (isClient ? readAppearance() : "system");
 
   function choose(next: Appearance) {
     setAppearance(next);

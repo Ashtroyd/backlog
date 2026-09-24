@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { SECTION_BY_MEDIA } from "@/lib/sections";
@@ -30,12 +30,15 @@ export function SharedItemDetailModal({
   const [status, setStatus] = useState<SharedStatus>("planned");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
+  // Keep the last entry on screen while the sheet animates closed.
+  const [prevEntry, setPrevEntry] = useState(entry);
+  if (entry !== prevEntry) {
+    setPrevEntry(entry);
     if (entry) {
       setSnapshot(entry);
       setStatus(entry.item.status);
     }
-  }, [entry]);
+  }
 
   const current = entry ?? snapshot;
 

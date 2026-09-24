@@ -22,13 +22,17 @@ export function TopPicksMonthSection({
   friend?: FriendContext;
 }) {
   const [month, setMonth] = useState(currentMonth());
-  const [picks, setPicks] = useState<TopPick[] | null>(null);
+  // Tagged with the user and month they belong to; while another month
+  // loads, picks reads as null (the loading state).
+  const [loaded, setLoaded] = useState<{ key: string; picks: TopPick[] } | null>(null);
+  const picks = loaded?.key === `${userId}:${month}` ? loaded.picks : null;
   const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    setPicks(null);
-    fetchTopPicks(userId, month).then((p) => alive && setPicks(p));
+    fetchTopPicks(userId, month).then(
+      (p) => alive && setLoaded({ key: `${userId}:${month}`, picks: p }),
+    );
     return () => {
       alive = false;
     };

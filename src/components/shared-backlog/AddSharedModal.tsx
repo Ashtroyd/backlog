@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "@/lib/backlog-store";
 import { fetchConnections, type Connection } from "@/lib/social";
 import { addToSharedBacklog } from "@/lib/shared-backlog";
 import { SECTIONS, SECTION_SLUGS, type SectionSlug } from "@/lib/sections";
 import { toast } from "@/lib/toast-bus";
+import { searchTitles, useDebouncedSearch } from "@/lib/use-debounced-search";
 import type { SearchResult } from "@/lib/types";
 import { Modal } from "@/components/Modal";
 import { CoverImage } from "@/components/CoverImage";
@@ -27,9 +28,6 @@ export function AddSharedModal({
 
   const [slug, setSlug] = useState<SectionSlug>("games");
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
   const [picked, setPicked] = useState<SearchResult | null>(null);
   const [friends, setFriends] = useState<Connection[] | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -37,58 +35,31 @@ export function AddSharedModal({
 
   const section = SECTIONS[slug];
 
-  // Fresh slate every time the dialog opens.
-  useEffect(() => {
+  // Fresh slate every time the dialog opens — adjusted during render, so
+  // the last session never paints.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setSlug("games");
       setQuery("");
-      setResults([]);
-      setNotice(null);
       setPicked(null);
       setFriends(null);
       setSharedWith(new Set());
     }
-  }, [open]);
+  }
 
-  // Debounced search against our proxy — same endpoint the section Add dialog uses.
-  useEffect(() => {
-    if (!open || picked) return;
-    const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
-      setSearching(false);
-      setNotice(null);
-      return;
-    }
-    setSearching(true);
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/search?type=${section.mediaType}&q=${encodeURIComponent(q)}`,
-          { signal: controller.signal },
-        );
-        const data = await res.json();
-        if (!res.ok) {
-          setNotice(data.message ?? "Search failed — try again.");
-          setResults([]);
-        } else {
-          setNotice(null);
-          setResults(data.results);
-        }
-        setSearching(false);
-      } catch (err) {
-        if (!(err instanceof DOMException && err.name === "AbortError")) {
-          setNotice("Search failed — try again.");
-          setSearching(false);
-        }
-      }
-    }, 350);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query, open, section.mediaType, picked]);
+  // Debounced search against our proxy — same endpoint the section Add
+  // dialog uses. The key holds while a title is picked, so Back returns to
+  // the same results without searching again.
+  const q = query.trim();
+  const search = useDebouncedSearch(
+    open && q.length >= 2 ? `${section.mediaType}:${q}` : null,
+    (_, signal) => searchTitles(section.mediaType, q, signal),
+  );
+  const results = search.value ?? [];
+  const searching = search.loading;
+  const notice = search.error;
 
   function choose(r: SearchResult) {
     setPicked(r);
@@ -135,8 +106,6 @@ export function AddSharedModal({
                   onClick={() => {
                     setSlug(s);
                     setQuery("");
-                    setResults([]);
-                    setNotice(null);
                   }}
                   className={`rounded-full px-3 py-1.5 text-footnote font-medium transition-colors ${
                     active ? "bg-ivory text-ink" : "text-muted hover:text-ink"

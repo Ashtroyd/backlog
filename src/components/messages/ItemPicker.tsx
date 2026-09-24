@@ -24,13 +24,25 @@ export function ItemPicker({
   const [items, setItems] = useState<BacklogItem[] | null>(null);
   const [query, setQuery] = useState("");
 
+  // Each opening starts fresh and refetches.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setItems(null);
+      setQuery("");
+    }
+  }
+
   useEffect(() => {
     if (!open || !myId) return;
-    setItems(null);
-    setQuery("");
+    let alive = true;
     fetchUserItems(myId)
-      .then(setItems)
-      .catch(() => setItems([]));
+      .then((rows) => alive && setItems(rows))
+      .catch(() => alive && setItems([]));
+    return () => {
+      alive = false;
+    };
   }, [open, myId]);
 
   const filtered = (items ?? []).filter((i) =>

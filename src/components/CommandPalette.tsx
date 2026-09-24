@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { addItemToLibrary, useAuth } from "@/lib/backlog-store";
 import { onCommandPaletteOpen } from "@/lib/command-palette-bus";
+import { searchTitles, useDebouncedSearch } from "@/lib/use-debounced-search";
 import { SECTIONS, SECTION_SLUGS, type SectionSlug } from "@/lib/sections";
 import type { SearchResult } from "@/lib/types";
 import { Modal } from "./Modal";
@@ -48,8 +49,6 @@ export function CommandPalette() {
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<Hit[] | null>(null);
-  const [searching, setSearching] = useState(false);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [added, setAdded] = useState<Set<string>>(new Set());
 
@@ -66,54 +65,35 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // Fresh slate every time the palette opens.
-  useEffect(() => {
+  // Fresh slate every time the palette opens — adjusted during render, so
+  // the last query never paints.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setQuery("");
-      setHits(null);
       setAdded(new Set());
     }
-  }, [open]);
+  }
 
   // Debounced search across all four sources at once.
-  useEffect(() => {
-    if (!open) return;
-    const q = query.trim();
-    if (q.length < 2) {
-      setHits(null);
-      setSearching(false);
-      return;
-    }
-    setSearching(true);
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const perSlug = await Promise.all(
-          SECTION_SLUGS.map(async (slug) => {
-            const res = await fetch(
-              `/api/search?type=${SECTIONS[slug].mediaType}&q=${encodeURIComponent(q)}`,
-              { signal: controller.signal },
-            );
-            if (!res.ok) return [];
-            const data = await res.json();
-            return ((data.results ?? []) as SearchResult[])
-              .slice(0, 4)
-              .map((result): Hit => ({ slug, result }));
-          }),
-        );
-        setHits(perSlug.flat());
-        setSearching(false);
-      } catch (err) {
-        if (!(err instanceof DOMException && err.name === "AbortError")) {
-          setSearching(false);
-        }
-      }
-    }, 350);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [query, open]);
+  const q = query.trim();
+  const search = useDebouncedSearch(open && q.length >= 2 ? q : null, (key, signal) =>
+    Promise.all(
+      SECTION_SLUGS.map((slug) =>
+        searchTitles(SECTIONS[slug].mediaType, key, signal).then(
+          (results) => results.slice(0, 4).map((result): Hit => ({ slug, result })),
+          (err) => {
+            // One source failing shouldn't sink the others.
+            if (signal.aborted) throw err;
+            return [];
+          },
+        ),
+      ),
+    ).then((perSlug) => perSlug.flat()),
+  );
+  const hits = search.value;
+  const searching = search.loading;
 
   async function handleAdd(hit: Hit) {
     if (!userId) return;

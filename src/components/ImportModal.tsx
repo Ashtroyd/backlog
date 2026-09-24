@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { Section } from "@/lib/sections";
 import type { ImportInput } from "@/lib/backlog-store";
 import { importExclusion, normalizedTitle } from "@/lib/import-cleanup";
@@ -81,9 +81,11 @@ export function ImportModal({
     setSteamStatus("backlog");
   }
 
-  useEffect(() => {
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) reset();
-  }, [open]);
+  }
 
   function finishFetch(built: PreviewRow[], emptyMessage: string) {
     setLoading(false);

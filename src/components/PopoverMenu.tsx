@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
+import { useIsClient } from "@/lib/use-is-client";
 import { CheckIcon } from "./icons";
 
 export type MenuItem = {
@@ -78,8 +79,7 @@ export function PopoverMenu({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsClient();
 
   // Measure after render, then clamp so the whole menu stays on screen.
   useLayoutEffect(() => {
