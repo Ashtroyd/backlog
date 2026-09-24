@@ -96,6 +96,12 @@ body {
   outline-offset: 2px;
 }
 
+/* Dialogs take focus themselves on open (so screen readers announce them);
+   that programmatic focus shouldn't draw a ring around the whole panel. */
+[role="dialog"][tabindex="-1"]:focus-visible {
+  outline: none;
+}
+
 /* Horizontal shelves need a mouse-draggable scrollbar (not everyone has a
    trackpad/touch), just not the OS's default thick, square-edged one. */
 .shelf-scrollbar {

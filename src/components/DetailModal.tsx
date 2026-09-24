@@ -13,9 +13,10 @@ import {
 import { useAuth, type UpdatePatch } from "@/lib/backlog-store";
 import { fetchAlsoHave, type AlsoHave } from "@/lib/social";
 import { hasShareableTake, itemChips } from "@/lib/chips";
-import { formatDate, todayISODate } from "@/lib/format";
+import { todayISODate } from "@/lib/format";
 import type { BacklogItem, ItemStatus } from "@/lib/types";
-import { Modal } from "./Modal";
+import { Modal, SheetDragArea } from "./Modal";
+import { PopoverMenu, useMenu } from "./PopoverMenu";
 import { StarRating } from "./StarRating";
 import { Avatar } from "./Avatar";
 import { CommentThread } from "./CommentThread";
@@ -23,65 +24,60 @@ import { useConfirm } from "./ConfirmDialog";
 import { ShareToFriendModal } from "./ShareToFriendModal";
 import { releaseBadge, STATUS_DOT } from "./ItemCard";
 import {
+  ChevronRightIcon,
+  EllipsisCircleIcon,
   EyeOffIcon,
   HeartIcon,
   InfinityIcon,
-  PencilIcon,
   PinIcon,
   SendIcon,
   TrashIcon,
   XIcon,
 } from "./icons";
 
-/** A typed/dated field stays read-only behind this button until clicked, or
-    the title was just marked Completed this session — at which point it's
-    directly editable so wrapping up a title doesn't take an extra click per
-    field. Reopening an already-completed title later goes back to Edit. */
-function EditToggle({ onClick }: { onClick: () => void }) {
+/** Settings-style inset grouped list. */
+function Group({ children }: { children: React.ReactNode }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
-    >
-      <PencilIcon className="h-3 w-3" />
-      Edit
-    </button>
+    <div className="divide-y divide-line overflow-hidden rounded-xl bg-ivory/70">
+      {children}
+    </div>
   );
 }
 
-/** Label + Edit toggle above either `editor` (when `open`) or the read-only
-    `display`. `open` is up to the caller — usually `justCompleted || editing`,
-    so the field opens right up the session a title is completed and falls
-    back to Edit on every later visit. */
-function EditableField({
-  label,
+function GroupLabel({
+  children,
   icon,
-  open,
-  onEdit,
-  editor,
-  display,
 }: {
-  label: React.ReactNode;
+  children: React.ReactNode;
   icon?: React.ReactNode;
-  open: boolean;
-  onEdit: () => void;
-  editor: React.ReactNode;
-  display: React.ReactNode;
 }) {
   return (
-    <>
-      <div className="mb-2 flex items-center justify-between">
-        <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
-          {icon}
-          {label}
-        </p>
-        {!open && <EditToggle onClick={onEdit} />}
-      </div>
-      {open ? editor : display}
-    </>
+    <p className="mb-1.5 mt-6 flex items-center gap-1.5 px-4 text-footnote uppercase tracking-wide text-muted">
+      {icon}
+      {children}
+    </p>
   );
 }
+
+function Row({
+  label,
+  children,
+}: {
+  label: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-11 items-center justify-between gap-3 px-4 py-1">
+      <span className="shrink-0 text-subhead text-ink">{label}</span>
+      <div className="flex min-w-0 items-center justify-end gap-1 text-subhead text-muted">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const textareaCls =
+  "block w-full resize-none bg-transparent px-4 py-3 text-subhead leading-relaxed text-ink outline-none placeholder:text-muted";
 
 /** Details are re-fetched when unreleased, or last refreshed over 30 days ago. */
 function isStale(item: BacklogItem): boolean {
@@ -144,19 +140,10 @@ export function DetailModal({
   const [discardRequested, setDiscardRequested] = useState(false);
   const draftItem = useRef<BacklogItem | null>(null);
 
-  // Typed/dated fields default to a read-only display behind an Edit
-  // button, to keep the modal calm for titles you're not finished with.
-  const [editingStarted, setEditingStarted] = useState(false);
-  const [editingHours, setEditingHours] = useState(false);
-  const [editingThoughts, setEditingThoughts] = useState(false);
-  const [editingNotes, setEditingNotes] = useState(false);
-  const [editingRating, setEditingRating] = useState(false);
-  const [editingReview, setEditingReview] = useState(false);
-
-  // The status this title had when the modal opened, so we can tell "just
-  // marked Completed in this session" (fields open right up) apart from
-  // "already completed, reopened later" (fields stay behind Edit).
-  const [initialStatus, setInitialStatus] = useState<ItemStatus>("backlog");
+  const moreMenu = useMenu();
+  const statusMenu = useMenu();
+  const ratingRef = useRef<HTMLDivElement>(null);
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!item) {
@@ -171,7 +158,6 @@ export function DetailModal({
       setDiscardRequested(false);
       setSnapshot(item);
       setStatus(item.status);
-      setInitialStatus(item.status);
       setRating(item.rating);
       setReview(item.review ?? "");
       setIsPrivate(item.is_private);
@@ -183,22 +169,75 @@ export function DetailModal({
       setPinned(item.pinned_at != null);
       setNotes(item.notes ?? "");
       setCurrentThoughts(item.current_thoughts ?? "");
-      setEditingStarted(false);
-      setEditingHours(false);
-      setEditingThoughts(false);
-      setEditingNotes(false);
-      setEditingRating(false);
-      setEditingReview(false);
     }
   }, [item]);
+
+  /**
+   * One-tap changes (status, +1 episode, rating, favourite, pin…) save
+   * straight away, like toggles in Settings; only typed fields wait for Save.
+   * The snapshot absorbs the saved values so the dirty check stays honest
+   * about whatever else is still being edited.
+   */
+  async function quick(patch: UpdatePatch) {
+    if (!item || saving) return;
+    if (patch.status !== undefined) setStatus(patch.status);
+    if (patch.started_at !== undefined) setStartedAt(patch.started_at ?? "");
+    if (patch.progress !== undefined)
+      setEpisodes(patch.progress == null ? "" : String(patch.progress));
+    if (patch.rating !== undefined) setRating(patch.rating);
+    if (patch.is_favorite !== undefined) setIsFavorite(patch.is_favorite);
+    if (patch.pinned_at !== undefined) setPinned(patch.pinned_at != null);
+    if (patch.live_service !== undefined) setLiveService(patch.live_service);
+    if (patch.is_private !== undefined) setIsPrivate(patch.is_private);
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const result = await onUpdate(item.id, patch);
+      if (result.error)
+        setSaveError(
+          "That change didn't save. Check your connection, then tap Save.",
+        );
+      else
+        setSnapshot((prev) =>
+          prev ? ({ ...prev, ...patch } as BacklogItem) : prev,
+        );
+    } catch {
+      setSaveError(
+        "That change didn't save. Check your connection, then tap Save.",
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Moving out of the backlog for the first time defaults the start date to
   // today (still editable). We never overwrite a date that's already set.
   function chooseStatus(next: ItemStatus) {
-    setStatus(next);
+    const patch: UpdatePatch = { status: next };
     if ((next === "in_progress" || next === "completed") && !startedAt) {
-      setStartedAt(todayISODate());
+      patch.started_at = todayISODate();
     }
+    void quick(patch);
+  }
+
+  /** Put every field back to what's saved. */
+  function revert() {
+    const o = snapshot;
+    if (!o) return;
+    setStatus(o.status);
+    setRating(o.rating);
+    setReview(o.review ?? "");
+    setIsPrivate(o.is_private);
+    setIsFavorite(o.is_favorite);
+    setStartedAt(o.started_at ?? "");
+    setEpisodes(o.progress != null ? String(o.progress) : "");
+    setHours(o.hours_played != null ? String(o.hours_played) : "");
+    setLiveService(o.live_service);
+    setPinned(o.pinned_at != null);
+    setNotes(o.notes ?? "");
+    setCurrentThoughts(o.current_thoughts ?? "");
+    setSaveError(null);
+    setDiscardRequested(false);
   }
 
   // Silently refresh stale details from the source while the dialog is open,
@@ -241,10 +280,6 @@ export function DetailModal({
 
   const current = item ?? snapshot;
 
-  // True only for the session where the status pill was just moved to
-  // Completed — not for a title that was already completed on open.
-  const justCompleted = status === "completed" && initialStatus !== "completed";
-
   const isEpisodic =
     section.mediaType === "series" || section.mediaType === "anime";
   const totalEpisodes =
@@ -285,6 +320,13 @@ export function DetailModal({
     if (dirty) setDiscardRequested(true);
     else onClose();
   }
+
+  // A swipe-down with unsaved edits may happen far down the sheet — bring
+  // the discard prompt into view.
+  useEffect(() => {
+    if (discardRequested)
+      bannerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [discardRequested]);
 
   async function handleSave() {
     if (!current || saving) return;
@@ -369,13 +411,11 @@ export function DetailModal({
     }
   }
 
-  /** Step the episode counter, clamped to [0, total] when the total is known. */
+  /** Step the episode counter (saved at once), clamped to [0, total] when known. */
   function stepEpisodes(delta: number) {
-    setEpisodes((prev) => {
-      const next = Math.max(0, (Number(prev) || 0) + delta);
-      return String(
-        totalEpisodes != null ? Math.min(next, totalEpisodes) : next,
-      );
+    const next = Math.max(0, (Number(episodes) || 0) + delta);
+    void quick({
+      progress: totalEpisodes != null ? Math.min(next, totalEpisodes) : next,
     });
   }
 
@@ -403,596 +443,540 @@ export function DetailModal({
     }
   }
 
+  function scrollToRating() {
+    ratingRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
   const chips = itemChips(current);
+  const verb = section.inProgressLabel;
+  const episodeCount = Number(episodes) || 0;
+
+  type PrimaryKind = "start" | "episode" | "complete" | "rate" | "recommend";
+  /** The one obvious next step for this title, like the TV app's Play/Resume. */
+  const primary: { kind: PrimaryKind; label: string; detail?: string } | null =
+    status === "backlog"
+      ? { kind: "start", label: `Start ${verb}` }
+      : status === "on_hold" || status === "dropped"
+        ? { kind: "start", label: `Resume ${verb}` }
+        : status === "in_progress"
+          ? isEpisodic &&
+            !(totalEpisodes != null && episodeCount >= totalEpisodes)
+            ? {
+                kind: "episode",
+                label: "+1 Episode",
+                detail: `${episodeCount}${totalEpisodes != null ? ` of ${totalEpisodes}` : " watched"}`,
+              }
+            : liveService
+              ? null
+              : { kind: "complete", label: "Mark Completed" }
+          : rating == null
+            ? { kind: "rate", label: "Rate It" }
+            : { kind: "recommend", label: "Recommend to a Friend" };
+
+  function runPrimary(kind: PrimaryKind) {
+    if (kind === "start") chooseStatus("in_progress");
+    else if (kind === "episode") stepEpisodes(1);
+    else if (kind === "complete") chooseStatus("completed");
+    else if (kind === "rate") scrollToRating();
+    else setShareOpen(true);
+  }
+
+  const statusText = (s: ItemStatus) =>
+    liveService && s === "in_progress" ? "Live Service" : statusLabel(s, section);
 
   return (
     <>
-      <Modal open={Boolean(item)} onClose={requestClose} wide>
+      <Modal open={Boolean(item)} onClose={requestClose} wide sheet>
         {current && (
-          <fieldset disabled={saving} className="min-w-0 p-5 sm:p-6">
-            {discardRequested && (
-              <div
-                role="alert"
-                className="mb-5 rounded-xl border border-line bg-ivory p-4"
+          <fieldset disabled={saving} className="min-w-0">
+            {/* Hero: the poster over a blurred wash of itself. Dragging it
+                (on phones) pulls the sheet down. */}
+            <div className="relative overflow-hidden sm:rounded-t-2xl">
+              {current.cover_url && (
+                <Image
+                  src={current.cover_url}
+                  alt=""
+                  aria-hidden
+                  fill
+                  sizes="100vw"
+                  className="scale-125 object-cover opacity-70 blur-2xl saturate-150"
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-b from-surface/5 via-surface/45 to-surface" />
+              <button
+                type="button"
+                onClick={requestClose}
+                aria-label="Close"
+                className="absolute right-2 top-2 z-10 flex h-11 w-11 items-center justify-center rounded-full"
               >
-                <p className="text-sm font-medium text-ink">
-                  Discard your unsaved changes?
-                </p>
-                <div className="mt-3 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setDiscardRequested(false)}
-                    className="rounded-full bg-ink px-4 py-2 text-sm text-paper"
-                  >
-                    Keep editing
-                  </button>
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded-full px-4 py-2 text-sm text-accent-hover"
-                  >
-                    Discard changes
-                  </button>
-                </div>
-              </div>
-            )}
-            <div className="flex items-start gap-6">
-              <div className="relative hidden aspect-[2/3] w-36 shrink-0 overflow-hidden rounded-xl border border-line bg-ivory sm:block">
-                {current.cover_url && (
-                  <Image
-                    src={current.cover_url}
-                    alt=""
-                    fill
-                    sizes="144px"
-                    className="object-cover"
-                  />
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-display text-2xl font-semibold leading-snug tracking-tight text-ink">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-black/30 text-white backdrop-blur-md transition-colors hover:bg-black/45">
+                  <XIcon className="h-4 w-4" />
+                </span>
+              </button>
+              <SheetDragArea className="relative flex flex-col items-center px-5 pb-5 pt-9 text-center sm:flex-row sm:items-end sm:gap-6 sm:px-6 sm:pt-7 sm:text-left">
+                <motion.div
+                  layoutId={`cover-${current.id}`}
+                  className="relative aspect-[2/3] w-32 shrink-0 overflow-hidden rounded-lg bg-ivory shadow-[0_14px_36px_rgba(0,0,0,0.35)] sm:w-36"
+                >
+                  {current.cover_url ? (
+                    <Image
+                      src={current.cover_url}
+                      alt=""
+                      fill
+                      draggable={false}
+                      sizes="144px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full items-center justify-center font-display text-4xl text-line-strong">
+                      {current.title.charAt(0)}
+                    </div>
+                  )}
+                </motion.div>
+                <div className="mt-4 min-w-0 sm:mt-0 sm:pb-1">
+                  <h2 className="font-display text-2xl font-bold leading-tight tracking-tight text-ink text-balance">
                     {current.title}
                   </h2>
-                  <button
-                    type="button"
-                    onClick={requestClose}
-                    aria-label="Close"
-                    className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
-                  >
-                    <XIcon className="h-4 w-4" />
-                  </button>
-                </div>
-                <p className="mt-1 text-sm text-muted">
-                  {[current.release_year, current.genres.join(", ")]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-
-                {(chips.length > 0 || releaseBadge(current)) && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {(() => {
-                      const badge = releaseBadge(current);
-                      return badge ? (
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            badge.label === "Out now"
-                              ? "bg-sage-soft text-sage"
-                              : "bg-accent-soft text-accent-hover"
-                          }`}
-                        >
-                          {badge.label}
-                        </span>
-                      ) : null;
-                    })()}
-                    {chips.map((c) => (
-                      <span
-                        key={c}
-                        className="rounded-full bg-ivory px-2.5 py-1 text-xs text-body"
-                      >
-                        {c}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-5">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted">
-                    Status
+                  <p className="mt-1 text-footnote text-muted">
+                    {[
+                      section.label === "Series" ? "Series" : section.singular.replace(/^./, (c) => c.toUpperCase()),
+                      current.release_year,
+                      current.genres.slice(0, 3).join(", "),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
-                  {/* Pills wrap on narrow screens, so soften the corners rather
-                    than keeping a full pill shape around two rows. */}
-                  <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-ivory p-1 sm:rounded-full">
-                    {STATUS_ORDER.map((s) => {
-                      const active = status === s;
-                      return (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => chooseStatus(s)}
-                          className={`relative rounded-full px-3 py-1.5 text-footnote font-medium transition-colors ${
-                            active ? "text-ink" : "text-muted hover:text-ink"
-                          }`}
-                        >
-                          {active && (
-                            <motion.span
-                              layoutId={`status-thumb-${current.id}`}
-                              className="absolute inset-0 rounded-full bg-surface shadow-sm"
-                              transition={{
-                                type: "spring",
-                                duration: 0.4,
-                                bounce: 0.15,
-                              }}
-                            />
-                          )}
-                          <span className="relative">
-                            {statusLabel(s, section)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
-
-                <AnimatePresence initial={false}>
-                  {status !== "backlog" && (
-                    <motion.div
-                      key="started"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                      className="overflow-hidden"
-                    >
-                      <div className="mt-4">
-                        <EditableField
-                          label={section.startedLabel}
-                          open={justCompleted || editingStarted}
-                          onEdit={() => setEditingStarted(true)}
-                          editor={
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="date"
-                                value={startedAt}
-                                max={todayISODate()}
-                                onChange={(e) => setStartedAt(e.target.value)}
-                                aria-label={section.startedLabel}
-                                className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink transition-colors focus:border-line-strong"
-                              />
-                              {startedAt && (
-                                <button
-                                  type="button"
-                                  onClick={() => setStartedAt("")}
-                                  className="rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
-                                >
-                                  Clear
-                                </button>
-                              )}
-                            </div>
-                          }
-                          display={
-                            <p className="text-subhead text-ink">
-                              {startedAt ? formatDate(startedAt) : "Not set"}
-                            </p>
-                          }
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <AnimatePresence initial={false}>
-                  {status !== "backlog" &&
-                    (isEpisodic || section.mediaType === "game") && (
-                      <motion.div
-                        key="progress"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                        className="overflow-hidden"
-                      >
-                        <div className="mt-4">
-                          <EditableField
-                            label={
-                              isEpisodic ? "Episodes watched" : "Hours played"
-                            }
-                            open={isEpisodic || justCompleted || editingHours}
-                            onEdit={() => setEditingHours(true)}
-                            editor={
-                              isEpisodic ? (
-                                <div className="flex items-center gap-3">
-                                  <button
-                                    type="button"
-                                    onClick={() => stepEpisodes(-1)}
-                                    aria-label="Decrease episodes watched"
-                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
-                                  >
-                                    −
-                                  </button>
-                                  <input
-                                    type="number"
-                                    inputMode="numeric"
-                                    min={0}
-                                    max={totalEpisodes ?? undefined}
-                                    step={1}
-                                    value={episodes}
-                                    onChange={(e) =>
-                                      setEpisodes(e.target.value)
-                                    }
-                                    aria-label="Episodes watched"
-                                    placeholder="0"
-                                    className="w-24 rounded-xl border border-line bg-paper px-3 py-2.5 text-center text-base tabular-nums text-ink"
-                                  />
-                                  {totalEpisodes != null && (
-                                    <span className="text-sm text-muted">
-                                      of {totalEpisodes}
-                                    </span>
-                                  )}
-                                  <button
-                                    type="button"
-                                    onClick={() => stepEpisodes(1)}
-                                    aria-label="Increase episodes watched"
-                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line text-ink transition-colors hover:bg-ivory"
-                                  >
-                                    +
-                                  </button>
-                                </div>
-                              ) : (
-                                <input
-                                  type="number"
-                                  min={0}
-                                  step="0.5"
-                                  value={hours}
-                                  onChange={(e) => setHours(e.target.value)}
-                                  placeholder="0"
-                                  aria-label="Hours played"
-                                  className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink transition-colors focus:border-line-strong"
-                                />
-                              )
-                            }
-                            display={
-                              <p className="text-subhead text-ink">
-                                {hours ? `${hours} hrs` : "Not tracked"}
-                              </p>
-                            }
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                </AnimatePresence>
-
-                <AnimatePresence initial={false}>
-                  {section.mediaType === "game" && status === "in_progress" && (
-                    <motion.div
-                      key="current-thoughts"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                      className="overflow-hidden"
-                    >
-                      <div className="mt-4">
-                        <EditableField
-                          label="Current thoughts"
-                          open={editingThoughts}
-                          onEdit={() => setEditingThoughts(true)}
-                          editor={
-                            <>
-                              <textarea
-                                value={currentThoughts}
-                                onChange={(e) =>
-                                  setCurrentThoughts(e.target.value)
-                                }
-                                rows={3}
-                                placeholder={
-                                  liveService
-                                    ? "This one doesn't really end — what's your take right now?"
-                                    : "Not finished yet, but what's the verdict so far?"
-                                }
-                                aria-label="Current thoughts"
-                                autoFocus
-                                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                              />
-                              <p className="mt-1.5 text-xs text-muted">
-                                Visible to friends, like a review — unless you
-                                hide this title below.
-                              </p>
-                            </>
-                          }
-                          display={
-                            <p className="whitespace-pre-wrap text-subhead italic leading-relaxed text-body">
-                              {currentThoughts || "Nothing yet"}
-                            </p>
-                          }
-                        />
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <AnimatePresence initial={false}>
-                  {status === "completed" && (
-                    <motion.div
-                      key="review"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                      className="overflow-hidden"
-                    >
-                      <div className="mt-5 space-y-4 pt-1">
-                        <div>
-                          <EditableField
-                            label="Your rating"
-                            open={justCompleted || editingRating}
-                            onEdit={() => setEditingRating(true)}
-                            editor={
-                              <StarRating
-                                value={rating}
-                                onChange={setRating}
-                                size={26}
-                              />
-                            }
-                            display={<StarRating value={rating} size={26} />}
-                          />
-                        </div>
-                        <div>
-                          <EditableField
-                            label="Your review"
-                            open={justCompleted || editingReview}
-                            onEdit={() => setEditingReview(true)}
-                            editor={
-                              <textarea
-                                value={review}
-                                onChange={(e) => setReview(e.target.value)}
-                                rows={4}
-                                placeholder="What did you think?"
-                                aria-label="Your review"
-                                autoFocus={editingReview}
-                                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                              />
-                            }
-                            display={
-                              <p className="whitespace-pre-wrap text-subhead leading-relaxed text-body">
-                                {review || "No review yet"}
-                              </p>
-                            }
-                          />
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <div className="mt-5">
-                  <EditableField
-                    label="Private notes"
-                    icon={<EyeOffIcon className="h-3 w-3" />}
-                    open={justCompleted || editingNotes}
-                    onEdit={() => setEditingNotes(true)}
-                    editor={
-                      <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        rows={3}
-                        placeholder="Only you can see this — jot down anything worth remembering."
-                        aria-label="Private notes"
-                        autoFocus={editingNotes}
-                        className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
-                      />
-                    }
-                    display={
-                      <p className="whitespace-pre-wrap text-subhead italic leading-relaxed text-body">
-                        {notes || "No notes yet"}
-                      </p>
-                    }
-                  />
-                </div>
-
-                {/* Friends who also have this title */}
-                {alsoHave.length > 0 && (
-                  <div className="mt-6 border-t border-line pt-4">
-                    <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted">
-                      {alsoHave.length === 1
-                        ? "A friend also has this"
-                        : "Friends also have this"}
-                    </p>
-                    <ul className="space-y-3">
-                      {alsoHave.map(({ profile, item: it }) => (
-                        <li
-                          key={profile.id}
-                          className="flex items-start gap-2.5"
-                        >
-                          {/* The name link right after this repeats the same
-                            destination with a real accessible name, so this
-                            one is hidden from assistive tech to avoid a
-                            duplicate stop. */}
-                          <Link
-                            href={`/friends/${profile.username}`}
-                            onClick={(event) => {
-                              if (dirty || saving) event.preventDefault();
-                              requestClose();
-                            }}
-                            aria-hidden="true"
-                            tabIndex={-1}
-                          >
-                            <Avatar profile={profile} size={34} />
-                          </Link>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-                              <Link
-                                href={`/friends/${profile.username}`}
-                                onClick={(event) => {
-                                  if (dirty || saving) event.preventDefault();
-                                  requestClose();
-                                }}
-                                className="font-medium text-ink hover:text-accent"
-                              >
-                                {profile.display_name}
-                              </Link>
-                              <span className="inline-flex items-center gap-1 text-xs text-muted">
-                                <span
-                                  className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[it.status]}`}
-                                />
-                                {statusLabelFor(it.status, it.media_type)}
-                              </span>
-                              {it.rating != null && (
-                                <StarRating value={it.rating} size={12} />
-                              )}
-                            </div>
-                            {it.review ? (
-                              <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-body">
-                                {it.review}
-                              </p>
-                            ) : (
-                              it.current_thoughts && (
-                                <p className="mt-1 whitespace-pre-wrap text-sm italic leading-relaxed text-body">
-                                  {it.current_thoughts}
-                                </p>
-                              )
-                            )}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {hasShareableTake(current) && myId && (
-                  <div className="mt-6 border-t border-line pt-4">
-                    <CommentThread
-                      itemId={current.id}
-                      ownerId={myId}
-                      onClose={onClose}
-                    />
-                  </div>
-                )}
-              </div>
+              </SheetDragArea>
             </div>
 
-            {saveError && (
-              <p
-                role="alert"
-                className="mt-4 rounded-xl bg-accent-soft p-3 text-sm text-accent-hover"
-              >
-                {saveError}
-              </p>
-            )}
-            <div className="sticky bottom-0 mt-5 flex items-center justify-between gap-3 border-t border-line bg-surface pt-4 pb-1">
-              <details className="relative">
-                <summary className="cursor-pointer rounded-full border border-line px-4 py-2.5 text-sm text-ink">
-                  More actions
-                </summary>
-                <div className="absolute bottom-full left-0 z-10 mb-2 flex w-56 flex-col items-stretch rounded-xl border border-line bg-surface p-2 shadow-lg">
-                  <button
-                    type="button"
-                    onClick={handleRemove}
-                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-accent-soft hover:text-accent-hover"
-                  >
-                    <TrashIcon className="h-4 w-4" />
-                    Remove
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShareOpen(true)}
-                    title="Recommend to a friend"
-                    className="flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-ivory hover:text-ink"
-                  >
-                    <SendIcon className="h-4 w-4" />
-                    Recommend
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsFavorite((v) => !v)}
-                    title={
-                      isFavorite
-                        ? `Your favourite ${section.singular} — click to unset`
-                        : `Set as your favourite ${section.singular}`
-                    }
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                      isFavorite
-                        ? "bg-accent-soft text-accent-hover"
-                        : "text-muted hover:bg-ivory hover:text-ink"
-                    }`}
-                  >
-                    <HeartIcon
-                      className="h-4 w-4"
-                      fill={isFavorite ? "currentColor" : "none"}
-                    />
-                    {isFavorite ? "Favourite" : "Favourite"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPinned((v) => !v)}
-                    title={
-                      pinned
-                        ? "Pinned to Up next — click to unpin"
-                        : "Pin to Up next"
-                    }
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                      pinned
-                        ? "bg-accent-soft text-accent-hover"
-                        : "text-muted hover:bg-ivory hover:text-ink"
-                    }`}
-                  >
-                    <PinIcon
-                      className="h-4 w-4"
-                      fill={pinned ? "currentColor" : "none"}
-                    />
-                    {pinned ? "Pinned" : "Pin"}
-                  </button>
-                  {section.mediaType === "game" && (
+            <div className="px-4 pb-5 sm:px-6 sm:pb-6">
+              {discardRequested && (
+                <div
+                  ref={bannerRef}
+                  role="alert"
+                  className="mb-4 rounded-xl bg-ivory p-4"
+                >
+                  <p className="text-subhead font-semibold text-ink">
+                    Discard your unsaved changes?
+                  </p>
+                  <div className="mt-3 flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setLiveService((v) => !v)}
-                      title={
-                        liveService
-                          ? "Tagged as live service — click to unset"
-                          : 'Tag as a live-service game with no real "completed" state'
-                      }
-                      className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                        liveService
-                          ? "bg-accent-soft text-accent-hover"
-                          : "text-muted hover:bg-ivory hover:text-ink"
-                      }`}
+                      onClick={() => setDiscardRequested(false)}
+                      className="min-h-11 flex-1 rounded-xl bg-surface px-4 text-subhead font-medium text-ink"
                     >
-                      <InfinityIcon className="h-4 w-4" />
-                      Live Service
+                      Keep Editing
                     </button>
-                  )}
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="min-h-11 flex-1 rounded-xl bg-surface px-4 text-subhead font-medium text-danger"
+                    >
+                      Discard Changes
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Primary action, favourite, and everything else under ⋯ */}
+              <div className="flex items-stretch gap-2">
+                {primary ? (
                   <button
                     type="button"
-                    onClick={() => setIsPrivate((v) => !v)}
-                    title={
-                      isPrivate
-                        ? "Hidden from friends — click to make visible"
-                        : "Visible to friends — click to hide"
-                    }
-                    className={`flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-                      isPrivate
-                        ? "bg-ivory text-ink"
-                        : "text-muted hover:bg-ivory hover:text-ink"
-                    }`}
+                    onClick={() => runPrimary(primary.kind)}
+                    className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-subhead font-semibold text-white transition-colors hover:bg-accent-hover"
                   >
-                    <EyeOffIcon className="h-4 w-4" />
-                    {isPrivate ? "Private" : "Hide"}
+                    {primary.label}
+                    {primary.detail && (
+                      <span className="font-normal text-white/80 tabular-nums">
+                        · {primary.detail}
+                      </span>
+                    )}
                   </button>
-                </div>
-              </details>
-              <div className="flex items-center gap-3">
-                <span aria-live="polite" className="text-xs text-muted">
-                  {saving ? "Saving…" : dirty ? "Unsaved changes" : "Saved"}
-                </span>
+                ) : (
+                  <div className="flex min-h-12 flex-1 items-center justify-center rounded-xl bg-ivory text-subhead font-medium text-muted">
+                    {statusText(status)}
+                  </div>
+                )}
                 <button
                   type="button"
-                  onClick={handleSave}
-                  className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-accent-hover"
+                  onClick={() => void quick({ is_favorite: !isFavorite })}
+                  aria-pressed={isFavorite}
+                  aria-label={isFavorite ? "Remove from favourites" : "Favourite"}
+                  className="flex min-h-12 w-12 items-center justify-center rounded-xl bg-ivory text-accent transition-colors hover:bg-line"
                 >
-                  {saving ? "Saving…" : "Save changes"}
+                  <HeartIcon
+                    className="h-5 w-5"
+                    fill={isFavorite ? "currentColor" : "none"}
+                  />
+                </button>
+                <button
+                  type="button"
+                  aria-label="More actions"
+                  aria-haspopup="menu"
+                  onClick={(e) => moreMenu.openFrom(e.currentTarget, "right")}
+                  className="flex min-h-12 w-12 items-center justify-center rounded-xl bg-ivory text-accent transition-colors hover:bg-line"
+                >
+                  <EllipsisCircleIcon className="h-6 w-6" />
                 </button>
               </div>
+
+              {(chips.length > 0 || releaseBadge(current) || isPrivate || pinned) && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {(() => {
+                    const badge = releaseBadge(current);
+                    return badge ? (
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          badge.label === "Out now"
+                            ? "bg-sage-soft text-sage"
+                            : "bg-accent-soft text-accent-hover"
+                        }`}
+                      >
+                        {badge.label}
+                      </span>
+                    ) : null;
+                  })()}
+                  {pinned && (
+                    <span className="flex items-center gap-1 rounded-full bg-accent-soft px-2.5 py-1 text-xs font-medium text-accent-hover">
+                      <PinIcon className="h-3 w-3" />
+                      Up Next
+                    </span>
+                  )}
+                  {isPrivate && (
+                    <span className="flex items-center gap-1 rounded-full bg-ivory px-2.5 py-1 text-xs font-medium text-body">
+                      <EyeOffIcon className="h-3 w-3" />
+                      Hidden from friends
+                    </span>
+                  )}
+                  {chips.map((c) => (
+                    <span
+                      key={c}
+                      className="rounded-full bg-ivory px-2.5 py-1 text-xs text-body"
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <PopoverMenu
+                anchor={moreMenu.anchor}
+                onClose={moreMenu.close}
+                label="More actions"
+                sections={[
+                  [
+                    {
+                      label: pinned ? "Unpin from Up Next" : "Pin to Up Next",
+                      icon: <PinIcon className="h-[18px] w-[18px]" />,
+                      onSelect: () =>
+                        void quick({
+                          pinned_at: pinned
+                            ? null
+                            : (current.pinned_at ?? new Date().toISOString()),
+                        }),
+                    },
+                    {
+                      label: "Recommend to a Friend",
+                      icon: <SendIcon className="h-[18px] w-[18px]" />,
+                      onSelect: () => setShareOpen(true),
+                    },
+                  ],
+                  [
+                    ...(section.mediaType === "game"
+                      ? [
+                          {
+                            label: "Live Service Game",
+                            checked: liveService,
+                            icon: <InfinityIcon className="h-[18px] w-[18px]" />,
+                            onSelect: () => void quick({ live_service: !liveService }),
+                          },
+                        ]
+                      : []),
+                    {
+                      label: "Hide from Friends",
+                      checked: isPrivate,
+                      icon: <EyeOffIcon className="h-[18px] w-[18px]" />,
+                      onSelect: () => void quick({ is_private: !isPrivate }),
+                    },
+                  ],
+                  [
+                    {
+                      label: "Remove from Library",
+                      icon: <TrashIcon className="h-[18px] w-[18px]" />,
+                      destructive: true,
+                      onSelect: handleRemove,
+                    },
+                  ],
+                ]}
+              />
+
+              {/* Tracking — Settings-style rows */}
+              <GroupLabel>Tracking</GroupLabel>
+              <Group>
+                <Row label="Status">
+                  <button
+                    type="button"
+                    aria-haspopup="menu"
+                    onClick={(e) => statusMenu.openFrom(e.currentTarget, "right")}
+                    className="-mr-2 flex min-h-11 items-center gap-1 rounded-lg px-2 text-accent transition-colors hover:bg-line/60"
+                  >
+                    {statusText(status)}
+                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="m8 10 4-4 4 4M8 14l4 4 4-4" />
+                    </svg>
+                  </button>
+                </Row>
+                {status !== "backlog" && (
+                  <Row label={section.startedLabel}>
+                    <input
+                      type="date"
+                      value={startedAt}
+                      max={todayISODate()}
+                      onChange={(e) => setStartedAt(e.target.value)}
+                      aria-label={section.startedLabel}
+                      className="min-h-9 rounded-lg bg-surface px-2 text-right text-subhead text-ink"
+                    />
+                  </Row>
+                )}
+                {status !== "backlog" && isEpisodic && (
+                  <Row label="Episodes">
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={totalEpisodes ?? undefined}
+                      step={1}
+                      value={episodes}
+                      onChange={(e) => setEpisodes(e.target.value)}
+                      aria-label="Episodes watched"
+                      placeholder="0"
+                      className="min-h-9 w-14 rounded-lg bg-surface text-center text-subhead tabular-nums text-ink"
+                    />
+                    {totalEpisodes != null && (
+                      <span className="mr-2 tabular-nums">of {totalEpisodes}</span>
+                    )}
+                    <span className="flex overflow-hidden rounded-lg bg-surface">
+                      <button
+                        type="button"
+                        onClick={() => stepEpisodes(-1)}
+                        aria-label="One fewer episode watched"
+                        className="relative flex h-9 w-11 items-center justify-center text-lg text-ink transition-colors hover:bg-line/60"
+                      >
+                        −
+                      </button>
+                      <span className="my-2 w-px bg-line" />
+                      <button
+                        type="button"
+                        onClick={() => stepEpisodes(1)}
+                        aria-label="One more episode watched"
+                        className="relative flex h-9 w-11 items-center justify-center text-lg text-ink transition-colors hover:bg-line/60"
+                      >
+                        +
+                      </button>
+                    </span>
+                  </Row>
+                )}
+                {status !== "backlog" && section.mediaType === "game" && (
+                  <Row label="Hours Played">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.5"
+                      value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                      placeholder="0"
+                      aria-label="Hours played"
+                      className="min-h-9 w-20 rounded-lg bg-surface px-2 text-right text-subhead tabular-nums text-ink"
+                    />
+                    <span>h</span>
+                  </Row>
+                )}
+                {status === "completed" && (
+                  <div ref={ratingRef}>
+                    <Row label="Rating">
+                      <StarRating
+                        value={rating}
+                        onChange={(v) => void quick({ rating: v })}
+                        size={22}
+                      />
+                    </Row>
+                  </div>
+                )}
+              </Group>
+
+              <PopoverMenu
+                anchor={statusMenu.anchor}
+                onClose={statusMenu.close}
+                label="Status"
+                sections={[
+                  STATUS_ORDER.map((s) => ({
+                    label: statusLabel(s, section),
+                    checked: status === s,
+                    onSelect: () => chooseStatus(s),
+                  })),
+                ]}
+              />
+
+              {section.mediaType === "game" && status === "in_progress" && (
+                <>
+                  <GroupLabel>Current Thoughts</GroupLabel>
+                  <Group>
+                    <textarea
+                      value={currentThoughts}
+                      onChange={(e) => setCurrentThoughts(e.target.value)}
+                      rows={3}
+                      placeholder={
+                        liveService
+                          ? "This one doesn't really end — what's your take right now?"
+                          : "Not finished yet, but what's the verdict so far?"
+                      }
+                      aria-label="Current thoughts"
+                      className={textareaCls}
+                    />
+                  </Group>
+                  <p className="mt-1.5 px-4 text-footnote text-muted">
+                    Friends can see this, like a review, unless you hide this title.
+                  </p>
+                </>
+              )}
+
+              {status === "completed" && (
+                <>
+                  <GroupLabel>Your Review</GroupLabel>
+                  <Group>
+                    <textarea
+                      value={review}
+                      onChange={(e) => setReview(e.target.value)}
+                      rows={4}
+                      placeholder="What did you think?"
+                      aria-label="Your review"
+                      className={textareaCls}
+                    />
+                  </Group>
+                </>
+              )}
+
+              <GroupLabel icon={<EyeOffIcon className="h-3 w-3" />}>
+                Private Notes
+              </GroupLabel>
+              <Group>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Only you can see this."
+                  aria-label="Private notes"
+                  className={textareaCls}
+                />
+              </Group>
+
+              {/* Friends who also have this title */}
+              {alsoHave.length > 0 && (
+                <>
+                  <GroupLabel>
+                    {alsoHave.length === 1
+                      ? "A friend also has this"
+                      : "Friends also have this"}
+                  </GroupLabel>
+                  <Group>
+                    {alsoHave.map(({ profile, item: it }) => (
+                      <Link
+                        key={profile.id}
+                        href={`/friends/${profile.username}`}
+                        onClick={(event) => {
+                          if (dirty || saving) event.preventDefault();
+                          requestClose();
+                        }}
+                        className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-line/40"
+                      >
+                        <Avatar profile={profile} size={34} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
+                            <span className="font-medium text-ink">
+                              {profile.display_name}
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-xs text-muted">
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[it.status]}`}
+                              />
+                              {statusLabelFor(it.status, it.media_type)}
+                            </span>
+                            {it.rating != null && (
+                              <StarRating value={it.rating} size={12} />
+                            )}
+                          </div>
+                          {it.review ? (
+                            <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-body">
+                              {it.review}
+                            </p>
+                          ) : (
+                            it.current_thoughts && (
+                              <p className="mt-1 line-clamp-3 whitespace-pre-wrap text-sm italic leading-relaxed text-body">
+                                {it.current_thoughts}
+                              </p>
+                            )
+                          )}
+                        </div>
+                        <ChevronRightIcon className="mt-2 h-4 w-4 shrink-0 text-muted" />
+                      </Link>
+                    ))}
+                  </Group>
+                </>
+              )}
+
+              {hasShareableTake(current) && myId && (
+                <div className="mt-6">
+                  <CommentThread
+                    itemId={current.id}
+                    ownerId={myId}
+                    onClose={onClose}
+                  />
+                </div>
+              )}
+
+              {saveError && (
+                <p
+                  role="alert"
+                  className="mt-4 rounded-xl bg-accent-soft p-3 text-sm text-accent-hover"
+                >
+                  {saveError}
+                </p>
+              )}
             </div>
+
+            {/* Only typed edits wait for Save — the bar appears when there are some. */}
+            <AnimatePresence initial={false}>
+              {dirty && (
+                <motion.div
+                  key="save-bar"
+                  initial={{ y: 16, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 16, opacity: 0 }}
+                  transition={{ type: "spring", duration: 0.35, bounce: 0.1 }}
+                  className="sticky bottom-0 z-10 flex items-center gap-2 border-t border-line bg-surface/90 px-4 py-3 backdrop-blur-xl sm:rounded-b-2xl sm:px-6"
+                >
+                  <span aria-live="polite" className="flex-1 text-footnote text-muted">
+                    {saving ? "Saving…" : "Unsaved changes"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={revert}
+                    className="min-h-11 rounded-xl px-4 text-subhead font-medium text-accent transition-colors hover:bg-ivory"
+                  >
+                    Revert
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="min-h-11 rounded-xl bg-accent px-5 text-subhead font-semibold text-white transition-colors hover:bg-accent-hover"
+                  >
+                    {saving ? "Saving…" : "Save"}
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </fieldset>
         )}
       </Modal>

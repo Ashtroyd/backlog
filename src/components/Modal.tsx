@@ -1,23 +1,77 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { createContext, useContext, useEffect, useId, useRef, useState } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useDragControls,
+  type DragControls,
+} from "motion/react";
+
+/** Lets sheet content (e.g. a hero header) start the swipe-to-dismiss drag. */
+const SheetDragContext = createContext<DragControls | null>(null);
+
+/**
+ * Wraps sheet content that should also drag the sheet down (a hero header,
+ * say). Must render *inside* <Modal> to see its drag controls; outside a
+ * phone sheet it's a plain div.
+ */
+export function SheetDragArea({
+  className,
+  children,
+}: {
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const controls = useContext(SheetDragContext);
+  return (
+    <div
+      className={className}
+      onPointerDown={controls ? (e) => controls.start(e) : undefined}
+      style={controls ? { touchAction: "none" } : undefined}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Phones get bottom sheets; the breakpoint matches Tailwind's `sm`. */
+function useIsPhone() {
+  const [phone, setPhone] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setPhone(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return phone;
+}
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** Shared animated dialog: blurred backdrop, sprung panel, Esc / click-away to close. */
+/**
+ * Shared animated dialog: blurred backdrop, sprung panel, Esc / click-away to
+ * close. With `sheet`, phones get an iOS page sheet instead — it rises from
+ * the bottom with a grabber and closes on a downward swipe.
+ */
 export function Modal({
   open,
   onClose,
   children,
   wide = false,
+  sheet = false,
 }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   wide?: boolean;
+  sheet?: boolean;
 }) {
+  const isPhone = useIsPhone();
+  const asSheet = sheet && isPhone;
+  const dragControls = useDragControls();
   const panelRef = useRef<HTMLDivElement>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
   const wasOpen = useRef(false);
@@ -74,14 +128,18 @@ export function Modal({
     if (open) {
       const panel = panelRef.current;
       if (panel && !panel.contains(document.activeElement)) {
-        const firstFocusable = panel.querySelector<HTMLElement>(FOCUSABLE);
-        (firstFocusable ?? panel).focus();
+        // Sheets land focus on the sheet itself (announced as the dialog, no
+        // focus ring on a button the user didn't choose); Tab moves inward.
+        const firstFocusable = sheet
+          ? null
+          : panel.querySelector<HTMLElement>(FOCUSABLE);
+        (firstFocusable ?? panel).focus({ preventScroll: true });
       }
     } else {
       previouslyFocused.current?.focus?.();
       previouslyFocused.current = null;
     }
-  }, [open]);
+  }, [open, sheet]);
 
   // Label the dialog with whatever heading the content renders, so a screen
   // reader announces more than just "dialog".
@@ -92,6 +150,59 @@ export function Modal({
     if (!heading.id) heading.id = generatedId;
     setLabelledBy(heading.id);
   }, [open, generatedId]);
+
+  if (asSheet) {
+    return (
+      <AnimatePresence>
+        {open && (
+          <div className="fixed inset-0 z-50">
+            <motion.div
+              className="absolute inset-0 bg-black/40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              onClick={onClose}
+            />
+            <motion.div
+              ref={panelRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={labelledBy}
+              tabIndex={-1}
+              drag="y"
+              dragControls={dragControls}
+              dragListener={false}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.9 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 120 || info.velocity.y > 600) onClose();
+              }}
+              className="absolute inset-x-0 bottom-0 flex h-[calc(100dvh-max(2.75rem,env(safe-area-inset-top)))] flex-col overflow-hidden rounded-t-[14px] bg-surface shadow-[0_-8px_40px_rgba(0,0,0,0.25)] focus:outline-none"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", duration: 0.45, bounce: 0 }}
+            >
+              {/* Grabber: a bigger invisible strip makes it easy to catch. */}
+              <div
+                onPointerDown={(e) => dragControls.start(e)}
+                style={{ touchAction: "none" }}
+                className="absolute inset-x-0 top-0 z-20 flex h-6 justify-center pt-1.5"
+              >
+                <span className="h-[5px] w-9 rounded-full bg-white/70 shadow-[0_0_0_0.5px_rgba(0,0,0,0.15)]" />
+              </div>
+              <div className="flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
+                <SheetDragContext.Provider value={dragControls}>
+                  {children}
+                </SheetDragContext.Provider>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    );
+  }
 
   return (
     <AnimatePresence>

@@ -20,13 +20,29 @@ import { toast } from "@/lib/toast-bus";
 import { ItemCard } from "./ItemCard";
 import { SegmentedNav } from "./SegmentedNav";
 import { rememberSection } from "@/lib/last-section";
-import { PinIcon, PlusIcon, SearchIcon, UploadIcon } from "./icons";
+import {
+  EllipsisCircleIcon,
+  PinIcon,
+  PlusIcon,
+  SearchIcon,
+  UploadIcon,
+} from "./icons";
+import { PopoverMenu, useMenu } from "./PopoverMenu";
+import { useConfirm } from "./ConfirmDialog";
 
 /** Sections with a supported bulk-import source (Steam, MyAnimeList, Letterboxd). */
 const IMPORTABLE_MEDIA_TYPES = new Set(["game", "anime", "movie", "series"]);
 
 type Filter = "all" | ItemStatus;
 type Sort = "added" | "rating" | "title" | "release";
+
+const SCOPES: { value: string; label: string; gameOnly?: boolean }[] = [
+  { value: "all", label: "All Titles" },
+  { value: "favourites", label: "Favourites" },
+  { value: "active", label: "Playing · Excluding Live Service", gameOnly: true },
+  { value: "live", label: "Live Service", gameOnly: true },
+  { value: "cleanup", label: "Playtests & Utilities", gameOnly: true },
+];
 
 const SORTS: { value: Sort; label: string }[] = [
   { value: "added", label: "Recently added" },
@@ -139,6 +155,19 @@ export default function Library({
         : `Updated ${saved} titles.`,
     );
   }
+  const viewMenu = useMenu();
+  const confirm = useConfirm();
+  async function confirmRemove(item: BacklogItem) {
+    const ok = await confirm({
+      title: `Remove ${item.title}?`,
+      message: "It comes off your library along with its rating and review.",
+      confirmLabel: "Remove",
+      danger: true,
+    });
+    if (!ok) return;
+    const result = await remove(item.id);
+    if (result.error) toast("error", "Couldn't remove that title. Try again.");
+  }
   const [addOpen, setAddOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(
@@ -220,56 +249,113 @@ export default function Library({
           />
         </div>
       </div>
-      <header className="mt-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="sr-only">{section.label}</h2>
-          <p className="text-sm text-muted">
-            {!ready
-              ? " "
-              : items.length === 0
-                ? "Nothing here yet"
-                : `${items.length} title${items.length === 1 ? "" : "s"} · ${counts.completed} completed`}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {IMPORTABLE_MEDIA_TYPES.has(section.mediaType) && (
-            <button
-              type="button"
-              data-tour="import-button"
-              onClick={() => setImportOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink transition-colors hover:border-line-strong hover:bg-ivory"
-            >
-              <UploadIcon className="h-4 w-4" />
-              Import
-            </button>
-          )}
-          <button
-            type="button"
-            data-tour="add-button"
-            onClick={() => setAddOpen(true)}
-            className="flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Add {section.singular}
-          </button>
-        </div>
+      <header className="mt-5 flex items-center gap-2">
+        <h2 className="sr-only">{section.label}</h2>
+        <p className="min-w-0 flex-1 truncate text-sm text-muted">
+          {!ready
+            ? " "
+            : items.length === 0
+              ? "Nothing here yet"
+              : `${items.length} title${items.length === 1 ? "" : "s"} · ${counts.completed} completed`}
+        </p>
+        <button
+          type="button"
+          data-tour="import-button"
+          aria-label="View options"
+          aria-haspopup="menu"
+          disabled={bulkBusy}
+          onClick={(e) => viewMenu.openFrom(e.currentTarget, "right")}
+          className={`flex h-11 w-11 items-center justify-center rounded-full text-accent transition-colors hover:bg-ivory ${viewMenu.open ? "bg-ivory" : ""}`}
+        >
+          <EllipsisCircleIcon className="h-6 w-6" />
+        </button>
+        <button
+          type="button"
+          data-tour="add-button"
+          onClick={() => setAddOpen(true)}
+          className="flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-white transition-colors hover:bg-accent-hover"
+        >
+          <PlusIcon className="h-4 w-4" />
+          Add {section.singular}
+        </button>
       </header>
+
+      {items.length > 0 && (
+        <div className="mt-3 flex items-center gap-2 rounded-[10px] bg-ivory px-3 py-2 sm:max-w-sm">
+          <SearchIcon className="h-4 w-4 shrink-0 text-muted" />
+          <input
+            type="search"
+            value={query}
+            disabled={bulkBusy}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={`Search your ${section.label.toLowerCase()}`}
+            aria-label={`Search your ${section.label.toLowerCase()}`}
+            className="w-full bg-transparent text-subhead text-ink outline-none placeholder:text-muted"
+          />
+        </div>
+      )}
+
+      <PopoverMenu
+        anchor={viewMenu.anchor}
+        onClose={viewMenu.close}
+        label="View options"
+        sections={[
+          SORTS.map((o) => ({
+            label: o.label,
+            checked: sort === o.value,
+            onSelect: () => setSort(o.value),
+          })),
+          SCOPES.filter((o) => !o.gameOnly || section.mediaType === "game").map(
+            (o) => ({
+              label: o.label,
+              checked: scope === o.value,
+              onSelect: () => setParam("scope", o.value, "all"),
+            }),
+          ),
+          (["grid", "list"] as const).map((v) => ({
+            label: v === "grid" ? "View as Grid" : "View as List",
+            checked: view === v,
+            onSelect: () => setParam("view", v, "grid"),
+          })),
+          [
+            {
+              label: selecting ? "Done Selecting" : "Select Titles",
+              disabled: items.length === 0,
+              onSelect: () => {
+                setSelecting(!selecting);
+                setChecked(new Set());
+              },
+            },
+            ...(IMPORTABLE_MEDIA_TYPES.has(section.mediaType)
+              ? [
+                  {
+                    label: "Import…",
+                    icon: <UploadIcon className="h-[18px] w-[18px]" />,
+                    onSelect: () => setImportOpen(true),
+                  },
+                ]
+              : []),
+          ],
+        ]}
+      />
 
       {pinned.length > 0 && (
         <div className="mt-7">
-          <h2 className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
-            <PinIcon className="h-3.5 w-3.5" />
-            Up next
+          <h2 className="mb-3 flex items-center gap-1.5 text-footnote font-semibold text-ink">
+            <PinIcon className="h-3.5 w-3.5 text-accent" />
+            Up Next
           </h2>
-          <div className="shelf-scrollbar flex snap-x snap-proximity gap-4 overflow-x-auto pb-2">
+          <div className="shelf-scrollbar flex snap-x snap-proximity gap-3 overflow-x-auto pb-2">
             {pinned.map((item, i) => (
-              <div key={item.id} className="w-28 shrink-0 snap-start sm:w-32">
+              <div key={item.id} className="w-[6.5rem] shrink-0 snap-start sm:w-32">
                 <ItemCard
                   item={item}
                   section={section}
                   index={i}
                   onClick={() => setSelectedId(item.id)}
                   onUpdate={update}
+                  onRemove={confirmRemove}
+                  sharedCover={false}
                 />
               </div>
             ))}
@@ -283,112 +369,40 @@ export default function Library({
         </div>
       )}
 
-      <div className="mt-6 flex flex-wrap gap-1.5" data-tour="filter-tabs">
-        {filters.map((f) => {
-          const active = filter === f;
-          return (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFilter(f)}
-              aria-pressed={active}
-              disabled={bulkBusy}
-              className={`relative rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
-                active
-                  ? "text-paper"
-                  : "text-muted hover:bg-ivory hover:text-ink"
-              }`}
-            >
-              {active && (
-                <motion.span
-                  layoutId={`filter-pill-${slug}`}
-                  className="absolute inset-0 rounded-full bg-ink"
-                  transition={{ type: "spring", duration: 0.45, bounce: 0.15 }}
-                />
-              )}
-              <span className="relative">
-                {f === "all" ? "All" : statusLabel(f, section)}{" "}
-                <span className={active ? "text-paper/60" : "text-muted"}>
-                  {counts[f]}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
       {items.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-surface px-3.5 py-2 sm:max-w-xs">
-            <SearchIcon className="h-4 w-4 shrink-0 text-muted" />
-            <input
-              value={query}
-              disabled={bulkBusy}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search your ${section.label.toLowerCase()}…`}
-              aria-label={`Search your ${section.label.toLowerCase()}`}
-              className="w-full bg-transparent text-sm text-ink placeholder:text-muted/70"
-            />
-          </div>
-          <select
-            value={sort}
-            disabled={bulkBusy}
-            onChange={(e) => setSort(e.target.value as Sort)}
-            aria-label="Sort by"
-            className="rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-body"
-          >
-            {SORTS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <select
-            aria-label="Library filter"
-            value={scope}
-            disabled={bulkBusy}
-            onChange={(e) => setParam("scope", e.target.value, "all")}
-            className="rounded-full border border-line bg-surface px-3.5 py-2 text-sm text-body"
-          >
-            <option value="all">All titles</option>
-            <option value="favourites">Favourites</option>
-            {section.mediaType === "game" && (
-              <>
-                <option value="active">Playing · excluding live service</option>
-                <option value="live">Live service</option>
-                <option value="cleanup">Playtests & utilities</option>
-              </>
-            )}
-          </select>
-          <div
-            className="flex rounded-full border border-line p-1"
-            aria-label="Library view"
-          >
-            {(["grid", "list"] as const).map((v) => (
+        <div
+          className="-mx-4 mt-5 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0"
+          data-tour="filter-tabs"
+        >
+          {filters.map((f) => {
+            const active = filter === f;
+            return (
               <button
-                key={v}
+                key={f}
                 type="button"
-                aria-pressed={view === v}
+                onClick={() => setFilter(f)}
+                aria-pressed={active}
                 disabled={bulkBusy}
-                onClick={() => setParam("view", v, "grid")}
-                className={`rounded-full px-3 py-1 text-sm capitalize ${view === v ? "bg-ink text-paper" : "text-muted hover:text-ink"}`}
+                className={`relative min-h-9 shrink-0 rounded-full px-3.5 text-footnote font-medium transition-colors ${
+                  active ? "text-paper" : "bg-ivory text-ink hover:bg-line"
+                }`}
               >
-                {v}
+                {active && (
+                  <motion.span
+                    layoutId={`filter-pill-${slug}`}
+                    className="absolute inset-0 rounded-full bg-ink"
+                    transition={{ type: "spring", duration: 0.45, bounce: 0.15 }}
+                  />
+                )}
+                <span className="relative">
+                  {f === "all" ? "All" : statusLabel(f, section)}{" "}
+                  <span className={active ? "text-paper/70" : "text-muted"}>
+                    {counts[f]}
+                  </span>
+                </span>
               </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            disabled={bulkBusy}
-            aria-pressed={selecting}
-            onClick={() => {
-              setSelecting(!selecting);
-              setChecked(new Set());
-            }}
-            className="rounded-full border border-line px-3.5 py-2 text-sm text-ink hover:bg-ivory"
-          >
-            {selecting ? "Done selecting" : "Select titles"}
-          </button>
+            );
+          })}
         </div>
       )}
       {selecting && (
@@ -438,7 +452,7 @@ export default function Library({
       )}
 
       {!ready ? (
-        <div className="grid grid-cols-2 gap-x-5 gap-y-8 pt-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+        <div className="grid grid-cols-3 gap-x-3 gap-y-5 pt-6 sm:grid-cols-4 sm:gap-x-5 sm:gap-y-7 md:grid-cols-5 xl:grid-cols-6">
           {[0, 1, 2, 3, 4].map((i) => (
             <div
               key={i}
@@ -554,7 +568,7 @@ export default function Library({
         <motion.div
           key="grid"
           layout
-          className="grid grid-cols-2 gap-x-5 gap-y-8 pt-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+          className="grid grid-cols-3 gap-x-3 gap-y-5 pt-6 sm:grid-cols-4 sm:gap-x-5 sm:gap-y-7 md:grid-cols-5 xl:grid-cols-6"
         >
           <AnimatePresence mode="popLayout" initial={false}>
             {visible.map((item, i) => (
@@ -580,6 +594,7 @@ export default function Library({
                     selecting ? toggleItem(item.id) : setSelectedId(item.id)
                   }
                   onUpdate={selecting ? undefined : update}
+                  onRemove={confirmRemove}
                   dataTour={i === 0 ? "item-card" : undefined}
                 />
               </div>
