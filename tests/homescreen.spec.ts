@@ -15,11 +15,16 @@ test("an in-progress title shows up under Continue on the homescreen", async ({
 
   const title = await addFirstAnime(page);
 
-  // Start it ("Watching" for anime) — one tap, saved immediately.
+  // Start it ("Watching" for anime) — one tap, saved immediately. The button
+  // flips before the save lands, so wait for Supabase to confirm it: the
+  // full page load below would otherwise cancel the request mid-flight.
   await page
     .getByRole("button", { name: /^Open / })
     .first()
     .click();
+  const saved = page.waitForResponse(
+    (r) => r.url().includes("/rest/v1/items") && r.request().method() === "PATCH",
+  );
   await page
     .locator('[role="dialog"]')
     .getByRole("button", { name: "Start Watching" })
@@ -27,6 +32,7 @@ test("an in-progress title shows up under Continue on the homescreen", async ({
   await expect(
     page.locator('[role="dialog"]').getByRole("button", { name: "Watching", exact: true }),
   ).toBeVisible();
+  expect((await saved).ok()).toBe(true);
   await page.keyboard.press("Escape");
 
   // It should now appear under Continue on Up Next.
