@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Source_Serif_4 } from "next/font/google";
 import { MotionConfig } from "motion/react";
 import { themeScript } from "@/lib/theme-script";
+import { bootScript } from "@/lib/boot-script";
 import "./globals.css";
 
 const serif = Source_Serif_4({
@@ -56,6 +57,7 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: bootScript }} />
       </head>
       <body className="min-h-full">
         <MotionConfig reducedMotion="user">{children}</MotionConfig>

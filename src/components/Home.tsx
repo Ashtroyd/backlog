@@ -39,9 +39,20 @@ import { RecommendationModal } from "./friends/RecommendationModal";
 import { TopPicksPicker } from "./TopPicksPicker";
 import { TrendingSection } from "./TrendingSection";
 import { EditUpNextSheet } from "./EditUpNextSheet";
+import { SkeletonShelves } from "./AppSkeleton";
+import { readUserCache, writeUserCache } from "@/lib/boot-cache";
 import { ChevronRightIcon, PlusIcon } from "./icons";
 
 type FriendPicks = { profile: Profile; picks: TopPick[] };
+
+type UpNextCache = {
+  month: string;
+  continueItems: BacklogItem[];
+  reviews: BacklogItem[];
+  recs: Recommendation[] | null;
+  picks: TopPick[] | null;
+  friendPicks: FriendPicks[] | null;
+};
 
 // FriendItemModal always wants a Profile, but Home.tsx has no single friend
 // in scope until a pick is actually clicked — this stand-in is only ever
@@ -119,14 +130,35 @@ export default function Home() {
   const myId = session?.user?.id ?? null;
   const month = currentMonth();
 
+  // Last visit's shelves draw straight away and are replaced as fresh data
+  // lands. Top picks are per month, so a new month starts without them.
+  const [cached] = useState(() => {
+    const c = readUserCache<UpNextCache>("upnext", myId);
+    return c && c.month !== month ? { ...c, picks: null, friendPicks: null } : c;
+  });
   const [continueItems, setContinueItems] = useState<BacklogItem[] | null>(
-    null,
+    cached?.continueItems ?? null,
   );
-  const [reviews, setReviews] = useState<BacklogItem[] | null>(null);
-  const [recs, setRecs] = useState<Recommendation[] | null>(null);
+  const [reviews, setReviews] = useState<BacklogItem[] | null>(cached?.reviews ?? null);
+  const [recs, setRecs] = useState<Recommendation[] | null>(cached?.recs ?? null);
   const [openRec, setOpenRec] = useState<Recommendation | null>(null);
-  const [picks, setPicks] = useState<TopPick[] | null>(null);
-  const [friendPicks, setFriendPicks] = useState<FriendPicks[] | null>(null);
+  const [picks, setPicks] = useState<TopPick[] | null>(cached?.picks ?? null);
+  const [friendPicks, setFriendPicks] = useState<FriendPicks[] | null>(
+    cached?.friendPicks ?? null,
+  );
+
+  // Keep that copy current once the essentials have loaded.
+  useEffect(() => {
+    if (!myId || continueItems === null || reviews === null || picks === null) return;
+    writeUserCache<UpNextCache>("upnext", myId, {
+      month,
+      continueItems,
+      reviews,
+      recs,
+      picks,
+      friendPicks,
+    });
+  }, [myId, month, continueItems, reviews, recs, picks, friendPicks]);
   const [openFriendPick, setOpenFriendPick] = useState<{
     item: BacklogItem;
     profile: Profile;
@@ -142,7 +174,7 @@ export default function Home() {
 
   // Seeded from the profile's saved layout once it arrives (profile loads
   // asynchronously, so this can't just be a lazy useState initializer).
-  const [layout, setLayout] = useState(() => parseLayout(null));
+  const [layout, setLayout] = useState(() => parseLayout(profile?.home_layout ?? null));
   const [editOpen, setEditOpen] = useState(false);
   // Bumped on each open so the edit sheet starts from the saved layout.
   const [editSession, setEditSession] = useState(0);
@@ -230,8 +262,13 @@ export default function Home() {
 
   useEffect(() => {
     if (!myId) return;
-    fetchContinueItems(myId).then(setContinueItems);
-    fetchRecentReviews(myId).then(setReviews);
+    // A failed shelf shows as empty rather than leaving placeholders up.
+    fetchContinueItems(myId)
+      .then(setContinueItems)
+      .catch(() => setContinueItems((prev) => prev ?? []));
+    fetchRecentReviews(myId)
+      .then(setReviews)
+      .catch(() => setReviews((prev) => prev ?? []));
     fetchConnections(myId).then((c) => {
       fetchRecommendations(myId, c.friends).then(setRecs);
       const friendIds = c.friends.map((f) => f.profile.id);
@@ -246,7 +283,7 @@ export default function Home() {
         );
       });
     });
-    loadPicks();
+    loadPicks().catch(() => setPicks((prev) => prev ?? []));
   }, [myId, month, loadPicks]);
 
   function openPicker() {
@@ -479,9 +516,13 @@ export default function Home() {
         Up Next
       </h1>
 
-      {visible.map((key) => (
-        <Fragment key={key}>{renderSection(key)}</Fragment>
-      ))}
+      {/* First visit only (later ones start from the cached shelves):
+          placeholders instead of shelves popping in one by one. */}
+      {continueItems === null || reviews === null || picks === null ? (
+        <SkeletonShelves />
+      ) : (
+        visible.map((key) => <Fragment key={key}>{renderSection(key)}</Fragment>)
+      )}
 
       <div className="mt-14 flex justify-center">
         <button

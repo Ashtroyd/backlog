@@ -136,3 +136,16 @@ select[class*="rounded"]:focus-visible {
 .shelf-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: var(--muted);
 }
+
+/* Cold start: before JavaScript runs, the server-rendered boot screen holds
+   both a skeleton and the login screen; the boot script's data-session mark
+   picks which one shows. */
+.boot-signed-in {
+  display: none;
+}
+html[data-session] .boot-signed-in {
+  display: block;
+}
+html[data-session] .boot-signed-out {
+  display: none;
+}

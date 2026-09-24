@@ -7,7 +7,14 @@ import { openWelcome } from "@/lib/welcome-bus";
 import { NavContext } from "@/lib/nav-context";
 import { useUnreadMessages } from "@/lib/use-unread-messages";
 import type { Profile } from "@/lib/types";
+import { clearUserCaches, peekUserCache, writeUserCache } from "@/lib/boot-cache";
+
+function readCachedProfile() {
+  const entry = peekUserCache<Profile>("profile");
+  return entry ? { userId: entry.userId, profile: entry.value } : null;
+}
 import { AuthScreen } from "./AuthScreen";
+import { AppSkeleton } from "./AppSkeleton";
 import { Onboarding } from "./Onboarding";
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
@@ -31,14 +38,18 @@ export default function AppShell({
 
   // Tagged with the user it was fetched for, so a sign-out or account switch
   // reads as "not loaded yet" without resetting anything by hand.
+  // Seeded from last visit's copy, so a returning user's app draws at once;
+  // the fetch below refreshes it.
   const [loaded, setLoaded] = useState<{ userId: string; profile: Profile | null } | null>(
-    null,
+    readCachedProfile,
   );
   const profileLoaded = userId !== null && loaded?.userId === userId;
   const profile = profileLoaded ? loaded.profile : null;
   const setProfile = useCallback(
     (p: Profile) => {
-      if (userId) setLoaded({ userId, profile: p });
+      if (!userId) return;
+      setLoaded({ userId, profile: p });
+      writeUserCache("profile", userId, p);
     },
     [userId],
   );
@@ -67,7 +78,9 @@ export default function AppShell({
     let alive = true;
     fetchProfile(userId)
       .then((p) => {
-        if (alive) setLoaded({ userId, profile: p });
+        if (!alive) return;
+        setLoaded({ userId, profile: p });
+        if (p) writeUserCache("profile", userId, p);
       })
       .catch(() => {
         if (alive) setLoaded({ userId, profile: null });
@@ -77,9 +90,27 @@ export default function AppShell({
     };
   }, [userId]);
 
-  if (!ready) return null;
+  // Signing out drops the cached profile and shelves from this browser.
+  useEffect(() => {
+    if (ready && !session) clearUserCaches();
+  }, [ready, session]);
+
+  if (!ready) {
+    // Server render and the moment before the session is read: the boot
+    // script already knows which of these to show.
+    return (
+      <>
+        <div className="boot-signed-in">
+          <AppSkeleton />
+        </div>
+        <div className="boot-signed-out">
+          <AuthScreen />
+        </div>
+      </>
+    );
+  }
   if (!session) return <AuthScreen />;
-  if (!profileLoaded) return null;
+  if (!profileLoaded) return <AppSkeleton />;
   if (!profile) {
     return <Onboarding userId={session.user.id} onDone={setProfile} />;
   }
