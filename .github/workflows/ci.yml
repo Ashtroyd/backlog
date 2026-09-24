@@ -24,7 +24,11 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run build
+      # Account-backed tests reuse two fixed accounts (tests/support/accounts.ts)
+      # and skip unless the E2E_PASSWORD repo secret is set.
       - run: npx playwright test
+        env:
+          E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { ACCOUNTS, SKIP_REASON, addFirstAnime, hasAccounts, logIn, resetAccount } from "./support/accounts";
 
 /**
- * End-to-end smoke against the real Supabase project. Each run creates one
- * throwaway user (claude-ci-…@gmail.com); purge them occasionally with:
- *   delete from auth.users where email like 'claude-%@gmail.com';
+ * End-to-end smoke against the real Supabase project, using the reusable
+ * E2E account (see tests/support/accounts.ts) — nothing is signed up per run.
  */
 
 test("landing explains the app and offers login", async ({ page }) => {
@@ -14,47 +14,19 @@ test("landing explains the app and offers login", async ({ page }) => {
   await expect(page.getByLabel("Email")).toBeVisible();
 });
 
-test("signup → onboarding → add an anime → rate it", async ({ page }) => {
-  const stamp = Date.now();
-  await page.goto("/");
+test("log in → welcome → add an anime → rate it", async ({ page }) => {
+  test.skip(!hasAccounts, SKIP_REASON);
+  await resetAccount(ACCOUNTS.a);
+  await logIn(page, ACCOUNTS.a, { welcome: true });
 
-  // Sign up
-  await page.getByRole("button", { name: "Create an account" }).click();
-  await page.getByLabel("Email").fill(`claude-ci-${stamp}@gmail.com`);
-  await page.getByLabel("Password").fill("testpassword123");
-  await page.getByRole("button", { name: "Sign up" }).click();
-
-  // Onboarding
-  await page.getByLabel("Display name").fill("CI Smoke");
-  await page.getByLabel("Handle").fill(`ci${String(stamp).slice(-8)}`);
-  await page.getByRole("button", { name: "Continue" }).click();
-  // Onboarding lands on the homescreen now, not /games — "CI" is the first
-  // word of the display name set above, so this is deterministic.
-  await expect(
-    page.getByRole("heading", { name: "Up Next", level: 1 }),
-  ).toBeVisible({
-    timeout: 15_000,
-  });
-  // New accounts see the welcome sheet once.
+  // A fresh browser sees the welcome sheet once.
   await page.getByRole("dialog").getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden();
 
-  // Add an anime (Jikan needs no key, so this exercises real search)
-  await page.getByRole("link", { name: "Anime" }).click();
-  await page
-    .getByRole("button", { name: /Add (your first )?anime/ })
-    .first()
-    .click();
-  await page.getByPlaceholder("Search for an anime…").fill("frieren");
-  const firstRow = page.locator('[role="dialog"] li').first();
-  await firstRow
-    .getByRole("button", { name: /Add/ })
-    .click({ timeout: 20_000 });
-  await expect(
-    page.locator('[role="dialog"]').getByText("Added").first(),
-  ).toBeVisible({ timeout: 20_000 });
-  await page.keyboard.press("Escape");
+  // Add an anime (Jikan needs no key, so this exercises real search).
+  await addFirstAnime(page);
 
-  // Complete it with a rating
+  // Complete it with a rating.
   await page
     .getByRole("button", { name: /^Open / })
     .first()
