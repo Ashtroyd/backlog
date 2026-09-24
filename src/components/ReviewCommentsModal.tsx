@@ -44,14 +44,14 @@ export function ReviewCommentsModal({
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="font-serif text-xl font-semibold leading-snug tracking-tight text-ink">
+                <h2 className="font-display text-xl font-semibold leading-snug tracking-tight text-ink">
                   {item.title}
                 </h2>
                 <button
                   type="button"
                   onClick={onClose}
                   aria-label="Close"
-                  className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+                  className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
                 >
                   <XIcon className="h-4 w-4" />
                 </button>
@@ -66,7 +66,7 @@ export function ReviewCommentsModal({
                 </div>
               )}
               {item.review && (
-                <p className="mt-3 whitespace-pre-wrap rounded-2xl bg-paper p-3.5 text-[15px] leading-relaxed text-body">
+                <p className="mt-3 whitespace-pre-wrap rounded-2xl bg-paper p-3.5 text-subhead leading-relaxed text-body">
                   {item.review}
                 </p>
               )}

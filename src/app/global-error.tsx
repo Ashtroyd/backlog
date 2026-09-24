@@ -1,22 +1,16 @@
 "use client";
 
-import { Geist, Source_Serif_4 } from "next/font/google";
+import { Source_Serif_4 } from "next/font/google";
+import { themeScript } from "@/lib/theme-script";
 import "./globals.css";
-
-const geist = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 const serif = Source_Serif_4({
   variable: "--font-source-serif",
   subsets: ["latin"],
-  style: ["normal", "italic"],
+  weight: ["600"],
   display: "swap",
 });
 
-const themeScript = `(function(){try{var t=localStorage.getItem('backlog:theme');if(!t)t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`;
 
 /**
  * Last-resort boundary for errors the (app) segment's own error.tsx can't
@@ -35,17 +29,17 @@ export default function GlobalError({
       lang="en"
       data-theme="light"
       suppressHydrationWarning
-      className={`${geist.variable} ${serif.variable} h-full`}
+      className={`${serif.variable} h-full`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-full">
         <div className="flex min-h-full flex-col items-center justify-center px-4 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ivory font-serif text-2xl text-accent">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ivory font-display text-2xl text-accent">
             !
           </div>
-          <h1 className="mt-5 font-serif text-2xl font-semibold text-ink">
+          <h1 className="mt-5 font-display text-2xl font-semibold text-ink">
             Something went wrong
           </h1>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">

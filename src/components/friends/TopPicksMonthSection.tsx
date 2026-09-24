@@ -43,13 +43,13 @@ export function TopPicksMonthSection({
   return (
     <section>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="font-serif text-xl font-semibold text-ink">Top picks</h2>
+        <h2 className="font-display text-xl font-semibold text-ink">Top picks</h2>
         <div className="flex items-center gap-0.5 rounded-full border border-line bg-surface p-1">
           <button
             type="button"
             onClick={() => setMonth((m) => shiftMonth(m, -1))}
             aria-label="Previous month"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+            className="relative flex h-7 w-7 items-center justify-center rounded-full after:absolute after:-inset-2 text-muted transition-colors hover:bg-ivory hover:text-ink"
           >
             <ChevronLeftIcon className="h-4 w-4" />
           </button>
@@ -61,7 +61,7 @@ export function TopPicksMonthSection({
             onClick={() => setMonth((m) => shiftMonth(m, 1))}
             disabled={month >= currentMonth()}
             aria-label="Next month"
-            className="flex h-7 w-7 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted"
+            className="relative flex h-7 w-7 items-center justify-center rounded-full after:absolute after:-inset-2 text-muted transition-colors hover:bg-ivory hover:text-ink disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted"
           >
             <ChevronRightIcon className="h-4 w-4" />
           </button>
@@ -110,7 +110,7 @@ function TopPickCard({ item, onClick }: { item: BacklogItem; onClick?: () => voi
             className="object-cover"
           />
         ) : (
-          <div className="flex h-full items-center justify-center font-serif text-4xl text-line-strong">
+          <div className="flex h-full items-center justify-center font-display text-4xl text-line-strong">
             {item.title.charAt(0)}
           </div>
         )}

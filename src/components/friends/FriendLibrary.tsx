@@ -73,7 +73,7 @@ export function FriendLibrary({
               key={s}
               type="button"
               onClick={() => setActive(s)}
-              className={`relative rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+              className={`relative rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
                 isActive ? "text-paper" : "text-muted hover:bg-ivory hover:text-ink"
               }`}
             >
@@ -86,7 +86,7 @@ export function FriendLibrary({
               )}
               <span className="relative">
                 {SECTIONS[s].label}{" "}
-                <span className={isActive ? "text-paper/60" : "text-muted/60"}>
+                <span className={isActive ? "text-paper/60" : "text-muted"}>
                   {counts[s]}
                 </span>
               </span>

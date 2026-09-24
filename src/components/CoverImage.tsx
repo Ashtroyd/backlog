@@ -27,7 +27,7 @@ export function CoverImage({
 
   if (!src || failed) {
     return (
-      <div className="flex h-full w-full items-center justify-center font-serif text-xl text-line-strong">
+      <div className="flex h-full w-full items-center justify-center font-display text-xl text-line-strong">
         {title.charAt(0)}
       </div>
     );

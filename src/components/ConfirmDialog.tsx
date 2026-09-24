@@ -46,7 +46,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       <Modal open={Boolean(options)} onClose={() => settle(false)}>
         {options && (
           <div className="p-6">
-            <h2 className="font-serif text-lg font-semibold text-ink">
+            <h2 className="font-display text-lg font-semibold text-ink">
               {options.title}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-body">

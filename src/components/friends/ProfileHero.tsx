@@ -72,7 +72,7 @@ export function ProfileHero({
               type="button"
               onClick={() => avatarInput.current?.click()}
               title="Change photo"
-              className="absolute bottom-1 right-1 flex h-8 w-8 items-center justify-center rounded-full bg-ink/60 text-white backdrop-blur transition-colors hover:bg-ink/80"
+              className="absolute bottom-1 right-1 flex h-8 w-8 after:absolute after:-inset-1.5 items-center justify-center rounded-full bg-ink/60 text-white backdrop-blur transition-colors hover:bg-ink/80"
             >
               {uploading === "avatar" ? (
                 <SpinnerIcon className="h-4 w-4 animate-spin" />
@@ -84,7 +84,7 @@ export function ProfileHero({
         </div>
 
         <div className="min-w-0 flex-1 pb-1">
-          <h1 className="truncate font-serif text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
+          <h1 className="truncate font-display text-2xl font-semibold tracking-tight text-ink sm:text-3xl">
             {profile.display_name}
           </h1>
           <p className="truncate text-sm text-muted">@{profile.username}</p>
@@ -94,7 +94,7 @@ export function ProfileHero({
       </div>
 
       {profile.bio && (
-        <p className="mt-4 max-w-2xl whitespace-pre-wrap px-1 text-[15px] leading-relaxed text-body sm:px-4">
+        <p className="mt-4 max-w-2xl whitespace-pre-wrap px-1 text-subhead leading-relaxed text-body sm:px-4">
           {profile.bio}
         </p>
       )}

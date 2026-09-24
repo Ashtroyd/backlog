@@ -115,7 +115,7 @@ export function ItemCard({
             className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="flex h-full items-center justify-center font-serif text-4xl text-line-strong">
+          <div className="flex h-full items-center justify-center font-display text-4xl text-line-strong">
             {item.title.charAt(0)}
           </div>
         )}
@@ -123,7 +123,7 @@ export function ItemCard({
           const badge = releaseBadge(item);
           return badge ? (
             <span
-              className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm backdrop-blur ${badge.cls}`}
+              className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-caption2 font-semibold shadow-sm backdrop-blur ${badge.cls}`}
             >
               {badge.label}
             </span>
@@ -179,7 +179,7 @@ export function ItemCard({
           </p>
         )}
         {item.started_at && (
-          <p className="mt-0.5 truncate text-xs text-muted/80">
+          <p className="mt-0.5 truncate text-xs text-muted">
             {section.startedLabel} {formatDate(item.started_at)}
           </p>
         )}

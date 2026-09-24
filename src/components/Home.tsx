@@ -428,7 +428,7 @@ export default function Home() {
 
   return (
     <div className="pt-12 pb-4">
-      <h1 className="font-serif text-3xl font-semibold tracking-tight text-ink">
+      <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
         Welcome back, {profile.display_name.split(" ")[0]}
       </h1>
 
@@ -510,7 +510,7 @@ function DraggableSection({
       onPointerDown={(e) => controls.start(e)}
       aria-label="Drag to reorder"
       style={{ touchAction: "none" }}
-      className="-ml-1 mr-0.5 flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted/50 transition-colors hover:bg-ivory hover:text-muted active:cursor-grabbing"
+      className="-ml-1 mr-0.5 flex h-7 w-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted transition-colors hover:bg-ivory hover:text-muted active:cursor-grabbing"
     >
       <GripIcon className="h-4 w-4" />
     </button>
@@ -544,7 +544,7 @@ function HomeSection({
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center">
           {dragHandle}
-          <h2 className="font-serif text-xl font-semibold text-ink">{title}</h2>
+          <h2 className="font-display text-xl font-semibold text-ink">{title}</h2>
         </div>
         {action}
       </div>

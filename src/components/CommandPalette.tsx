@@ -153,7 +153,7 @@ export function CommandPalette() {
           className="w-full bg-transparent text-lg text-ink placeholder:text-muted/70"
         />
         {searching && <SpinnerIcon className="h-4 w-4 shrink-0 animate-spin text-muted" />}
-        <kbd className="hidden shrink-0 rounded-md border border-line px-1.5 py-0.5 text-[11px] text-muted sm:block">
+        <kbd className="hidden shrink-0 rounded-md border border-line px-1.5 py-0.5 text-caption2 text-muted sm:block">
           Esc
         </kbd>
       </div>
@@ -218,7 +218,7 @@ export function CommandPalette() {
                     <CoverImage src={hit.result.coverUrl} title={hit.result.title} sizes="44px" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-medium text-ink">{hit.result.title}</p>
+                    <p className="truncate text-subhead font-medium text-ink">{hit.result.title}</p>
                     <p className="flex items-center gap-1 truncate text-xs text-muted">
                       <Icon className="h-3 w-3" />
                       {SECTIONS[hit.slug].label}
@@ -229,7 +229,7 @@ export function CommandPalette() {
                     type="button"
                     onClick={() => handleAdd(hit)}
                     disabled={isAdded || adding}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
                       isAdded
                         ? "bg-sage-soft text-sage"
                         : "border border-line text-ink hover:border-line-strong hover:bg-ivory"

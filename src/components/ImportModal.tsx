@@ -417,7 +417,7 @@ export function ImportModal({
     >
       <div className="p-6 sm:p-7">
         <div className="flex items-start justify-between gap-3">
-          <h2 className="font-serif text-xl font-semibold text-ink">
+          <h2 className="font-display text-xl font-semibold text-ink">
             Import from {sourceLabel}
           </h2>
           <button
@@ -425,7 +425,7 @@ export function ImportModal({
             onClick={onClose}
             disabled={importing}
             aria-label="Close"
-            className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+            className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
           >
             <XIcon className="h-4 w-4" />
           </button>
@@ -442,7 +442,7 @@ export function ImportModal({
                   onKeyDown={(e) => e.key === "Enter" && fetchSteam()}
                   placeholder="Steam ID, vanity name, or profile URL"
                   aria-label="Steam ID, vanity name, or profile URL"
-                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                 />
                 <button
                   type="button"
@@ -468,7 +468,7 @@ export function ImportModal({
                   onKeyDown={(e) => e.key === "Enter" && fetchMal()}
                   placeholder="MyAnimeList username"
                   aria-label="MyAnimeList username"
-                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                 />
                 <button
                   type="button"
@@ -630,7 +630,7 @@ export function ImportModal({
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14px] font-medium text-ink">
+                      <p className="truncate text-sm font-medium text-ink">
                         {r.title}
                         {r.year ? ` (${r.year})` : ""}
                       </p>

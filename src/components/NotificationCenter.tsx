@@ -175,13 +175,13 @@ export function NotificationCenter() {
         title="Notifications"
         data-tour="notifications"
         onClick={openPanel}
-        className={`relative flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink ${
+        className={`relative flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink ${
           open ? "bg-ivory text-ink" : "text-muted"
         }`}
       >
         <BellIcon className="h-[18px] w-[18px]" />
         {badge > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-caption2 font-semibold text-white">
             {badge > 9 ? "9+" : badge}
           </span>
         )}
@@ -260,7 +260,7 @@ export function NotificationCenter() {
                             title="Accept"
                             disabled={busyId === c.friendshipId}
                             onClick={() => handleAccept(c)}
-                            className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+                            className="relative flex h-8 w-8 items-center justify-center rounded-full after:absolute after:-inset-1.5 bg-accent text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
                           >
                             <CheckIcon className="h-4 w-4" />
                           </button>
@@ -269,7 +269,7 @@ export function NotificationCenter() {
                             title="Decline"
                             disabled={busyId === c.friendshipId}
                             onClick={() => handleDecline(c)}
-                            className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink disabled:opacity-60"
+                            className="relative flex h-8 w-8 items-center justify-center rounded-full after:absolute after:-inset-1.5 text-muted transition-colors hover:bg-ivory hover:text-ink disabled:opacity-60"
                           >
                             <XIcon className="h-4 w-4" />
                           </button>
@@ -396,7 +396,7 @@ function TabButton({
     >
       {label}
       {count > 0 && (
-        <span className="ml-1.5 rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">
+        <span className="ml-1.5 rounded-full bg-accent px-1.5 py-0.5 text-caption2 font-semibold text-white">
           {count}
         </span>
       )}

@@ -182,7 +182,7 @@ export function AddModal({
                   <CoverImage src={r.coverUrl} title={r.title} sizes="44px" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-medium text-ink">
+                  <p className="truncate text-subhead font-medium text-ink">
                     {r.title}
                   </p>
                   <p className="truncate text-xs text-muted">
@@ -199,7 +199,7 @@ export function AddModal({
                   type="button"
                   onClick={() => handleAdd(r)}
                   disabled={inLibrary || adding}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
                     inLibrary
                       ? "bg-sage-soft text-sage"
                       : "border border-line text-ink hover:border-line-strong hover:bg-ivory"

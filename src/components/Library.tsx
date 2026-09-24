@@ -201,7 +201,7 @@ export default function Library({
     <>
       <header className="flex flex-wrap items-end justify-between gap-4 pt-12">
         <div>
-          <h1 className="font-serif text-4xl font-semibold tracking-tight text-ink">
+          <h1 className="font-display text-4xl font-semibold tracking-tight text-ink">
             {section.label}
           </h1>
           <p className="mt-1.5 text-sm text-muted">
@@ -274,7 +274,7 @@ export default function Library({
               onClick={() => setFilter(f)}
               aria-pressed={active}
               disabled={bulkBusy}
-              className={`relative rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+              className={`relative rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
                 active
                   ? "text-paper"
                   : "text-muted hover:bg-ivory hover:text-ink"
@@ -289,7 +289,7 @@ export default function Library({
               )}
               <span className="relative">
                 {f === "all" ? "All" : statusLabel(f, section)}{" "}
-                <span className={active ? "text-paper/60" : "text-muted/60"}>
+                <span className={active ? "text-paper/60" : "text-muted"}>
                   {counts[f]}
                 </span>
               </span>
@@ -440,10 +440,10 @@ export default function Library({
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           className="flex flex-col items-center py-24 text-center"
         >
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ivory font-serif text-2xl text-accent">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ivory font-display text-2xl text-accent">
             ✦
           </div>
-          <h2 className="mt-5 font-serif text-xl font-semibold text-ink">
+          <h2 className="mt-5 font-display text-xl font-semibold text-ink">
             {items.length === 0 ? section.emptyTitle : "Nothing here"}
           </h2>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">

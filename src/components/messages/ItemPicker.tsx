@@ -79,7 +79,7 @@ export function ItemPicker({
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-medium text-ink">
+                    <p className="truncate text-subhead font-medium text-ink">
                       {item.title}
                     </p>
                     <p className="truncate text-xs text-muted">

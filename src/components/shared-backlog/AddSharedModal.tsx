@@ -138,7 +138,7 @@ export function AddSharedModal({
                     setResults([]);
                     setNotice(null);
                   }}
-                  className={`rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                  className={`rounded-full px-3 py-1.5 text-footnote font-medium transition-colors ${
                     active ? "bg-ivory text-ink" : "text-muted hover:text-ink"
                   }`}
                 >
@@ -183,7 +183,7 @@ export function AddSharedModal({
                     <CoverImage src={r.coverUrl} title={r.title} sizes="44px" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-medium text-ink">{r.title}</p>
+                    <p className="truncate text-subhead font-medium text-ink">{r.title}</p>
                     <p className="truncate text-xs text-muted">
                       {[r.year, r.genres.join(", ")].filter(Boolean).join(" · ")}
                     </p>
@@ -191,7 +191,7 @@ export function AddSharedModal({
                   <button
                     type="button"
                     onClick={() => choose(r)}
-                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-[13px] font-medium text-ink transition-colors hover:border-line-strong hover:bg-ivory"
+                    className="flex shrink-0 items-center gap-1.5 rounded-full border border-line px-3.5 py-1.5 text-footnote font-medium text-ink transition-colors hover:border-line-strong hover:bg-ivory"
                   >
                     <PlusIcon className="h-3.5 w-3.5" />
                     Pick
@@ -217,7 +217,7 @@ export function AddSharedModal({
               <CoverImage src={picked.coverUrl} title={picked.title} sizes="44px" />
             </div>
             <div className="min-w-0">
-              <h2 className="truncate font-serif text-lg font-semibold text-ink">
+              <h2 className="truncate font-display text-lg font-semibold text-ink">
                 {picked.title}
               </h2>
               <p className="text-sm text-muted">Plan this with a friend</p>
@@ -250,7 +250,7 @@ export function AddSharedModal({
                         type="button"
                         onClick={() => share(f)}
                         disabled={shared || busyId === f.profile.id}
-                        className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                        className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
                           shared
                             ? "bg-sage-soft text-sage"
                             : "bg-accent text-white hover:bg-accent-hover"

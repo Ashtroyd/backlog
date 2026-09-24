@@ -451,14 +451,14 @@ export function DetailModal({
 
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-serif text-2xl font-semibold leading-snug tracking-tight text-ink">
+                  <h2 className="font-display text-2xl font-semibold leading-snug tracking-tight text-ink">
                     {current.title}
                   </h2>
                   <button
                     type="button"
                     onClick={requestClose}
                     aria-label="Close"
-                    className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+                    className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
                   >
                     <XIcon className="h-4 w-4" />
                   </button>
@@ -510,7 +510,7 @@ export function DetailModal({
                           key={s}
                           type="button"
                           onClick={() => chooseStatus(s)}
-                          className={`relative rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                          className={`relative rounded-full px-3 py-1.5 text-footnote font-medium transition-colors ${
                             active ? "text-ink" : "text-muted hover:text-ink"
                           }`}
                         >
@@ -557,7 +557,7 @@ export function DetailModal({
                                 max={todayISODate()}
                                 onChange={(e) => setStartedAt(e.target.value)}
                                 aria-label={section.startedLabel}
-                                className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                                className="rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink transition-colors focus:border-line-strong"
                               />
                               {startedAt && (
                                 <button
@@ -571,7 +571,7 @@ export function DetailModal({
                             </div>
                           }
                           display={
-                            <p className="text-[15px] text-ink">
+                            <p className="text-subhead text-ink">
                               {startedAt ? formatDate(startedAt) : "Not set"}
                             </p>
                           }
@@ -647,12 +647,12 @@ export function DetailModal({
                                   onChange={(e) => setHours(e.target.value)}
                                   placeholder="0"
                                   aria-label="Hours played"
-                                  className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                                  className="w-32 rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink transition-colors focus:border-line-strong"
                                 />
                               )
                             }
                             display={
-                              <p className="text-[15px] text-ink">
+                              <p className="text-subhead text-ink">
                                 {hours ? `${hours} hrs` : "Not tracked"}
                               </p>
                             }
@@ -692,7 +692,7 @@ export function DetailModal({
                                 }
                                 aria-label="Current thoughts"
                                 autoFocus
-                                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                               />
                               <p className="mt-1.5 text-xs text-muted">
                                 Visible to friends, like a review — unless you
@@ -701,7 +701,7 @@ export function DetailModal({
                             </>
                           }
                           display={
-                            <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
+                            <p className="whitespace-pre-wrap text-subhead italic leading-relaxed text-body">
                               {currentThoughts || "Nothing yet"}
                             </p>
                           }
@@ -750,11 +750,11 @@ export function DetailModal({
                                 placeholder="What did you think?"
                                 aria-label="Your review"
                                 autoFocus={editingReview}
-                                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                                className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                               />
                             }
                             display={
-                              <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-body">
+                              <p className="whitespace-pre-wrap text-subhead leading-relaxed text-body">
                                 {review || "No review yet"}
                               </p>
                             }
@@ -779,11 +779,11 @@ export function DetailModal({
                         placeholder="Only you can see this — jot down anything worth remembering."
                         aria-label="Private notes"
                         autoFocus={editingNotes}
-                        className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                        className="w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                       />
                     }
                     display={
-                      <p className="whitespace-pre-wrap text-[15px] italic leading-relaxed text-body">
+                      <p className="whitespace-pre-wrap text-subhead italic leading-relaxed text-body">
                         {notes || "No notes yet"}
                       </p>
                     }

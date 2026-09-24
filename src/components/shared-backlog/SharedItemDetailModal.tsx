@@ -84,7 +84,7 @@ export function SharedItemDetailModal({
                   <p className="text-xs font-medium uppercase tracking-wide text-accent">
                     {SECTION_BY_MEDIA[current.item.media_type].label} · shared
                   </p>
-                  <h2 className="mt-1 font-serif text-2xl font-semibold leading-snug tracking-tight text-ink">
+                  <h2 className="mt-1 font-display text-2xl font-semibold leading-snug tracking-tight text-ink">
                     {current.item.title}
                   </h2>
                 </div>
@@ -92,7 +92,7 @@ export function SharedItemDetailModal({
                   type="button"
                   onClick={onClose}
                   aria-label="Close"
-                  className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+                  className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
                 >
                   <XIcon className="h-4 w-4" />
                 </button>
@@ -139,7 +139,7 @@ export function SharedItemDetailModal({
                         type="button"
                         disabled={busy}
                         onClick={() => setStatusAndSave(s)}
-                        className={`relative rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                        className={`relative rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
                           active ? "text-ink" : "text-muted hover:text-ink"
                         }`}
                       >

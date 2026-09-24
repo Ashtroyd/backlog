@@ -30,12 +30,12 @@ import {
 } from "./icons";
 
 const iconButton =
-  "flex h-9 w-9 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink";
+  "flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-ivory hover:text-ink";
 
 function Badge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
+    <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-caption2 font-semibold text-white">
       {count > 9 ? "9+" : count}
     </span>
   );
@@ -153,7 +153,7 @@ export default function Nav() {
       <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2.5 sm:h-16 sm:flex-nowrap sm:gap-x-4 sm:gap-y-0 sm:px-6 sm:py-0">
         <Link
           href="/"
-          className="order-1 shrink-0 font-serif text-xl font-semibold tracking-tight text-ink"
+          className="order-1 shrink-0 font-brand text-xl font-semibold tracking-tight text-ink"
         >
           Backlog<span className="text-accent">.</span>
         </Link>
@@ -356,7 +356,7 @@ export default function Nav() {
                       <ChatIcon className="h-4 w-4 text-muted" />
                       Messages
                       {unreadMsgs > 0 && (
-                        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white">
+                        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1.5 text-caption2 font-semibold text-white">
                           {unreadMsgs > 9 ? "9+" : unreadMsgs}
                         </span>
                       )}
@@ -364,7 +364,7 @@ export default function Nav() {
 
                     <div className="my-1 h-px bg-line" />
 
-                    <ThemeToggle variant="row" onToggled={() => setMobileOpen(false)} />
+                    <ThemeToggle variant="row" />
                     <button type="button" onClick={handleTakeTour} className={menuItem}>
                       <CompassIcon className="h-4 w-4 text-muted" />
                       Take a tour

@@ -34,7 +34,7 @@ export default function MessagesList() {
 
   return (
     <div className="pt-12">
-      <h1 className="font-serif text-3xl font-semibold tracking-tight text-ink">
+      <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">
         Messages
       </h1>
 
@@ -78,7 +78,7 @@ export default function MessagesList() {
                       {preview(c, myId!)}
                     </p>
                     {c.unread > 0 && (
-                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-semibold text-white">
+                      <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-caption2 font-semibold text-white">
                         {c.unread}
                       </span>
                     )}

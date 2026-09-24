@@ -67,14 +67,14 @@ export function TopPicksPicker({
     <Modal open={open} onClose={onClose}>
       <div className="flex items-start justify-between gap-3 border-b border-line px-5 py-4">
         <div>
-          <h2 className="font-serif text-lg font-semibold text-ink">This month&apos;s top picks</h2>
+          <h2 className="font-display text-lg font-semibold text-ink">This month&apos;s top picks</h2>
           <p className="mt-0.5 text-sm text-muted">Choose up to 5 — any mix of games, movies, series, anime.</p>
         </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+          className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
         >
           <XIcon className="h-4 w-4" />
         </button>
@@ -99,7 +99,7 @@ export function TopPicksPicker({
           ) : (
             <div
               key={i}
-              className="flex aspect-[2/3] w-14 shrink-0 items-center justify-center rounded-lg border border-dashed border-line text-xs text-muted/70"
+              className="flex aspect-[2/3] w-14 shrink-0 items-center justify-center rounded-lg border border-dashed border-line text-xs text-muted"
             >
               {i + 1}
             </div>
@@ -135,7 +135,7 @@ export function TopPicksPicker({
                     <CoverImage src={item.cover_url} title={item.title} sizes="40px" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-medium text-ink">{item.title}</p>
+                    <p className="truncate text-subhead font-medium text-ink">{item.title}</p>
                     <p className="truncate text-xs text-muted">
                       {SECTION_BY_MEDIA[item.media_type].label}
                       {item.release_year ? ` · ${item.release_year}` : ""}
@@ -145,7 +145,7 @@ export function TopPicksPicker({
                     type="button"
                     onClick={() => toggle(item)}
                     disabled={full}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-40 ${
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors disabled:opacity-40 ${
                       chosen
                         ? "bg-sage-soft text-sage"
                         : "border border-line text-ink hover:border-line-strong hover:bg-ivory"

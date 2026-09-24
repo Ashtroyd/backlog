@@ -87,14 +87,14 @@ export function AuthScreen() {
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           className="text-center lg:text-left"
         >
-          <p className="font-serif text-2xl font-semibold tracking-tight text-ink">
+          <p className="font-brand text-2xl font-semibold tracking-tight text-ink">
             Backlog<span className="text-accent">.</span>
           </p>
-          <h1 className="mt-4 font-serif text-4xl font-semibold leading-tight tracking-tight text-ink sm:text-5xl">
+          <h1 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-ink sm:text-5xl">
             Every game, film and show you{" "}
             <span className="text-accent">mean to get to.</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-muted lg:mx-0">
+          <p className="mx-auto mt-4 max-w-md text-subhead leading-relaxed text-muted lg:mx-0">
             One clean place for your backlog across Games, Movies, Series and
             Anime — synced to your account, shared with your friends.
           </p>
@@ -124,7 +124,7 @@ export function AuthScreen() {
           transition={{ duration: 0.4, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           className="w-full max-w-sm justify-self-center rounded-2xl border border-line bg-surface p-8 shadow-[0_2px_12px_rgba(38,37,33,0.05)] lg:justify-self-end"
         >
-          <h2 className="font-serif text-2xl font-semibold tracking-tight text-ink">
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-ink">
             {mode === "login" ? "Welcome back" : "Create your account"}
           </h2>
           <p className="mt-1.5 text-sm text-muted">
@@ -153,7 +153,7 @@ export function AuthScreen() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
                   placeholder="you@example.com"
                 />
               </div>
@@ -174,7 +174,7 @@ export function AuthScreen() {
                   minLength={mode === "signup" ? 8 : undefined}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink transition-colors focus:border-line-strong"
+                  className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink transition-colors focus:border-line-strong"
                   placeholder={
                     mode === "signup" ? "At least 8 characters" : "••••••••"
                   }
@@ -190,7 +190,7 @@ export function AuthScreen() {
               <button
                 type="submit"
                 disabled={pending}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-[15px] font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-subhead font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
               >
                 {pending && <SpinnerIcon className="h-4 w-4 animate-spin" />}
                 {mode === "login" ? "Log in" : "Sign up"}

@@ -138,7 +138,7 @@ export function BottomNav() {
               e.preventDefault();
               if (href !== pathname) router.push(href);
             }}
-            className={`relative z-10 flex flex-1 flex-col items-center justify-center gap-0.5 rounded-full py-2 text-[10px] font-medium transition-colors ${
+            className={`relative z-10 flex flex-1 flex-col items-center justify-center gap-0.5 rounded-full py-2 text-caption2 font-medium transition-colors ${
               (dragHref ?? (isActive(href) ? href : null)) === href
                 ? "text-accent"
                 : "text-muted"

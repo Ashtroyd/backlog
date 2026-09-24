@@ -48,12 +48,12 @@ export function SharedItemCard({
           title={item.title}
           sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 200px"
         />
-        <span className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-full bg-paper/90 py-0.5 pl-0.5 pr-2 text-[10px] font-semibold text-ink shadow-sm backdrop-blur">
+        <span className="absolute left-2 top-2 flex max-w-[calc(100%-1rem)] items-center gap-1.5 rounded-full bg-paper/90 py-0.5 pl-0.5 pr-2 text-caption2 font-semibold text-ink shadow-sm backdrop-blur">
           <Avatar profile={friend} size={16} />
           <span className="truncate">{friend.display_name}</span>
         </span>
         {item.status === "completed" && (
-          <span className="absolute right-2 top-2 rounded-full bg-sage px-2 py-0.5 text-[10px] font-semibold text-white shadow-sm">
+          <span className="absolute right-2 top-2 rounded-full bg-sage px-2 py-0.5 text-caption2 font-semibold text-white shadow-sm">
             {doneLabel}
           </span>
         )}

@@ -40,14 +40,14 @@ export function FriendItemModal({
 
             <div className="min-w-0 flex-1">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="font-serif text-2xl font-semibold leading-snug tracking-tight text-ink">
+                <h2 className="font-display text-2xl font-semibold leading-snug tracking-tight text-ink">
                   {item.title}
                 </h2>
                 <button
                   type="button"
                   onClick={onClose}
                   aria-label="Close"
-                  className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+                  className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
                 >
                   <XIcon className="h-4 w-4" />
                 </button>
@@ -93,7 +93,7 @@ export function FriendItemModal({
                 )}
 
                 {item.review ? (
-                  <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-body">
+                  <p className="mt-3 whitespace-pre-wrap text-subhead leading-relaxed text-body">
                     {item.review}
                   </p>
                 ) : item.current_thoughts ? (
@@ -101,7 +101,7 @@ export function FriendItemModal({
                     <p className="mt-3 text-xs font-medium uppercase tracking-wide text-muted">
                       Current thoughts
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap text-[15px] leading-relaxed text-body">
+                    <p className="mt-1 whitespace-pre-wrap text-subhead leading-relaxed text-body">
                       {item.current_thoughts}
                     </p>
                   </>

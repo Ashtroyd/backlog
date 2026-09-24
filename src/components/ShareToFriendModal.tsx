@@ -54,7 +54,7 @@ export function ShareToFriendModal({
     <Modal open={Boolean(item)} onClose={onClose}>
       {current && (
         <div className="p-5">
-          <h2 className="font-serif text-lg font-semibold text-ink">
+          <h2 className="font-display text-lg font-semibold text-ink">
             Recommend <span className="text-accent">{current.title}</span>
           </h2>
           <p className="mt-0.5 text-sm text-muted">Send it to a friend as a message.</p>
@@ -65,7 +65,7 @@ export function ShareToFriendModal({
             rows={2}
             placeholder="Add a note (optional)…"
             aria-label="Add a note (optional)"
-            className="mt-4 w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+            className="mt-4 w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
           />
 
           <div className="mt-4 max-h-[45vh] overflow-y-auto">
@@ -94,7 +94,7 @@ export function ShareToFriendModal({
                         type="button"
                         onClick={() => share(f)}
                         disabled={sent || busyId === f.profile.id}
-                        className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                        className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
                           sent
                             ? "bg-sage-soft text-sage"
                             : "bg-accent text-white hover:bg-accent-hover"

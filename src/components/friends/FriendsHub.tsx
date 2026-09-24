@@ -68,7 +68,7 @@ export default function FriendsHub() {
       <header className="flex items-center gap-4">
         <Avatar profile={profile} size={56} />
         <div className="min-w-0">
-          <h1 className="truncate font-serif text-3xl font-semibold tracking-tight text-ink">
+          <h1 className="truncate font-display text-3xl font-semibold tracking-tight text-ink">
             {profile.display_name}
           </h1>
           <p className="truncate text-sm text-muted">@{profile.username}</p>
@@ -157,7 +157,7 @@ function Section({
 }) {
   return (
     <section className="mt-10">
-      <h2 className="mb-4 font-serif text-xl font-semibold text-ink">{title}</h2>
+      <h2 className="mb-4 font-display text-xl font-semibold text-ink">{title}</h2>
       {children}
     </section>
   );
@@ -228,7 +228,7 @@ function AddFriend({
           aria-label="Add a friend by their handle"
           autoCapitalize="none"
           autoCorrect="off"
-          className="w-full bg-transparent text-[15px] text-ink placeholder:text-muted/70"
+          className="w-full bg-transparent text-subhead text-ink placeholder:text-muted/70"
         />
         {searching && <SpinnerIcon className="h-4 w-4 shrink-0 animate-spin text-muted" />}
       </div>
@@ -265,7 +265,7 @@ function AddFriend({
                     type="button"
                     onClick={() => add(p)}
                     disabled={already}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
                       already
                         ? "bg-sage-soft text-sage"
                         : "border border-line text-ink hover:border-line-strong hover:bg-ivory"
@@ -329,7 +329,7 @@ function RequestRow({
           type="button"
           onClick={accept}
           disabled={busy}
-          className="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-[13px] font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+          className="flex items-center gap-1.5 rounded-full bg-accent px-3.5 py-1.5 text-footnote font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
         >
           <CheckIcon className="h-3.5 w-3.5" /> Accept
         </button>
@@ -339,7 +339,7 @@ function RequestRow({
         onClick={remove}
         disabled={busy}
         title={incoming ? "Decline" : "Cancel"}
-        className="flex h-8 w-8 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink disabled:opacity-60"
+        className="relative flex h-8 w-8 items-center justify-center rounded-full after:absolute after:-inset-1.5 text-muted transition-colors hover:bg-ivory hover:text-ink disabled:opacity-60"
       >
         <XIcon className="h-4 w-4" />
       </button>
@@ -401,7 +401,7 @@ function RecommendationCard({
             className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
         ) : (
-          <div className="flex h-full items-center justify-center font-serif text-4xl text-line-strong">
+          <div className="flex h-full items-center justify-center font-display text-4xl text-line-strong">
             {item.title.charAt(0)}
           </div>
         )}

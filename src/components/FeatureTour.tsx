@@ -160,7 +160,7 @@ export function FeatureTour() {
           className="pointer-events-auto z-[101] rounded-2xl border border-line bg-surface p-4 shadow-[0_16px_40px_rgba(38,37,33,0.24)] focus:outline-none"
         >
           <div className="flex items-start justify-between gap-2">
-            <p className="font-serif text-base font-semibold text-ink">{step.title}</p>
+            <p className="font-display text-base font-semibold text-ink">{step.title}</p>
             <button
               type="button"
               onClick={finish}

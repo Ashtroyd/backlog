@@ -57,14 +57,14 @@ export function Onboarding({
         <div className="flex items-center gap-3">
           <Avatar profile={preview} size={48} />
           <div className="min-w-0">
-            <p className="truncate font-serif text-lg font-semibold text-ink">
+            <p className="truncate font-display text-lg font-semibold text-ink">
               {preview.display_name}
             </p>
             <p className="truncate text-sm text-muted">@{preview.username}</p>
           </div>
         </div>
 
-        <h1 className="mt-6 font-serif text-2xl font-semibold tracking-tight text-ink">
+        <h1 className="mt-6 font-display text-2xl font-semibold tracking-tight text-ink">
           Set up your profile
         </h1>
         <p className="mt-1.5 text-sm text-muted">
@@ -82,7 +82,7 @@ export function Onboarding({
               onChange={(e) => setDisplayName(e.target.value)}
               maxLength={40}
               required
-              className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+              className="w-full rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
               placeholder="Your name"
             />
           </div>
@@ -91,7 +91,7 @@ export function Onboarding({
               Handle
             </label>
             <div className="flex items-center rounded-xl border border-line bg-paper pl-3.5 transition-colors focus-within:border-line-strong">
-              <span className="text-[15px] text-muted">@</span>
+              <span className="text-subhead text-muted">@</span>
               <input
                 id="username"
                 value={username}
@@ -99,7 +99,7 @@ export function Onboarding({
                 required
                 autoCapitalize="none"
                 autoCorrect="off"
-                className="w-full bg-transparent px-1 py-2.5 text-[15px] text-ink placeholder:text-muted/70 focus:outline-none"
+                className="w-full bg-transparent px-1 py-2.5 text-subhead text-ink placeholder:text-muted/70 focus:outline-none"
                 placeholder="handle"
               />
             </div>
@@ -117,7 +117,7 @@ export function Onboarding({
           <button
             type="submit"
             disabled={pending}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-[15px] font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-subhead font-medium text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
           >
             {pending && <SpinnerIcon className="h-4 w-4 animate-spin" />}
             Continue

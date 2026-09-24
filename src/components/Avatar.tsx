@@ -1,17 +1,17 @@
 import type { Profile } from "@/lib/types";
 
 /**
- * Initial-based avatar with a deterministic warm tint derived from the handle,
+ * Initial-based avatar with a deterministic system-colour tint derived from the handle,
  * so each person keeps a stable colour without needing an uploaded image.
  */
 const TINTS = [
-  "#c96442", // terracotta
-  "#66805c", // sage
-  "#b08544", // ochre
-  "#7a6aa8", // muted violet
-  "#4f7d8c", // teal
-  "#a85454", // clay
-  "#5f8a6a", // green
+  "#c94a17", // orange
+  "#248a3d", // green
+  "#a05a00", // brown
+  "#5856d6", // indigo
+  "#0e7c86", // teal
+  "#c9302c", // red
+  "#1f7a8c", // cyan
 ];
 
 function tintFor(seed: string): string {
@@ -50,7 +50,7 @@ export function Avatar({
   return (
     <span
       aria-hidden
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-serif font-semibold text-white select-none"
+      className="inline-flex shrink-0 items-center justify-center rounded-full font-display font-semibold text-white select-none"
       style={{
         width: size,
         height: size,

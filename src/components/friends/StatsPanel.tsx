@@ -36,7 +36,7 @@ export function StatsPanel({ items }: { items: BacklogItem[] }) {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {tiles.map((t) => (
           <div key={t.label}>
-            <p className="font-serif text-2xl font-semibold text-ink">{t.value}</p>
+            <p className="font-display text-2xl font-semibold text-ink">{t.value}</p>
             <p className="text-xs text-muted">{t.label}</p>
           </div>
         ))}
@@ -52,7 +52,7 @@ export function StatsPanel({ items }: { items: BacklogItem[] }) {
             </>
           ) : (
             <>
-              <p className="font-serif text-2xl font-semibold text-muted">–</p>
+              <p className="font-display text-2xl font-semibold text-muted">–</p>
               <p className="text-xs text-muted">Avg rating</p>
             </>
           )}
@@ -89,7 +89,7 @@ export function StatsPanel({ items }: { items: BacklogItem[] }) {
                   className="w-8 rounded-t bg-accent/70"
                   style={{ height: `${8 + (n / maxYear) * 48}px` }}
                 />
-                <span className="text-[10px] text-muted">{year}</span>
+                <span className="text-caption2 text-muted">{year}</span>
               </div>
             ))}
           </div>

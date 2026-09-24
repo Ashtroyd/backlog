@@ -196,7 +196,7 @@ export function ImageCropper({
   return (
     <Modal open onClose={onCancel}>
       <div className="p-5">
-        <h2 className="font-serif text-lg font-semibold text-ink">
+        <h2 className="font-display text-lg font-semibold text-ink">
           Frame your {label}
         </h2>
         <p className="mt-0.5 text-sm text-muted">

@@ -2,40 +2,43 @@
 
 :root {
   color-scheme: light;
-  /* Warm, Claude-inspired palette (light) */
-  --paper: #faf9f5;
-  --ivory: #f0eee6;
+  /* Apple-style semantic palette (light). Token names are by role:
+     paper = systemBackground, surface = raised panels, ivory = fill,
+     ink = label, body = body copy, muted = secondaryLabel,
+     line = separator, accent = tint. */
+  --paper: #ffffff;
+  --ivory: #f2f2f7;
   --surface: #ffffff;
-  --ink: #262521;
-  --body: #403d36;
-  --muted: #8a8578;
-  --line: #e8e5db;
-  --line-strong: #d8d4c7;
-  --accent: #c96442;
-  --accent-hover: #ae5234;
-  --accent-soft: #f6e9e2;
-  --star: #cf8a3b;
-  --sage: #66805c;
-  --sage-soft: #e9eee3;
+  --ink: #1d1d1f;
+  --body: #3a3a3c;
+  --muted: #6e6e73;
+  --line: #e5e5ea;
+  --line-strong: #d1d1d6;
+  --accent: #c94a17;
+  --accent-hover: #b0400f;
+  --accent-soft: #fdebe2;
+  --star: #ff9500;
+  --sage: #1f7a35;
+  --sage-soft: #e3f5e8;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  /* Warm charcoal dark palette */
-  --paper: #1b1a18;
-  --ivory: #2a2824;
-  --surface: #242220;
-  --ink: #f4f2ec;
-  --body: #cec9bf;
-  --muted: #948e82;
-  --line: #34322d;
-  --line-strong: #46423a;
-  --accent: #d5795a;
-  --accent-hover: #e58d6c;
-  --accent-soft: #3a2a22;
-  --star: #dc9e52;
-  --sage: #8fa883;
-  --sage-soft: #2b3427;
+  /* True black with elevated greys, so cover art carries the colour. */
+  --paper: #000000;
+  --ivory: #2c2c2e;
+  --surface: #1c1c1e;
+  --ink: #f5f5f7;
+  --body: #e5e5ea;
+  --muted: #98989d;
+  --line: #2c2c2e;
+  --line-strong: #48484a;
+  --accent: #e5602a;
+  --accent-hover: #f07443;
+  --accent-soft: #3a1e10;
+  --star: #ff9f0a;
+  --sage: #30d158;
+  --sage-soft: #0f2e18;
 }
 
 @theme inline {
@@ -53,18 +56,31 @@
   --color-star: var(--star);
   --color-sage: var(--sage);
   --color-sage-soft: var(--sage-soft);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui,
+    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  /* Headings: SF Pro Display on Apple devices, system UI elsewhere. */
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  /* The serif survives only in the "Backlog." wordmark. */
+  --font-brand: var(--font-source-serif), Georgia, "Times New Roman", serif;
+}
+
+/* Apple text styles, in rem so they follow the browser's text size. */
+@theme {
+  --text-caption2: 0.6875rem;
+  --text-caption2--line-height: 1.2;
+  --text-footnote: 0.8125rem;
+  --text-footnote--line-height: 1.35;
+  --text-subhead: 0.9375rem;
+  --text-subhead--line-height: 1.4;
 }
 
 body {
   background: var(--paper);
   color: var(--body);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease;
 }
 
 ::selection {

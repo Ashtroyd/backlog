@@ -119,7 +119,7 @@ export function YearInReviewModal({
       <div className="max-h-[85vh] overflow-y-auto p-6 sm:p-7">
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="font-serif text-2xl font-semibold text-ink">Your year in review</h2>
+            <h2 className="font-display text-2xl font-semibold text-ink">Your year in review</h2>
             {years.length > 1 && (
               <select
                 value={year}
@@ -139,7 +139,7 @@ export function YearInReviewModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+            className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
           >
             <XIcon className="h-4 w-4" />
           </button>
@@ -152,7 +152,7 @@ export function YearInReviewModal({
         ) : (
           <div className="mt-6 space-y-5">
             <motion.div {...fadeUp(0)} className="rounded-2xl border border-line bg-surface p-6 text-center">
-              <p className="font-serif text-5xl font-semibold tracking-tight text-ink">
+              <p className="font-display text-5xl font-semibold tracking-tight text-ink">
                 {stats.completed.length}
               </p>
               <p className="mt-1.5 text-sm text-muted">
@@ -174,7 +174,7 @@ export function YearInReviewModal({
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {stats.totalHours > 0 && (
                 <motion.div {...fadeUp(0.05)} className="rounded-2xl border border-line bg-surface p-4">
-                  <p className="font-serif text-2xl font-semibold text-ink">
+                  <p className="font-display text-2xl font-semibold text-ink">
                     {Math.round(stats.totalHours)}
                   </p>
                   <p className="text-xs text-muted">hours played</p>
@@ -182,7 +182,7 @@ export function YearInReviewModal({
               )}
               {stats.totalEpisodes > 0 && (
                 <motion.div {...fadeUp(0.1)} className="rounded-2xl border border-line bg-surface p-4">
-                  <p className="font-serif text-2xl font-semibold text-ink">{stats.totalEpisodes}</p>
+                  <p className="font-display text-2xl font-semibold text-ink">{stats.totalEpisodes}</p>
                   <p className="text-xs text-muted">episodes watched</p>
                 </motion.div>
               )}
@@ -196,14 +196,14 @@ export function YearInReviewModal({
                   </>
                 ) : (
                   <>
-                    <p className="font-serif text-2xl font-semibold text-muted">–</p>
+                    <p className="font-display text-2xl font-semibold text-muted">–</p>
                     <p className="text-xs text-muted">avg rating</p>
                   </>
                 )}
               </motion.div>
               {stats.busiestMonthIdx != null && (
                 <motion.div {...fadeUp(0.2)} className="rounded-2xl border border-line bg-surface p-4">
-                  <p className="font-serif text-2xl font-semibold text-ink">
+                  <p className="font-display text-2xl font-semibold text-ink">
                     {MONTH_NAMES[stats.busiestMonthIdx]}
                   </p>
                   <p className="text-xs text-muted">
@@ -233,7 +233,7 @@ export function YearInReviewModal({
                   <p className="text-xs font-medium uppercase tracking-wide text-muted">
                     Favourite of {year}
                   </p>
-                  <p className="mt-1 truncate font-serif text-lg font-semibold text-ink">
+                  <p className="mt-1 truncate font-display text-lg font-semibold text-ink">
                     {stats.topRated.title}
                   </p>
                   {stats.topRated.rating != null && (

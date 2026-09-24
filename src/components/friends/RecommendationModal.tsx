@@ -84,7 +84,7 @@ export function RecommendationModal({
                 <p className="text-xs font-medium uppercase tracking-wide text-accent">
                   {section.label} · recommended
                 </p>
-                <h2 className="mt-1 font-serif text-2xl font-semibold leading-snug tracking-tight text-ink">
+                <h2 className="mt-1 font-display text-2xl font-semibold leading-snug tracking-tight text-ink">
                   {item.title}
                 </h2>
               </div>
@@ -92,7 +92,7 @@ export function RecommendationModal({
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="-m-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
+                className="-m-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-ivory hover:text-ink"
               >
                 <XIcon className="h-4 w-4" />
               </button>

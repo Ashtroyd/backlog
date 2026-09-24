@@ -116,6 +116,16 @@ export function MoonIcon(props: IconProps) {
   );
 }
 
+/** Half-filled circle, like SF Symbols' "circle.lefthalf.filled" — Automatic appearance. */
+export function AutoThemeIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 3.5a8.5 8.5 0 0 0 0 17Z" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function UsersIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>

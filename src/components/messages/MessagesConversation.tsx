@@ -30,7 +30,7 @@ export default function MessagesConversation({ username }: { username: string })
   if (view === "missing" || view.relation === "self") {
     return (
       <div className="pt-24 text-center">
-        <h1 className="font-serif text-2xl font-semibold text-ink">
+        <h1 className="font-display text-2xl font-semibold text-ink">
           {view === "missing" ? "No such handle" : "That's you"}
         </h1>
         <Link

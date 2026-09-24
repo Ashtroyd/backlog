@@ -146,7 +146,7 @@ export function CommentThread({
           onKeyDown={(e) => {
             if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) post();
           }}
-          className="max-h-32 min-h-[42px] w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+          className="max-h-32 min-h-[42px] w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
         />
         <button
           type="button"

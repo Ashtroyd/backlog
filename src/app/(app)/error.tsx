@@ -18,10 +18,10 @@ export default function AppError({
 
   return (
     <div className="flex flex-col items-center py-24 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ivory font-serif text-2xl text-accent">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ivory font-display text-2xl text-accent">
         !
       </div>
-      <h2 className="mt-5 font-serif text-xl font-semibold text-ink">
+      <h2 className="mt-5 font-display text-xl font-semibold text-ink">
         Something went wrong
       </h2>
       <p className="mt-2 max-w-sm text-sm leading-relaxed text-muted">

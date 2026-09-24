@@ -125,7 +125,7 @@ export function MessageThread({ friend }: { friend: Profile }) {
               >
                 {m.body && (
                   <div
-                    className={`max-w-[78%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-[15px] leading-relaxed ${
+                    className={`max-w-[78%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 text-subhead leading-relaxed ${
                       mine
                         ? "rounded-br-sm bg-accent text-white"
                         : "rounded-bl-sm bg-ivory text-ink"
@@ -137,7 +137,7 @@ export function MessageThread({ friend }: { friend: Profile }) {
                 {m.shared_item && (
                   <SharedItemCard item={m.shared_item} mine={mine} />
                 )}
-                <span className="px-1 text-[11px] text-muted">
+                <span className="px-1 text-caption2 text-muted">
                   {timeAgo(m.created_at)}
                 </span>
               </div>
@@ -168,7 +168,7 @@ export function MessageThread({ friend }: { friend: Profile }) {
               send();
             }
           }}
-          className="max-h-32 min-h-[44px] w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-[15px] leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
+          className="max-h-32 min-h-[44px] w-full resize-none rounded-xl border border-line bg-paper px-3.5 py-2.5 text-subhead leading-relaxed text-ink placeholder:text-muted/70 transition-colors focus:border-line-strong"
         />
         <button
           type="button"

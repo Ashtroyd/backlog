@@ -41,7 +41,7 @@ export function SharedItemCard({
           )}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-accent">
+          <p className="text-caption2 font-medium uppercase tracking-wide text-accent">
             {section.label}
           </p>
           <p className="truncate text-sm font-medium text-ink">{item.title}</p>
@@ -57,7 +57,7 @@ export function SharedItemCard({
           type="button"
           onClick={add}
           disabled={state !== "idle"}
-          className={`flex w-full items-center justify-center gap-1.5 border-t border-line py-2 text-[13px] font-medium transition-colors ${
+          className={`flex w-full items-center justify-center gap-1.5 border-t border-line py-2 text-footnote font-medium transition-colors ${
             state === "added" || state === "have"
               ? "text-sage"
               : "text-accent hover:bg-accent-soft"

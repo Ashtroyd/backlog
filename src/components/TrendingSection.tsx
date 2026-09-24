@@ -84,7 +84,7 @@ export function TrendingSection({
   return (
     <section className="mt-10">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 font-serif text-xl font-semibold text-ink">
+        <h2 className="flex items-center gap-1.5 font-display text-xl font-semibold text-ink">
           {dragHandle}
           <TrendingUpIcon className="h-4.5 w-4.5 text-accent" />
           Currently trending
@@ -97,7 +97,7 @@ export function TrendingSection({
                 key={s}
                 type="button"
                 onClick={() => setSlug(s)}
-                className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${
+                className={`relative flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-footnote font-medium transition-colors ${
                   active ? "text-paper" : "text-muted hover:bg-ivory hover:text-ink"
                 }`}
               >

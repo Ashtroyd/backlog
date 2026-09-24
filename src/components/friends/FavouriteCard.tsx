@@ -20,7 +20,7 @@ export function FavouriteCard({ item }: { item: BacklogItem }) {
             className="object-cover"
           />
         ) : (
-          <div className="flex h-full items-center justify-center font-serif text-4xl text-line-strong">
+          <div className="flex h-full items-center justify-center font-display text-4xl text-line-strong">
             {item.title.charAt(0)}
           </div>
         )}
