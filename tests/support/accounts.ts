@@ -91,6 +91,8 @@ export async function resetAccount(account: Account): Promise<string> {
         id,
         username: account.handle,
         display_name: account.name,
+        avatar_url: null,
+        banner_url: null,
         bio: null,
         home_layout: null,
       })

@@ -1,25 +1,22 @@
--- Repair: profile photo and banner uploads were rejected with "new row
--- violates row-level security policy" — the storage part of 0004 wasn't in
--- effect on the live project. Safe to re-run: it recreates the bucket (if
--- missing) and the four policies exactly as 0004 defines them.
--- Run once in the Supabase SQL Editor.
+-- Repair: profile photo and banner uploads were all rejected with "new row
+-- violates row-level security policy". The avatars bucket had insert/update/
+-- delete policies but no SELECT policy (0004's broad "publicly readable" one
+-- was gone — Supabase's advisor flags it for letting anyone list the bucket).
+-- Uploads use upsert, which reads the row back, so they need SELECT too.
+--
+-- Rather than restore bucket-wide listing, let each user read only their own
+-- folder. The bucket is public, so images still display for everyone through
+-- their public URLs, which don't go through these policies.
 
-insert into storage.buckets (id, name, public)
-  values ('avatars', 'avatars', true)
-  on conflict (id) do update set public = true;
-
-drop policy if exists "avatar images publicly readable" on storage.objects;
-create policy "avatar images publicly readable" on storage.objects
-  for select using (bucket_id = 'avatars');
-
-drop policy if exists "own avatar upload" on storage.objects;
-create policy "own avatar upload" on storage.objects
-  for insert to authenticated
-  with check (
+create policy "own avatar read" on storage.objects
+  for select to authenticated
+  using (
     bucket_id = 'avatars'
     and (storage.foldername(name))[1] = (select auth.uid())::text
   );
 
+-- Also pin the update policy's WITH CHECK, so a file can't be moved into
+-- someone else's folder by an update.
 drop policy if exists "own avatar update" on storage.objects;
 create policy "own avatar update" on storage.objects
   for update to authenticated
@@ -31,15 +28,3 @@ create policy "own avatar update" on storage.objects
     bucket_id = 'avatars'
     and (storage.foldername(name))[1] = (select auth.uid())::text
   );
-
-drop policy if exists "own avatar delete" on storage.objects;
-create policy "own avatar delete" on storage.objects
-  for delete to authenticated
-  using (
-    bucket_id = 'avatars'
-    and (storage.foldername(name))[1] = (select auth.uid())::text
-  );
-
--- Check: should list the four policies above.
-select policyname, cmd from pg_policies
-where schemaname = 'storage' and tablename = 'objects' and policyname like '%avatar%';
