@@ -8,6 +8,7 @@ import { NavContext } from "@/lib/nav-context";
 import { useUnreadMessages } from "@/lib/use-unread-messages";
 import type { Profile } from "@/lib/types";
 import { clearUserCaches, peekUserCache, writeUserCache } from "@/lib/boot-cache";
+import { offlineClear } from "@/lib/offline-store";
 
 function readCachedProfile() {
   const entry = peekUserCache<Profile>("profile");
@@ -15,6 +16,7 @@ function readCachedProfile() {
 }
 import { AuthScreen } from "./AuthScreen";
 import { AppSkeleton } from "./AppSkeleton";
+import { OfflineBanner } from "./OfflineBanner";
 import { Onboarding } from "./Onboarding";
 import { CommandPalette } from "./CommandPalette";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
@@ -83,16 +85,20 @@ export default function AppShell({
         if (p) writeUserCache("profile", userId, p);
       })
       .catch(() => {
-        if (alive) setLoaded({ userId, profile: null });
+        // Offline or flaky: keep last visit's profile if there is one. With
+        // none, stay on the skeleton rather than guessing it's a new account.
       });
     return () => {
       alive = false;
     };
   }, [userId]);
 
-  // Signing out drops the cached profile and shelves from this browser.
+  // Signing out drops the cached profile, shelves and library from this browser.
   useEffect(() => {
-    if (ready && !session) clearUserCaches();
+    if (ready && !session) {
+      clearUserCaches();
+      void offlineClear();
+    }
   }, [ready, session]);
 
   if (!ready) {
@@ -125,6 +131,7 @@ export default function AppShell({
           <div className="lg:pl-60">
             <Nav />
             <main className="mx-auto w-full max-w-6xl px-4 pb-32 sm:px-6 sm:pb-24 lg:px-10">
+              <OfflineBanner />
               {children}
             </main>
           </div>

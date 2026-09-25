@@ -195,10 +195,11 @@ export default function Library({
     });
   }
   /** One-swipe save from the list view; failures surface as a toast. */
-  async function quickSave(item: BacklogItem, patch: UpdatePatch) {
+  async function quickSave(item: BacklogItem, patch: UpdatePatch, success?: string) {
     try {
       const result = await update(item.id, patch);
       if (result.error) toast("error", "Couldn't save that change. Try again.");
+      else if (success) toast("success", success);
     } catch {
       toast("error", "Couldn't save that change. Try again.");
     }
@@ -216,10 +217,12 @@ export default function Library({
           label: "+1 Ep",
           icon: <PlusIcon className="h-5 w-5" />,
           tone: "accent",
-          onAction: () => {
-            void quickSave(item, { progress: watched + 1 });
-            toast("success", `${item.title}: episode ${watched + 1}`);
-          },
+          onAction: () =>
+            void quickSave(
+              item,
+              { progress: watched + 1 },
+              `${item.title}: episode ${watched + 1}`,
+            ),
         };
       }
       return {

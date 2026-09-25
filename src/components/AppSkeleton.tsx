@@ -1,3 +1,5 @@
+import { OfflineBanner } from "./OfflineBanner";
+
 /**
  * Placeholder app chrome for a cold start: sidebar or top bar, a large
  * title and a couple of shelves of grey cards. Server-rendered, so it shows
@@ -26,8 +28,9 @@ export function AppSkeleton() {
             <div className="ml-auto h-8 w-8 animate-pulse rounded-full bg-ivory" />
           </div>
         </div>
-        <div className="mx-auto w-full max-w-6xl px-4 pt-10 sm:px-6 sm:pt-12 lg:px-10">
-          <div className="animate-pulse">
+        <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-10">
+          <OfflineBanner />
+          <div className="animate-pulse pt-10 sm:pt-12">
             <div className="h-3 w-32 rounded bg-ivory" />
             <div className="mt-2.5 h-9 w-48 rounded-lg bg-ivory" />
           </div>

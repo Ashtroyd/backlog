@@ -33,12 +33,13 @@ export async function fetchTopPicks(
   userId: string,
   month: string,
 ): Promise<TopPick[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("top_picks")
     .select("id,position,item:items(*)")
     .eq("user_id", userId)
     .eq("month", month)
     .order("position", { ascending: true });
+  if (error) throw error;
   const rows = (data as unknown as { id: string; position: number; item: BacklogItem | null }[]) ?? [];
   return rows.filter((r): r is TopPick => r.item != null);
 }

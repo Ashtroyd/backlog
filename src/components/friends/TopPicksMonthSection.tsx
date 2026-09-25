@@ -30,9 +30,9 @@ export function TopPicksMonthSection({
 
   useEffect(() => {
     let alive = true;
-    fetchTopPicks(userId, month).then(
-      (p) => alive && setLoaded({ key: `${userId}:${month}`, picks: p }),
-    );
+    fetchTopPicks(userId, month)
+      .then((p) => alive && setLoaded({ key: `${userId}:${month}`, picks: p }))
+      .catch(() => alive && setLoaded({ key: `${userId}:${month}`, picks: [] }));
     return () => {
       alive = false;
     };

@@ -41,6 +41,7 @@ import { TrendingSection } from "./TrendingSection";
 import { EditUpNextSheet } from "./EditUpNextSheet";
 import { SkeletonShelves } from "./AppSkeleton";
 import { readUserCache, writeUserCache } from "@/lib/boot-cache";
+import { useOnline } from "@/lib/use-online";
 import { ChevronRightIcon, PlusIcon } from "./icons";
 
 type FriendPicks = { profile: Profile; picks: TopPick[] };
@@ -260,8 +261,11 @@ export default function Home() {
     [myId, month],
   );
 
+  // Offline, the cached shelves stand; coming back online refreshes them.
+  const online = useOnline();
+
   useEffect(() => {
-    if (!myId) return;
+    if (!myId || !online) return;
     // A failed shelf shows as empty rather than leaving placeholders up.
     fetchContinueItems(myId)
       .then(setContinueItems)
@@ -284,7 +288,7 @@ export default function Home() {
       });
     });
     loadPicks().catch(() => setPicks((prev) => prev ?? []));
-  }, [myId, month, loadPicks]);
+  }, [myId, month, loadPicks, online]);
 
   function openPicker() {
     if (!myId) return;
@@ -586,7 +590,7 @@ export default function Home() {
           onClose={() => setPickerOpen(false)}
           onSaved={async () => {
             setPickerOpen(false);
-            await loadPicks();
+            await loadPicks().catch(() => {});
           }}
         />
       )}

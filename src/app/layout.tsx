@@ -3,6 +3,7 @@ import { Source_Serif_4 } from "next/font/google";
 import { MotionConfig } from "motion/react";
 import { themeScript } from "@/lib/theme-script";
 import { bootScript } from "@/lib/boot-script";
+import { ServiceWorker } from "@/components/ServiceWorker";
 import "./globals.css";
 
 const serif = Source_Serif_4({
@@ -61,6 +62,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full">
         <MotionConfig reducedMotion="user">{children}</MotionConfig>
+        <ServiceWorker />
       </body>
     </html>
   );

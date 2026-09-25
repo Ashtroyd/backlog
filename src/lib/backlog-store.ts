@@ -9,6 +9,8 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
+import { offlineGet, offlineSet } from "./offline-store";
+import { useOnline } from "./use-online";
 import type {
   BacklogItem,
   ItemMeta,
@@ -203,7 +205,11 @@ function cacheSet(userId: string, mediaType: MediaType, items: BacklogItem[]) {
     itemsCache.map.clear();
   }
   itemsCache.map.set(mediaType, items);
+  // And on the device, so the section opens offline or after a relaunch.
+  void offlineSet(offlineKey(userId, mediaType), items);
 }
+
+const offlineKey = (userId: string, mediaType: MediaType) => `items:${userId}:${mediaType}`;
 
 export function useBacklog(mediaType: MediaType) {
   const { session } = useAuth();
@@ -226,11 +232,28 @@ export function useBacklog(mediaType: MediaType) {
     [userId, mediaType],
   );
 
+  const online = useOnline();
+
   useEffect(() => {
     if (!userId) return undefined;
     let alive = true;
+    let fresh = false;
+    let haveCopy = cacheGet(userId, mediaType) !== null;
+    // No copy in memory (a cold start): paint the device's copy while the
+    // network answers — or instead of it, offline.
+    if (!haveCopy) {
+      offlineGet<BacklogItem[]>(offlineKey(userId, mediaType)).then((saved) => {
+        if (!alive || fresh || !saved) return;
+        haveCopy = true;
+        itemsCache.userId = userId;
+        itemsCache.map.set(mediaType, saved);
+        setItems(saved);
+        setReady(true);
+      });
+    }
     (async () => {
       try {
+        if (!online) throw new Error("offline");
         await importLegacyLocalItems(userId);
         const { data, error } = await supabase
           .from("items")
@@ -239,6 +262,7 @@ export function useBacklog(mediaType: MediaType) {
           .eq("media_type", mediaType)
           .order("created_at", { ascending: false });
         if (error) throw error;
+        fresh = true;
         if (alive) {
           cacheSet(userId, mediaType, data as BacklogItem[]);
           setItems(data as BacklogItem[]);
@@ -246,19 +270,23 @@ export function useBacklog(mediaType: MediaType) {
           setReady(true);
         }
       } catch (err) {
-        console.warn("Could not load items from Supabase", err);
-        if (alive) {
-          setLoadError(
-            "Couldn't load your library. If this is a fresh Supabase project, run supabase/migrations/0001_items.sql in the SQL Editor first.",
-          );
-          setReady(true);
-        }
+        if (online) console.warn("Could not load items from Supabase", err);
+        if (!alive) return;
+        // Give the device copy a moment to land before calling it an error.
+        await offlineGet(offlineKey(userId, mediaType));
+        if (!alive || haveCopy) return;
+        setLoadError(
+          online
+            ? "Couldn't load your library. Check your connection and try again."
+            : "You're offline, and this section hasn't been saved on this device yet.",
+        );
+        setReady(true);
       }
     })();
     return () => {
       alive = false;
     };
-  }, [userId, mediaType]);
+  }, [userId, mediaType, online]);
 
   const add = useCallback(
     async (input: AddInput): Promise<{ error: string | null }> => {
@@ -583,13 +611,14 @@ export async function fetchRecentReviews(
   userId: string,
   limit = 6,
 ): Promise<BacklogItem[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("items")
     .select("*")
     .eq("user_id", userId)
     .or("review.not.is.null,current_thoughts.not.is.null")
     .order("updated_at", { ascending: false })
     .limit(limit);
+  if (error) throw error;
   return (data as BacklogItem[]) ?? [];
 }
 
@@ -598,13 +627,14 @@ export async function fetchContinueItems(
   userId: string,
   limit = 8,
 ): Promise<BacklogItem[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("items")
     .select("*")
     .eq("user_id", userId)
     .eq("status", "in_progress")
     .order("updated_at", { ascending: false })
     .limit(limit);
+  if (error) throw error;
   return (data as BacklogItem[]) ?? [];
 }
 

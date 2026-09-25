@@ -46,12 +46,15 @@ export type RelationStatus =
 
 /* ---------- profiles ---------- */
 
+/** Null means "no profile yet" (onboarding); a failed request throws, so
+    being offline is never mistaken for a brand-new account. */
 export async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
     .select(PROFILE_COLS)
     .eq("id", userId)
     .maybeSingle();
+  if (error) throw error;
   return (data as Profile) ?? null;
 }
 
@@ -314,7 +317,7 @@ export async function addComment(
     .select("*")
     .single();
   if (error) return { error: error.message };
-  const author = await fetchProfile(authorId);
+  const author = await fetchProfile(authorId).catch(() => null);
   return {
     error: null,
     comment: author
