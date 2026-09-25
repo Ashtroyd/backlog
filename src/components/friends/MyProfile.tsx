@@ -7,6 +7,7 @@ import { IMAGE_SPEC, uploadProfileImage, type ImageKind } from "@/lib/profile-me
 import type { BacklogItem } from "@/lib/types";
 import { SpinnerIcon } from "@/components/icons";
 import { ImageCropper } from "@/components/ImageCropper";
+import { toast } from "@/lib/toast-bus";
 import { ProfileHero } from "./ProfileHero";
 import { FavouritesRow } from "./FavouritesRow";
 import { StatsPanel } from "./StatsPanel";
@@ -64,10 +65,16 @@ export default function MyProfile() {
       const patch =
         kind === "avatar" ? { avatar_url: url } : { banner_url: url };
       const { profile: updated, error } = await updateProfile(myId!, patch);
-      if (updated) setProfile(updated);
-      else setNote(error);
+      if (updated) {
+        setProfile(updated);
+        toast("success", kind === "avatar" ? "Profile photo updated." : "Banner updated.");
+      } else {
+        toast("error", error ?? "Couldn't save that image. Try again.");
+      }
     } catch {
-      setNote("Couldn't upload that image — try another.");
+      // Toast, not the About form's note: that's usually closed during an
+      // upload, which left failures silent.
+      toast("error", `Couldn't upload your ${IMAGE_SPEC[kind].label}. Try again.`);
     } finally {
       setUploading(null);
     }
