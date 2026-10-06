@@ -1,4 +1,5 @@
 "use client";
+import { useEpisodes } from "@/lib/use-episodes";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -700,6 +701,8 @@ function ContinueCard({
   const total =
     item.meta?.episodes && item.meta.episodes > 0 ? item.meta.episodes : null;
   const watched = item.progress ?? 0;
+  const availability = useEpisodes(item);
+  const available = availability ? Math.max(0, availability.aired - watched) : 0;
   const label = episodic
     ? `${watched}${total ? ` / ${total}` : ""} episodes`
     : item.hours_played != null
@@ -756,6 +759,7 @@ function ContinueCard({
           {item.title}
         </p>
         <p className="mt-0.5 text-footnote tabular-nums text-white/75">{label}</p>
+        {available > 0 && <p className="mt-1 text-caption2 font-semibold text-white">{available} {available === 1 ? "episode" : "episodes"} available</p>}
         {fraction != null && (
           <span className="mt-2 block h-1 overflow-hidden rounded-full bg-white/30">
             <span

@@ -24,11 +24,14 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: npm run build
+      - run: npm run lint
+      - run: node --experimental-strip-types --test tests/*.unit.mjs
       # Account-backed tests reuse two fixed accounts (tests/support/accounts.ts)
       # and skip unless the E2E_PASSWORD repo secret is set.
       - run: npx playwright test
         env:
           E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+          E2E_PRODUCTION: "1"
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

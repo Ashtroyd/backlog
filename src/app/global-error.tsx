@@ -2,6 +2,8 @@
 
 import { Source_Serif_4 } from "next/font/google";
 import { themeScript } from "@/lib/theme-script";
+import { useEffect } from "react";
+import { reportClientCrash } from "@/lib/crash-reporting";
 import "./globals.css";
 
 const serif = Source_Serif_4({
@@ -19,11 +21,13 @@ const serif = Source_Serif_4({
  * layout entirely when active, so it needs its own html/body/fonts.
  */
 export default function GlobalError({
+  error,
   unstable_retry,
 }: {
   error: Error & { digest?: string };
   unstable_retry: () => void;
 }) {
+  useEffect(() => reportClientCrash(error), [error]);
   return (
     <html
       lang="en"

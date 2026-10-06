@@ -598,12 +598,31 @@ export async function addItemToLibrary(
 
 /** Every item in the signed-in user's library, across all media types. */
 export async function fetchAllMyItems(userId: string): Promise<BacklogItem[]> {
-  const { data } = await supabase
-    .from("items")
-    .select("*")
-    .eq("user_id", userId)
-    .order("title", { ascending: true });
-  return (data as BacklogItem[]) ?? [];
+  const types: MediaType[] = ["game", "movie", "series", "anime"];
+  const saved = () => Promise.all(types.map((type) =>
+    offlineGet<BacklogItem[]>(offlineKey(userId, type)),
+  ));
+  try {
+    if (!navigator.onLine) throw new Error("offline");
+    const items: BacklogItem[] = [];
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await supabase.from("items").select("*")
+        .eq("user_id", userId).order("id").range(offset, offset + 999);
+      if (error) throw error;
+      items.push(...(data as BacklogItem[]));
+      if (data.length < 1000) break;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    // A sign-out while this request was in flight must not repopulate the cache.
+    if (session?.user.id === userId) {
+      for (const type of types) cacheSet(userId, type, items.filter((item) => item.media_type === type));
+    }
+    return items;
+  } catch (error) {
+    const copies = await saved();
+    if (copies.some((copy) => copy !== null)) return copies.flatMap((copy) => copy ?? []);
+    throw error;
+  }
 }
 
 /** The user's most recently-written reviews or current-thoughts, across all media types. */

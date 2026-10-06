@@ -256,17 +256,23 @@ export default function Library({
   useEffect(() => onAddTitle(() => setAddOpen(true)), []);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(
-    initialItemId ?? null,
+    () => initialItemId ?? (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("item") : null),
   );
+  // Online navigation can reuse this component with a different server prop.
+  const [lastInitialId, setLastInitialId] = useState(initialItemId);
+  if (initialItemId !== lastInitialId) {
+    setLastInitialId(initialItemId);
+    setSelectedId(initialItemId ?? null);
+  }
 
   function closeDetail() {
     setSelectedId(null);
-    if (initialItemId) {
+    if (new URLSearchParams(window.location.search).has("item")) {
       const next = new URLSearchParams(window.location.search);
       next.delete("item");
-      router.replace(`${pathname}${next.size ? `?${next}` : ""}`, {
-        scroll: false,
-      });
+      const url = `${pathname}${next.size ? `?${next}` : ""}`;
+      if (navigator.onLine) router.replace(url, { scroll: false });
+      else window.history.replaceState(null, "", url);
     }
   }
 

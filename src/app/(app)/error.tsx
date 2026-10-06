@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { reportClientCrash } from "@/lib/crash-reporting";
 
 /** Catches rendering errors anywhere under the authenticated app (sections,
  * friends, messages, profile) instead of taking down the whole page. */
@@ -13,7 +14,7 @@ export default function AppError({
   unstable_retry: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    reportClientCrash(error);
   }, [error]);
 
   return (

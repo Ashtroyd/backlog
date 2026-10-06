@@ -32,11 +32,40 @@ const APP_PAGES = [
   "/profile",
 ];
 
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  let url;
+  try { url = new URL(event.notification.data?.url ?? "/", self.location.origin); } catch { return; }
+  if (url.origin !== self.location.origin) return;
+  event.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
+    for (const client of clients) {
+      if (new URL(client.url).origin === self.location.origin) {
+        await client.navigate(url.href); return client.focus();
+      }
+    }
+    return self.clients.openWindow(url.href);
+  }));
+});
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(PAGES)
-      .then((c) => Promise.all(APP_PAGES.map((u) => c.add(u).catch(() => {}))))
+      .then((cache) => Promise.all(APP_PAGES.map(async (url) => {
+        try {
+          const response = await fetch(url);
+          if (!response.ok) return;
+          await cache.put(url, response.clone());
+          // Save each route's build files too, even before the user visits it.
+          const html = await response.text();
+          const assets = new Set([...html.matchAll(/(?:src|href)="([^"]+)"/g)]
+            .map((match) => new URL(match[1], self.location.origin))
+            .filter((asset) => asset.origin === self.location.origin && asset.pathname.startsWith("/_next/static/"))
+            .map((asset) => asset.href));
+          const staticCache = await caches.open(STATIC);
+          await Promise.all([...assets].map((asset) => staticCache.add(asset).catch(() => {})));
+        } catch { /* Previously cached pages still work on a failed install fetch. */ }
+      })))
       .then(() => self.skipWaiting()),
   );
 });
@@ -45,7 +74,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((k) => !KEEP.includes(k)).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("backlog-") && !KEEP.includes(k)).map((k) => caches.delete(k))))
       .then(() => self.clients.claim()),
   );
 });
@@ -59,7 +88,12 @@ self.addEventListener("message", (event) => {
     caches.open(STATIC).then((cache) =>
       Promise.all(
         urls
-          .filter((u) => new URL(u, self.location.origin).pathname.startsWith("/_next/static/"))
+          .filter((u) => {
+            try {
+              const url = new URL(u, self.location.origin);
+              return url.origin === self.location.origin && url.pathname.startsWith("/_next/static/");
+            } catch { return false; }
+          })
           .map((u) => cache.match(u).then((hit) => hit || cache.add(u).catch(() => {}))),
       ),
     ),
@@ -94,6 +128,7 @@ async function networkFirstPage(request) {
   const cache = await caches.open(PAGES);
   const key = stripQuery(request.url);
   const network = fetch(request).then((response) => {
+    if (response.status >= 500) throw new Error("server unavailable");
     if (response.ok) cache.put(key, response.clone());
     return response;
   });

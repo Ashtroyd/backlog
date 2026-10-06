@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AuthContext, useSession } from "@/lib/backlog-store";
+import { AuthContext, fetchAllMyItems, useSession } from "@/lib/backlog-store";
+import { useOnline } from "@/lib/use-online";
 import { fetchProfile } from "@/lib/social";
 import { openWelcome } from "@/lib/welcome-bus";
 import { NavContext } from "@/lib/nav-context";
@@ -37,6 +38,10 @@ export default function AppShell({
 }: Readonly<{ children: React.ReactNode }>) {
   const { session, ready } = useSession();
   const userId = session?.user?.id ?? null;
+  const online = useOnline();
+  useEffect(() => {
+    if (userId && online) void fetchAllMyItems(userId).catch(() => {});
+  }, [userId, online]);
 
   // Tagged with the user it was fetched for, so a sign-out or account switch
   // reads as "not loaded yet" without resetting anything by hand.
@@ -91,7 +96,7 @@ export default function AppShell({
     return () => {
       alive = false;
     };
-  }, [userId]);
+  }, [userId, online]);
 
   // Signing out drops the cached profile, shelves and library from this browser.
   useEffect(() => {

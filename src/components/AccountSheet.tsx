@@ -11,6 +11,7 @@ import { Avatar } from "./Avatar";
 import { useConfirm } from "./ConfirmDialog";
 import { Modal } from "./Modal";
 import { ThemeToggle } from "./ThemeToggle";
+import { EpisodeNotificationSettings } from "./EpisodeNotificationSettings";
 import {
   ChevronRightIcon,
   CompassIcon,
@@ -132,6 +133,7 @@ export function AccountSheet({
         <div className="mt-4 overflow-hidden rounded-xl bg-ivory/60 py-1">
           <ThemeToggle variant="row" />
         </div>
+        <EpisodeNotificationSettings />
 
         <div className="mt-4 divide-y divide-line overflow-hidden rounded-xl bg-ivory/60">
           <button type="button" onClick={handleExport} className={row}>

@@ -31,8 +31,12 @@ function run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequ
   return open().then(
     (db) =>
       new Promise<T>((resolve, reject) => {
-        const req = fn(db.transaction(STORE, mode).objectStore(STORE));
-        req.onsuccess = () => resolve(req.result as T);
+        const transaction = db.transaction(STORE, mode);
+        const req = fn(transaction.objectStore(STORE));
+        // A successful request can still be rolled back by its transaction.
+        transaction.oncomplete = () => resolve(req.result as T);
+        transaction.onabort = () => reject(transaction.error);
+        transaction.onerror = () => reject(transaction.error);
         req.onerror = () => reject(req.error);
       }),
   );

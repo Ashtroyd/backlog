@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { addItemToLibrary, useAuth } from "@/lib/backlog-store";
+import { addItemToLibrary, fetchAllMyItems, useAuth } from "@/lib/backlog-store";
+import { useOnline } from "@/lib/use-online";
+import { toast } from "@/lib/toast-bus";
 import { onCommandPaletteOpen } from "@/lib/command-palette-bus";
 import { searchTitles, useDebouncedSearch } from "@/lib/use-debounced-search";
-import { SECTIONS, SECTION_SLUGS, type SectionSlug } from "@/lib/sections";
-import type { SearchResult } from "@/lib/types";
+import { SECTIONS, SECTION_BY_MEDIA, SECTION_SLUGS, statusLabelFor, type SectionSlug } from "@/lib/sections";
+import type { BacklogItem, SearchResult } from "@/lib/types";
 import { Modal } from "./Modal";
 import { CoverImage } from "./CoverImage";
 import {
@@ -46,6 +48,9 @@ export function CommandPalette() {
   const { session } = useAuth();
   const userId = session?.user?.id ?? null;
   const router = useRouter();
+  const online = useOnline();
+  const [library, setLibrary] = useState<{ userId: string; items: BacklogItem[] } | null>(null);
+  const [libraryFailed, setLibraryFailed] = useState(false);
 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -53,6 +58,15 @@ export function CommandPalette() {
   const [added, setAdded] = useState<Set<string>>(new Set());
 
   useEffect(() => onCommandPaletteOpen(() => setOpen(true)), []);
+
+  useEffect(() => {
+    if (!open || !userId) return;
+    let alive = true;
+    fetchAllMyItems(userId).then((items) => {
+      if (alive) { setLibrary({ userId, items }); setLibraryFailed(false); }
+    }, () => { if (alive) setLibraryFailed(true); });
+    return () => { alive = false; };
+  }, [open, userId, online]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -78,7 +92,11 @@ export function CommandPalette() {
 
   // Debounced search across all four sources at once.
   const q = query.trim();
-  const search = useDebouncedSearch(open && q.length >= 2 ? q : null, (key, signal) =>
+  const ownHits = library?.userId === userId
+    ? library.items.filter((item) => item.title.toLocaleLowerCase().includes(q.toLocaleLowerCase()))
+      .sort((a, b) => a.title.localeCompare(b.title)).slice(0, 12)
+    : [];
+  const search = useDebouncedSearch(open && online && q.length >= 2 ? q : null, (key, signal) =>
     Promise.all(
       SECTION_SLUGS.map((slug) =>
         searchTitles(SECTIONS[slug].mediaType, key, signal).then(
@@ -96,8 +114,10 @@ export function CommandPalette() {
   const searching = search.loading;
 
   async function handleAdd(hit: Hit) {
-    if (!userId) return;
-    setAddingId(hit.result.externalId);
+    if (!userId || !online) return;
+    const key = `${hit.slug}:${hit.result.externalId}`;
+    setAddingId(key);
+    try {
     const { error } = await addItemToLibrary({
       mediaType: SECTIONS[hit.slug].mediaType,
       externalId: hit.result.externalId,
@@ -107,15 +127,19 @@ export function CommandPalette() {
       genres: hit.result.genres,
       meta: hit.result.meta,
     });
-    setAddingId(null);
     if (!error || error === "duplicate") {
-      setAdded((prev) => new Set(prev).add(hit.result.externalId));
+      setAdded((prev) => new Set(prev).add(key));
+    } else {
+      toast("error", "Couldn't add this title. Try again.");
     }
+    } catch { toast("error", "Couldn't add this title. Check your connection."); }
+    finally { setAddingId(null); }
   }
 
   function go(href: string) {
     setOpen(false);
-    router.push(href);
+    if (online) router.push(href);
+    else window.location.assign(href);
   }
 
   const showNav = query.trim().length < 2;
@@ -128,7 +152,7 @@ export function CommandPalette() {
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search games, movies, series, anime…"
+          placeholder="Search your library or find something new…"
           aria-label="Quick search"
           className="w-full bg-transparent text-lg text-ink placeholder:text-muted"
         />
@@ -139,6 +163,26 @@ export function CommandPalette() {
       </div>
 
       <div className="max-h-[55vh] overflow-y-auto p-2">
+        {!showNav && (
+          <section aria-label="Your library">
+            <h3 className="px-3 py-2 text-footnote font-semibold text-muted">Your library</h3>
+            {ownHits.map((item) => (
+              <button key={item.id} type="button"
+                onClick={() => go(`/${SECTION_BY_MEDIA[item.media_type].slug}?item=${item.id}`)}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-ivory">
+                <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded-md bg-ivory">
+                  <CoverImage src={item.cover_url} title={item.title} sizes="32px" />
+                </div>
+                <span className="min-w-0"><span className="block truncate text-subhead font-medium text-ink">{item.title}</span>
+                  <span className="block text-footnote text-muted">{SECTION_BY_MEDIA[item.media_type].label} · {statusLabelFor(item.status, item.media_type)}</span>
+                </span>
+              </button>
+            ))}
+            {ownHits.length === 0 && <p className="px-3 py-2 text-footnote text-muted">{libraryFailed ? "Library unavailable. Open a section online to save it on this device." : library?.userId !== userId ? "Loading saved library…" : "No matching saved titles."}</p>}
+          </section>
+        )}
+        {!showNav && online && <h3 className="px-3 py-2 text-footnote font-semibold text-muted">Discover and add</h3>}
+        {!showNav && !online && <p className="px-3 py-3 text-footnote text-muted">Search saved titles offline. Connect to discover new ones.</p>}
         {showNav && (
           <ul className="divide-y divide-line/70">
             {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
@@ -171,23 +215,24 @@ export function CommandPalette() {
           </ul>
         )}
 
-        {!showNav && hits == null && !searching && (
+        {!showNav && online && hits == null && !searching && (
           <p className="px-6 py-10 text-center text-sm leading-relaxed text-muted">
             Keep typing to search games, movies, series and anime at once.
           </p>
         )}
 
-        {!showNav && hits && hits.length === 0 && !searching && (
+        {!showNav && online && hits && hits.length === 0 && !searching && (
           <p className="px-6 py-10 text-center text-sm leading-relaxed text-muted">
             No results found.
           </p>
         )}
 
-        {!showNav && hits && hits.length > 0 && (
+        {!showNav && online && hits && hits.length > 0 && (
           <ul className="divide-y divide-line/70">
             {hits.map((hit) => {
-              const isAdded = added.has(hit.result.externalId);
-              const adding = addingId === hit.result.externalId;
+              const key = `${hit.slug}:${hit.result.externalId}`;
+              const isAdded = added.has(key) || (library?.userId === userId && library.items.some((item) => item.media_type === SECTIONS[hit.slug].mediaType && item.external_id === hit.result.externalId));
+              const adding = addingId === key;
               const Icon = SECTION_ICON[hit.slug];
               return (
                 <li
