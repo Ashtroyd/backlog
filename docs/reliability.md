@@ -8,7 +8,13 @@ it does not queue changes. Cover art is available only when previously cached.
 Quick Search shows your saved titles first and opens their detail sheet. It
 works with the device copy offline. Online discovery is kept separate.
 
-Continue cards check released series/anime episodes using TVMaze/Jikan. Unknown
+Continue cards check released series/anime episodes using TVMaze/Jikan. Anime
+checks fall back to Kitsu using exact MyAnimeList mappings (or a stored Kitsu ID)
+when Jikan fails or has incomplete dates. The fallback reads all bounded pages,
+rejects missing dates, gaps and duplicate episode numbers, and counts date-only
+releases after the end of their UTC air date. Upstream HTTP failures and timeouts
+are logged separately without personal data. Each request and provider has a
+timeout, so an unavailable primary cannot hold up the fallback indefinitely. Unknown
 air dates and oversized sources produce no badge rather than a guessed count.
 Optional device notifications require browser permission and a service worker.
 The first check establishes a baseline; only subsequent increases notify.

@@ -19,7 +19,8 @@ export function useEpisodes(item: BacklogItem) {
   const key = `episodes:v1:${userId}:${item.media_type}:${item.external_id}`;
   const [result, setResult] = useState<{ key: string; data: EpisodeAvailability } | null>(null);
   useEffect(() => {
-    if (!userId || !["anime", "series"].includes(item.media_type) || !/^\d+$/.test(item.external_id)) return;
+    const supportedId = item.media_type === "anime" ? /^(?:kitsu:)?\d{1,9}$/.test(item.external_id) : /^\d{1,9}$/.test(item.external_id);
+    if (!userId || !["anime", "series"].includes(item.media_type) || !supportedId) return;
     let alive = true;
     const refresh = async () => {
       const saved = await offlineGet<Saved>(key);
@@ -29,7 +30,7 @@ export function useEpisodes(item: BacklogItem) {
       const work = async () => {
         if (!alive) return;
         try {
-          const response = await fetch(`/api/episodes?type=${item.media_type}&id=${item.external_id}`, { signal: AbortSignal.timeout(35_000) });
+          const response = await fetch(`/api/episodes?type=${item.media_type}&id=${encodeURIComponent(item.external_id)}`, { signal: AbortSignal.timeout(35_000) });
           if (!response.ok) return;
           const { availability } = await response.json() as { availability: EpisodeAvailability | null };
           if (!availability || !alive) return;
