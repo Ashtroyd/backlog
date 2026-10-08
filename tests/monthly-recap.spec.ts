@@ -35,14 +35,14 @@ async function openRecap(page:Page,fail=false){
  await page.getByRole("link",{name:"Monthly recap →",exact:true}).click();await page.getByLabel("Recap month",{exact:true}).fill("2026-09");
  return ()=>{fail=false;};
 }
-for(const width of [390,1440])test(`recap is private-safe and downloads a PNG at ${width}px`,async({page})=>{
+for(const width of [390,1440])test(`recap is private-safe and downloads a PNG at ${width}px`,async({page},testInfo)=>{
  await page.setViewportSize({width,height:1000});const errors:string[]=[];page.on("pageerror",e=>errors.push(e.message));
  await openRecap(page);await expect(page.getByRole("heading",{name:"2 titles, finished."})).toBeVisible();
  await expect(page.getByText("Unknown finish date",{exact:true})).toHaveCount(0);
  const canvas=page.locator("canvas");await expect(canvas).toHaveAttribute("aria-label",/1 title finished/);await expect(canvas).not.toHaveAttribute("aria-label",/Secret favourite/);
  const downloadPromise=page.waitForEvent("download");await page.getByRole("button",{name:"Download card"}).click();const download=await downloadPromise;const bytes=await readFile((await download.path())!);
  expect(bytes.subarray(1,4).toString()).toBe("PNG");expect(bytes.readUInt32BE(16)).toBe(1080);expect(bytes.readUInt32BE(20)).toBe(1350);
- await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:`/private/tmp/backlog-recap-${width}.png`,fullPage:true});
+ await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:testInfo.outputPath(`recap-${width}.png`),fullPage:true});
  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  await page.getByLabel("Recap month",{exact:true}).fill("2026-08");await expect(page.getByRole("heading",{name:"A quieter month."})).toBeVisible();
  expect(errors).toEqual([]);
