@@ -27,6 +27,10 @@ Auth) for cross-device sync. Deploys to Vercel.
 - **Messages** — direct messages between friends.
 - **Notifications** — a bell for friend requests and shared-backlog activity.
 - **Top Picks** — a monthly, manually-curated highlight reel per section.
+- **Monthly recap** — recorded completions, current favourites and scores,
+  with a downloadable PNG card that excludes private titles and notes.
+  Find it on Up Next or in Account. Months use UTC completion dates, not
+  inferred playtime; editing the library may change a recap.
 - **Trending** — what's currently popular per section, from the same free
   sources used for search.
 - **Command palette** — `Cmd`/`Ctrl`+`K` to jump anywhere or add a title fast.

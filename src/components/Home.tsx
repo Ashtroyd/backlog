@@ -527,6 +527,7 @@ export default function Home() {
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
         <button type="button" onClick={() => { setStartPickerMounted(true); setStartPickerOpen(true); }} className="min-h-11 rounded-full bg-accent px-5 text-subhead font-medium text-white transition-colors hover:bg-accent-hover">Help me choose</button>
         <p className="text-footnote text-muted">Something for the time and mood you’re in.</p>
+        <Link href="/recap" className="min-h-11 rounded-full bg-ivory px-5 py-2.5 text-subhead font-medium text-accent">Monthly recap →</Link>
       </div>
 
       {/* First visit only (later ones start from the cached shelves):

@@ -134,6 +134,7 @@ export function AccountSheet({
           <ThemeToggle variant="row" />
         </div>
         <EpisodeNotificationSettings />
+        <div className="mt-4 overflow-hidden rounded-xl bg-ivory/60"><Link href="/recap" onClick={onClose} className={row}><span className="flex-1">Monthly recap</span><ChevronRightIcon className="h-4 w-4 text-muted" /></Link></div>
 
         <div className="mt-4 divide-y divide-line overflow-hidden rounded-xl bg-ivory/60">
           <button type="button" onClick={handleExport} className={row}>
