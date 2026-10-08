@@ -3,6 +3,7 @@ import { useEpisodes } from "@/lib/use-episodes";
 
 import Link from "next/link";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import {
@@ -46,6 +47,7 @@ import { useOnline } from "@/lib/use-online";
 import { ChevronRightIcon, PlusIcon } from "./icons";
 
 type FriendPicks = { profile: Profile; picks: TopPick[] };
+const StartPicker = dynamic(() => import("./StartPicker"));
 
 type UpNextCache = {
   month: string;
@@ -167,6 +169,8 @@ export default function Home() {
   } | null>(null);
   const [allItems, setAllItems] = useState<BacklogItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [startPickerOpen, setStartPickerOpen] = useState(false);
+  const [startPickerMounted, setStartPickerMounted] = useState(false);
 
   // Opening a title from a shelf shows its review right here — no navigating
   // to the section page first. `openSection` only updates when a new item is
@@ -520,6 +524,10 @@ export default function Home() {
       <h1 className="mt-0.5 font-display text-4xl font-bold tracking-tight text-ink">
         Up Next
       </h1>
+      <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button type="button" onClick={() => { setStartPickerMounted(true); setStartPickerOpen(true); }} className="min-h-11 rounded-full bg-accent px-5 text-subhead font-medium text-white transition-colors hover:bg-accent-hover">Help me choose</button>
+        <p className="text-footnote text-muted">Something for the time and mood you’re in.</p>
+      </div>
 
       {/* First visit only (later ones start from the cached shelves):
           placeholders instead of shelves popping in one by one. */}
@@ -551,6 +559,13 @@ export default function Home() {
         onClose={() => setEditOpen(false)}
         onSave={saveLayout}
       />
+
+      {startPickerMounted && myId && <StartPicker key={myId} open={startPickerOpen} userId={myId} onClose={() => setStartPickerOpen(false)} onChoose={(item) => {
+        setStartPickerOpen(false);
+        setOpenCoverId(undefined);
+        setOpenSection(SECTION_BY_MEDIA[item.media_type]);
+        setOpenItem(item);
+      }} />}
 
       <DetailModal
         item={openItem}

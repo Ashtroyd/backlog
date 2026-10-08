@@ -31,6 +31,7 @@ Auth) for cross-device sync. Deploys to Vercel.
   sources used for search.
 - **Command palette** — `Cmd`/`Ctrl`+`K` to jump anywhere or add a title fast.
 - **Import/export** — back up your whole library to JSON, or restore one.
+- **Help me choose** — get explained picks from your own backlog on Up Next, filtered by media type, mood and session length. Pinned titles and genres you have enjoyed come first; paused titles are optional. Time guidance is not a verified runtime.
 - **Installable PWA** — add it to your home screen on desktop or mobile.
 
 ## Setup
