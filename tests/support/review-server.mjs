@@ -48,6 +48,15 @@ const base = {
 let items = [
   {
     ...base,
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    external_id: "1",
+    media_type: "series",
+    title: "Review Series",
+    progress: 3,
+    meta: { ...base.meta, episodes: 8 },
+  },
+  {
+    ...base,
     id: "anime-1",
     external_id: "21",
     media_type: "anime",
@@ -109,6 +118,7 @@ let items = [
   },
 ];
 let failNext = false;
+let watchSessions = [];
 const writes = [];
 function json(res, data, code = 200) {
   res.writeHead(code, {
@@ -150,6 +160,35 @@ http
       return json(res, { ready: true });
     }
     if (url.pathname === "/__review/state") return json(res, { items, writes });
+    if (url.pathname === "/rest/v1/episode_watch_sessions") {
+      const rows = watchSessions.filter((row) => matches(row, url.searchParams)).sort((a, b) => b.created_at.localeCompare(a.created_at));
+      return json(res, rows.slice(0, Number(url.searchParams.get("limit") ?? 20)));
+    }
+    if (url.pathname === "/rest/v1/rpc/log_episode_watch" || url.pathname === "/rest/v1/rpc/undo_episode_watch") {
+      const input = await body(req);
+      if (failNext) { failNext = false; return json(res, { message: "Simulated save failure", code: "REVIEW" }, 503); }
+      const item = items.find((row) => row.id === input.p_item_id);
+      if (!item) return json(res, { message: "Title unavailable." }, 400);
+      if (url.pathname.endsWith("/log_episode_watch")) {
+        const existing = watchSessions.find((row) => row.id === input.p_request_id);
+        if (existing) return json(res, item);
+        if ((item.progress ?? 0) !== input.p_expected_progress) return json(res, { message: "Progress changed on another screen. Reopen the title before logging." }, 400);
+        const after = (item.progress ?? 0) + (input.p_rewatch ? 0 : input.p_episodes.length);
+        watchSessions.push({ id: input.p_request_id, item_id: item.id, user_id: user.id, watched_on: input.p_watched_on,
+          episodes: input.p_episodes, is_rewatch: input.p_rewatch, progress_before: item.progress ?? 0, progress_after: after,
+          status_before: item.status, started_at_before: item.started_at, created_at: new Date().toISOString() });
+        item.progress = after;
+        if (!input.p_rewatch) { if (["backlog", "on_hold", "dropped"].includes(item.status)) item.status = "in_progress"; item.started_at ??= input.p_watched_on; }
+      } else {
+        const log = watchSessions.find((row) => row.id === input.p_session_id && row.item_id === item.id);
+        if (!log || log.progress_after !== item.progress) return json(res, { message: "Progress changed since this log." }, 400);
+        item.progress = log.progress_before;
+        watchSessions = watchSessions.filter((row) => row.id !== log.id);
+      }
+      item.updated_at = new Date().toISOString();
+      writes.push({ method: "RPC", input });
+      return json(res, item);
+    }
     if (url.pathname.startsWith("/auth/v1/token")) {
       const encode = (v) =>
         Buffer.from(JSON.stringify(v)).toString("base64url");
@@ -215,6 +254,10 @@ http
   );
 const proxy = http
   .createServer((req, res) => {
+    if (req.url.startsWith("/api/episodes/catalogue")) return json(res, {
+      episodes: Array.from({ length: 8 }, (_, i) => ({ ordinal: i + 1, season: i < 4 ? 1 : 2, number: i % 4 + 1, title: `Chapter ${i + 1}` })),
+    });
+    if (req.url.startsWith("/api/episodes")) return json(res, { availability: { aired: 8, latestAirAt: "2026-10-01T12:00:00Z", nextAirAt: null }, source: "tvmaze" });
     if (req.url.startsWith("/api/import/steam"))
       return json(res, {
         results: [

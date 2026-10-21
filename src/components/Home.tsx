@@ -31,6 +31,8 @@ import {
 import { SECTION_BY_MEDIA, SECTIONS, type Section } from "@/lib/sections";
 import { toast } from "@/lib/toast-bus";
 import { removeWithUndo } from "@/lib/undo";
+import { todayISODate } from "@/lib/format";
+import { nextWatchEpisodes } from "@/lib/watch-history";
 import type { BacklogItem, Profile } from "@/lib/types";
 import { Avatar } from "./Avatar";
 import { CoverImage } from "./CoverImage";
@@ -48,6 +50,7 @@ import { ChevronRightIcon, PlusIcon } from "./icons";
 
 type FriendPicks = { profile: Profile; picks: TopPick[] };
 const StartPicker = dynamic(() => import("./StartPicker"));
+const WatchTonightModal = dynamic(() => import("./WatchTonightModal").then((module) => module.WatchTonightModal));
 
 type UpNextCache = {
   month: string;
@@ -130,6 +133,7 @@ function serializeLayout(order: SectionKey[], hidden: Set<SectionKey>): string[]
  * "Edit Up Next" reorders and hides shelves.
  */
 export default function Home() {
+  const [watchTonightOpen, setWatchTonightOpen] = useState(false);
   const { session, profile, setProfile } = useAuth();
   const myId = session?.user?.id ?? null;
   const month = currentMonth();
@@ -204,6 +208,7 @@ export default function Home() {
 
   /** Patches an item wherever it appears on the homescreen's own shelves. */
   function patchLocalItem(id: string, fields: Partial<BacklogItem>) {
+    setOpenItem((prev) => prev?.id === id ? { ...prev, ...fields } : prev);
     setContinueItems(
       (prev) =>
         prev?.map((i) => (i.id === id ? { ...i, ...fields } : i)) ?? prev,
@@ -224,7 +229,13 @@ export default function Home() {
     const result = await updateItemDirect(item, patch);
     if (!result.error) {
       patchLocalItem(item.id, result.fields as Partial<BacklogItem>);
-      if (patch.status && patch.status !== "in_progress") {
+      if (patch.watch && result.fields.status === "in_progress") {
+        setContinueItems((prev) => [
+          { ...item, ...result.fields } as BacklogItem,
+          ...(prev ?? []).filter((row) => row.id !== item.id),
+        ]);
+      }
+      if (result.fields.status && result.fields.status !== "in_progress") {
         setContinueItems(
           (prev) => prev?.filter((i) => i.id !== item.id) ?? prev,
         );
@@ -528,7 +539,10 @@ export default function Home() {
         <button type="button" onClick={() => { setStartPickerMounted(true); setStartPickerOpen(true); }} className="min-h-11 rounded-full bg-accent px-5 text-subhead font-medium text-white transition-colors hover:bg-accent-hover">Help me choose</button>
         <p className="text-footnote text-muted">Something for the time and mood you’re in.</p>
         <Link href="/recap" className="min-h-11 rounded-full bg-ivory px-5 py-2.5 text-subhead font-medium text-accent">Monthly recap →</Link>
+        <button type="button" onClick={() => setWatchTonightOpen(true)} className="min-h-11 rounded-full bg-ivory px-5 text-subhead font-medium text-accent hover:bg-line">Watched tonight</button>
       </div>
+
+      {watchTonightOpen && <WatchTonightModal onClose={() => setWatchTonightOpen(false)} onSave={saveItem} />}
 
       {/* First visit only (later ones start from the cached shelves):
           placeholders instead of shelves popping in one by one. */}
@@ -730,7 +744,8 @@ function ContinueCard({
     if (busy) return;
     setBusy(true);
     try {
-      const result = await onSave(item, { progress: watched + 1 });
+      const result = await onSave(item, { watch: { requestId: crypto.randomUUID(), watchedOn: todayISODate(), rewatch: false,
+        episodes: nextWatchEpisodes(watched, 1, null, total) } });
       if (result.error) toast("error", "Couldn't update progress. Try again.");
     } catch {
       toast("error", "Couldn't update progress. Try again.");

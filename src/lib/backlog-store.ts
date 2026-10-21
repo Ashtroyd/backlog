@@ -11,6 +11,7 @@ import type { Session } from "@supabase/supabase-js";
 import { supabase } from "./supabase";
 import { offlineGet, offlineSet } from "./offline-store";
 import { useOnline } from "./use-online";
+import type { WatchInput } from "./watch-history";
 import type {
   BacklogItem,
   ItemMeta,
@@ -83,6 +84,9 @@ export type ImportInput = AddInput & {
 };
 
 export type UpdatePatch = {
+  /** Atomic watch log + progress update; never combined with other edits. */
+  watch?: WatchInput;
+  undoWatch?: string;
   status?: ItemStatus;
   rating?: number | null;
   review?: string | null;
@@ -429,7 +433,7 @@ export function useBacklog(mediaType: MediaType) {
     async (
       id: string,
       patch: UpdatePatch,
-    ): Promise<{ error: string | null }> => {
+    ): Promise<{ error: string | null; fields?: Record<string, unknown> }> => {
       const item = items.find((i) => i.id === id);
       if (!item) return { error: "That title is no longer in your library." };
       try {
@@ -445,7 +449,7 @@ export function useBacklog(mediaType: MediaType) {
             return i;
           }),
         );
-        return { error: null };
+        return { error: null, fields: result.fields };
       } catch {
         return {
           error:
@@ -532,6 +536,18 @@ export async function updateItemDirect(
   item: BacklogItem,
   patch: UpdatePatch,
 ): Promise<{ error: string | null; fields: Record<string, unknown> }> {
+  if (patch.watch || patch.undoWatch) {
+    if (Object.keys(patch).length !== 1) return { error: "Save other changes before logging episodes.", fields: {} };
+    const watch = patch.watch;
+    const { data, error } = watch
+      ? await supabase.rpc("log_episode_watch", {
+          p_item_id: item.id, p_expected_progress: item.progress ?? 0,
+          p_request_id: watch.requestId, p_watched_on: watch.watchedOn,
+          p_episodes: watch.episodes, p_rewatch: watch.rewatch,
+        })
+      : await supabase.rpc("undo_episode_watch", { p_item_id: item.id, p_session_id: patch.undoWatch });
+    return { error: error?.message ?? (!data ? "Couldn't save this watch log." : null), fields: data ?? {} };
+  }
   const fields = normalizeUpdateFields(item, patch);
 
   if (patch.is_favorite === true) {

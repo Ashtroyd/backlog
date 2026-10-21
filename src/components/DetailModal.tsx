@@ -14,8 +14,10 @@ import { useAuth, type UpdatePatch } from "@/lib/backlog-store";
 import { fetchAlsoHave, type AlsoHave } from "@/lib/social";
 import { hasShareableTake, itemChips } from "@/lib/chips";
 import { todayISODate } from "@/lib/format";
+import { nextWatchEpisodes } from "@/lib/watch-history";
 import type { BacklogItem, ItemStatus } from "@/lib/types";
 import { Modal, SheetDragArea } from "./Modal";
+import { EpisodeTracker } from "./EpisodeTracker";
 import { PopoverMenu, useMenu } from "./PopoverMenu";
 import { StarRating } from "./StarRating";
 import { Avatar } from "./Avatar";
@@ -107,7 +109,7 @@ export function DetailModal({
   onUpdate: (
     id: string,
     patch: UpdatePatch,
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ error: string | null; fields?: Record<string, unknown> }>;
   onRemove: (id: string) => Promise<{ error: string | null }>;
   onRefresh?: (
     id: string,
@@ -418,9 +420,36 @@ export function DetailModal({
     }
   }
 
-  /** Step the episode counter (saved at once), clamped to [0, total] when known. */
+  async function trackEpisodes(patch: UpdatePatch, progress: number) {
+    if (!item || saving || dirty) return { error: "Save your other edits before logging episodes." };
+    setSaving(true);
+    try {
+      const result = await onUpdate(item.id, patch);
+      if (!result.error) {
+        const saved = result.fields as Partial<BacklogItem> | undefined;
+        const nextStatus = saved?.status ?? item.status;
+        const nextStartedAt = saved && "started_at" in saved ? saved.started_at ?? null : item.started_at;
+        const nextProgress = saved?.progress ?? progress;
+        setEpisodes(String(nextProgress));
+        setStatus(nextStatus);
+        setStartedAt(nextStartedAt ?? "");
+        setSnapshot((prev) => prev ? { ...prev, progress: nextProgress, status: nextStatus, started_at: nextStartedAt } : prev);
+      }
+      return result;
+    } finally { setSaving(false); }
+  }
+
+  /** +1 records a dated watch; decreasing the counter corrects your current place. */
   function stepEpisodes(delta: number) {
     const next = Math.max(0, (Number(episodes) || 0) + delta);
+    if (delta > 0 && current) {
+      if (totalEpisodes != null && next > totalEpisodes) return;
+      void trackEpisodes({ watch: { requestId: crypto.randomUUID(), watchedOn: todayISODate(), rewatch: false,
+        episodes: nextWatchEpisodes(current.progress ?? 0, 1, null, totalEpisodes) } }, next)
+        .then((result) => { if (result.error) setSaveError(result.error); })
+        .catch(() => setSaveError("Couldn't log this episode. Try again."));
+      return;
+    }
     void quick({
       progress: totalEpisodes != null ? Math.min(next, totalEpisodes) : next,
     });
@@ -742,7 +771,7 @@ export function DetailModal({
                   </Row>
                 )}
                 {status !== "backlog" && isEpisodic && (
-                  <Row label="Episodes">
+                  <Row label="Total watched">
                     <input
                       type="number"
                       inputMode="numeric"
@@ -751,7 +780,7 @@ export function DetailModal({
                       step={1}
                       value={episodes}
                       onChange={(e) => setEpisodes(e.target.value)}
-                      aria-label="Episodes watched"
+                      aria-label="Total episodes watched"
                       placeholder="0"
                       className="min-h-9 w-14 rounded-lg bg-surface text-center text-subhead tabular-nums text-ink"
                     />
@@ -761,6 +790,7 @@ export function DetailModal({
                     <span className="flex overflow-hidden rounded-lg bg-surface">
                       <button
                         type="button"
+                        disabled={saving || dirty}
                         onClick={() => stepEpisodes(-1)}
                         aria-label="One fewer episode watched"
                         className="relative flex h-9 w-11 items-center justify-center text-lg text-ink transition-colors hover:bg-line/60"
@@ -770,6 +800,7 @@ export function DetailModal({
                       <span className="my-2 w-px bg-line" />
                       <button
                         type="button"
+                        disabled={saving || dirty || (totalEpisodes != null && Number(episodes) >= totalEpisodes)}
                         onClick={() => stepEpisodes(1)}
                         aria-label="One more episode watched"
                         className="relative flex h-9 w-11 items-center justify-center text-lg text-ink transition-colors hover:bg-line/60"
@@ -819,6 +850,13 @@ export function DetailModal({
                   })),
                 ]}
               />
+
+              {isEpisodic && item && (
+                <>
+                  <p className="mt-2 px-4 text-footnote text-muted">Log new watches below. Editing Total watched corrects your place without changing watch history.</p>
+                  <EpisodeTracker key={item.id} item={item} disabled={saving || dirty} onTrack={trackEpisodes} />
+                </>
+              )}
 
               {section.mediaType === "game" && status === "in_progress" && (
                 <>

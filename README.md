@@ -101,3 +101,39 @@ Before deploying these changes, apply `supabase/migrations/20260910084835_add_on
 `node --experimental-strip-types --test tests/import-cleanup.unit.mjs` checks import classification and duplicate title matching (Node 22+).
 
 For browser checks without touching live accounts, follow the commands in `tests/support/review-server.mjs`. The fixture backend supports a one-shot simulated save failure at `POST /__review/fail-next` and recorded writes at `GET /__review/state` on port 3101. This is a local test server, not an alternative production backend.
+
+### Episode tracking and Watched tonight
+
+Up Next now has **Watched tonight**: choose a series or anime, enter how many
+new episodes you watched, and choose the watch date. Series show TVMaze season
+and episode numbers (regular episodes, excluding specials). Anime and titles
+without season metadata keep their overall episode numbering. Batches can cross
+season boundaries. Rewatches get their own dated logs without advancing your
+place, and Undo removes the most recent log while restoring its previous count.
+
+The title editor includes the same logger and a private watch history. Existing
+progress remains undated; editing **Total watched** corrects your place without
+inventing or deleting watch dates. Continue's **+1** also records a dated watch.
+Logging new episodes starts or resumes watching without automatically marking
+an ongoing show completed. History remains private even for a shared title.
+Library JSON backups currently cover library items, **not dated watch logs**;
+replacing the library from a backup also removes its associated watch logs.
+
+Before deploying, apply
+`supabase/migrations/20261021090539_episode_watches.sql`. It adds an owner-only
+history table and two invoker functions for atomic logging and undo; it does not
+rewrite existing progress. No additional API keys are needed.
+
+Verification:
+
+```bash
+node --test tests/watch-history.unit.mjs tests/episode-data.unit.mjs tests/episode-sources.unit.mjs
+npx playwright test -c tests/support/watch-history.config.ts
+```
+
+The dedicated browser configuration starts isolated fixture servers with synthetic
+accounts; it does not connect to live accounts. The SQL checks in
+`tests/episode-watches.sql` verify atomic writes, retry handling, stale progress,
+rewatches, undo, and owner isolation. To run them without a live database, install
+`@electric-sql/pglite` in a temporary directory, set `PGLITE_TEST_MODULE` to its
+`dist/index.js`, and run `node tests/support/check-watch-db.mjs`.

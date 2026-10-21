@@ -69,7 +69,7 @@ export function AccountSheet({
       const ok = await confirm({
         title: "Import backup?",
         message:
-          "This replaces your entire library with the file's contents. Your current items will be gone.",
+          "This replaces your entire library with the file's contents. Your current items and dated watch history will be gone. Library backups do not include watch history.",
         confirmLabel: "Import",
         danger: true,
       });
